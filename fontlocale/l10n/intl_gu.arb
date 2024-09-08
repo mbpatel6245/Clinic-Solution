@@ -1,0 +1,10 @@
+{
+  "appTitle": "My Flutter App",
+  "login": "લૉગિન કરો",
+  "logout": "લોગઆઉટ",
+  "welcomeMessage": "એપ્લિકેશનમાં આપનું સ્વાગત છે!",
+  "errorMessage": "એક ભૂલ આવી.",
+  "email":"ઇમેઇલ",
+    "password":"પાસવર્ડ",
+    "forgotPassword":"પાસવર્ડ ભૂલી ગયા છો?"
+}

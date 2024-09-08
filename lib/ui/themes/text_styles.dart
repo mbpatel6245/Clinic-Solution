@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 class AppTextStyles {
+
   static double getFontSize(Locale locale, double baseSize) {
     switch (locale.languageCode) {
       case 'gu': // Example for Arabic
         return baseSize * 1.1; // Slightly larger for readability
       case 'hi': // Example for Chinese
-        return baseSize * 0.9; // Slightly smaller for compact scripts
+        return baseSize * 1.05; // Slightly smaller for compact scripts
       default:
         return baseSize;
     }

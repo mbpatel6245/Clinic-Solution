@@ -1,0 +1,11 @@
+{
+  "appTitle": "My Flutter App",
+  "login": "Login",
+  "logout": "Logout",
+  "welcomeMessage": "Welcome to the app!",
+  "errorMessage": "An error occurred.",
+  "email":"Email",
+  "password":"Password",
+  "forgotPassword":"Forgot Password?"
+
+}

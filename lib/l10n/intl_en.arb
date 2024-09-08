@@ -4,8 +4,18 @@
   "logout": "Logout",
   "welcomeMessage": "Welcome to the app!",
   "errorMessage": "An error occurred.",
-  "email":"Email",
-  "password":"Password",
-  "forgotPassword":"Forgot Password?"
-
+  "email": "Email",
+  "password": "Password",
+  "forgotPassword": "Forgot Password?",
+  "newUserRegister": "New User Register",
+  "phone": "Phone",
+  "role": "Role",
+  "register": "Register",
+  "emailRequired": "Email is required",
+  "validEmail": "Enter a valid email",
+  "passwordRequired": "Password is required",
+  "validPassword": "Password must be at least 6 characters",
+  "phoneRequired": "Phone number is required",
+  "validPhone": "Enter a valid 10-digit phone number",
+  "roleRequired": "Role is required"
 }

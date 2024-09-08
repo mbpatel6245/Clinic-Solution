@@ -24,13 +24,32 @@ class MessageLookup extends MessageLookupByLibrary {
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
         "email": MessageLookupByLibrary.simpleMessage("ईमेल"),
+        "emailRequired":
+            MessageLookupByLibrary.simpleMessage("ईमेल की जरूरत है"),
         "errorMessage":
             MessageLookupByLibrary.simpleMessage("एक त्रुटि पाई गई।"),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("पासवर्ड भूल गए?"),
         "login": MessageLookupByLibrary.simpleMessage("लॉग इन करें"),
         "logout": MessageLookupByLibrary.simpleMessage("लॉग आउट"),
+        "newUserRegister":
+            MessageLookupByLibrary.simpleMessage("नया उपयोगकर्ता रजिस्टर"),
         "password": MessageLookupByLibrary.simpleMessage("पासवर्ड"),
+        "passwordRequired":
+            MessageLookupByLibrary.simpleMessage("पासवर्ड आवश्यक है"),
+        "phone": MessageLookupByLibrary.simpleMessage("फ़ोन"),
+        "phoneRequired":
+            MessageLookupByLibrary.simpleMessage("फ़ोन नंबर आवश्यक है"),
+        "register": MessageLookupByLibrary.simpleMessage("पंजीकरण करवाना"),
+        "role": MessageLookupByLibrary.simpleMessage("भूमिका"),
+        "roleRequired":
+            MessageLookupByLibrary.simpleMessage("भूमिका आवश्यक है"),
+        "validEmail":
+            MessageLookupByLibrary.simpleMessage("एक वैध ईमेल दर्ज करें"),
+        "validPassword": MessageLookupByLibrary.simpleMessage(
+            "पासवर्ड कम से कम ६ अंकों का होना चाहिए"),
+        "validPhone": MessageLookupByLibrary.simpleMessage(
+            "मान्य १०-अंकीय फ़ोन नंबर दर्ज करें"),
         "welcomeMessage":
             MessageLookupByLibrary.simpleMessage("ऐप में आपका स्वागत है!")
       };

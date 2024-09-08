@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "715512178126",
+    "project_id": "clinical-solution-5dc1d",
+    "storage_bucket": "clinical-solution-5dc1d.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:715512178126:android:cf70974901bb38d482779f",
+        "android_client_info": {
+          "package_name": "com.mobitab.clinic"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmU2_4izpoH6MlqqqoEOVN8RLNmaCS2EE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

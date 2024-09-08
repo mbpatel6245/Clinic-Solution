@@ -1,4 +1,4 @@
-package com.mobitab.clinic.clinic_solution
+package com.mobitab.clinic
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -4,7 +4,18 @@
   "logout": "लॉग आउट",
   "welcomeMessage": "ऐप में आपका स्वागत है!",
   "errorMessage": "एक त्रुटि पाई गई।",
-  "email":"ईमेल",
-    "password":"पासवर्ड",
-    "forgotPassword":"पासवर्ड भूल गए?"
+  "email": "ईमेल",
+  "password": "पासवर्ड",
+  "forgotPassword": "पासवर्ड भूल गए?",
+  "newUserRegister": "नया उपयोगकर्ता रजिस्टर",
+  "phone": "फ़ोन",
+  "role": "भूमिका",
+  "register": "पंजीकरण करवाना",
+  "emailRequired": "ईमेल की जरूरत है",
+  "validEmail": "एक वैध ईमेल दर्ज करें",
+  "passwordRequired": "पासवर्ड आवश्यक है",
+  "validPassword": "पासवर्ड कम से कम ६ अंकों का होना चाहिए",
+  "phoneRequired": "फ़ोन नंबर आवश्यक है",
+  "validPhone": "मान्य १०-अंकीय फ़ोन नंबर दर्ज करें",
+  "roleRequired": "भूमिका आवश्यक है"
 }

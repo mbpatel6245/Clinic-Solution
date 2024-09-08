@@ -1,18 +1,22 @@
+import 'package:clinic_solution/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/locale_key.dart';
 import '../../../core/utils/locale_provider.dart';
 import '../../themes/text_styles.dart';
+import '../../widgets/common_textfield.dart';
 import 'login_viewmodel.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginScreen extends StatelessWidget {
   // final TextEditingController _emailController = TextEditingController();
   // final TextEditingController _passwordController = TextEditingController();
   final LoginViewModel _viewModel = LoginViewModel();
   var localeProvider = LocaleProvider();
 
-  LoginPage({super.key});
+  LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -35,19 +39,33 @@ class LoginPage extends StatelessWidget {
                       .copyWith(fontSize: 32),
                 ),
                 const SizedBox(height: 30),
-                _buildTextField(
+                CommonTextField(
                   controller: _viewModel.emailController,
                   labelText: AppLocalizations.of(context)!.email,
-                  icon: Icons.email,
                   isPassword: false,
+                  hintText: "",
+                  prefixIcon: Icons.email,
                 ),
+                // _buildTextField(
+                //   controller: _viewModel.emailController,
+                //   labelText: AppLocalizations.of(context)!.email,
+                //   icon: Icons.email,
+                //   isPassword: false,
+                // ),
                 const SizedBox(height: 20),
-                _buildTextField(
+                CommonTextField(
+                  controller: _viewModel.passwordController,
+                  labelText: AppLocalizations.of(context)!.password,
+                  isPassword: true,
+                  hintText: "",
+                  prefixIcon: Icons.lock,
+                ),
+                /*_buildTextField(
                   controller: _viewModel.passwordController,
                   labelText: AppLocalizations.of(context)!.password,
                   icon: Icons.lock,
                   isPassword: true,
-                ),
+                ),*/
                 const SizedBox(height: 30),
                 ElevatedButton(
                   onPressed: () => _viewModel.login(),
@@ -87,46 +105,17 @@ class LoginPage extends StatelessWidget {
                           localeProvider.locale)),
                 ),
                 const SizedBox(height: 40),
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          localeProvider.setLocale(const Locale('en', ''));
-                        },
-                        child: Text('English',
-                            style: AppTextStyles.getRegularTextStyle(
-                                    localeProvider.locale)
-                                .copyWith(
-                                    decoration: TextDecoration.underline)),
-                      ),
-                      const SizedBox(width: 20),
-                      GestureDetector(
-                        onTap: () {
-                          localeProvider.setLocale(const Locale('hi', ''));
-                        },
-                        child: Text('हिंदी',
-                            style: AppTextStyles.getRegularTextStyle(
-                                    localeProvider.locale)
-                                .copyWith(
-                                    decoration: TextDecoration.underline)),
-                      ),
-                      const SizedBox(width: 20),
-                      GestureDetector(
-                        onTap: () {
-                          localeProvider.setLocale(const Locale('gu', ''));
-                        },
-                        child: Text('ગુજરાતી',
-                            style: AppTextStyles.getRegularTextStyle(
-                                    localeProvider.locale)
-                                .copyWith(
-                                    decoration: TextDecoration.underline)),
-                      ),
-                      // Add more buttons for other languages if needed
-                    ],
-                  ),
-                )
+                languageBar(),
+                const SizedBox(height: 40),
+                GestureDetector(
+                  onTap: () {
+                    context.go('/${Strings.navRegister}');
+                  },
+                  child: Text(AppLocalizations.of(context)!.newUserRegister,
+                      style: AppTextStyles.getRegularTextStyle(
+                              localeProvider.locale)
+                          .copyWith(decoration: TextDecoration.underline)),
+                ),
               ],
             ),
           ),
@@ -135,22 +124,39 @@ class LoginPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String labelText,
-    required IconData icon,
-    required bool isPassword,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword,
-      style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
-      decoration: InputDecoration(
-        labelText: labelText,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+  Center languageBar() {
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GestureDetector(
+            onTap: () {
+              localeProvider.setLocale(const Locale('en', ''));
+            },
+            child: Text('English',
+                style: AppTextStyles.getRegularTextStyle(localeProvider.locale)
+                    .copyWith(decoration: TextDecoration.underline)),
+          ),
+          const SizedBox(width: 20),
+          GestureDetector(
+            onTap: () {
+              localeProvider.setLocale(const Locale('hi', ''));
+            },
+            child: Text('हिंदी',
+                style: AppTextStyles.getRegularTextStyle(localeProvider.locale)
+                    .copyWith(decoration: TextDecoration.underline)),
+          ),
+          const SizedBox(width: 20),
+          GestureDetector(
+            onTap: () {
+              localeProvider.setLocale(const Locale('gu', ''));
+            },
+            child: Text('ગુજરાતી',
+                style: AppTextStyles.getRegularTextStyle(localeProvider.locale)
+                    .copyWith(decoration: TextDecoration.underline)),
+          ),
+          // Add more buttons for other languages if needed
+        ],
       ),
     );
   }

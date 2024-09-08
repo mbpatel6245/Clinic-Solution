@@ -24,13 +24,32 @@ class MessageLookup extends MessageLookupByLibrary {
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
         "email": MessageLookupByLibrary.simpleMessage("Email"),
+        "emailRequired":
+            MessageLookupByLibrary.simpleMessage("Email is required"),
         "errorMessage":
             MessageLookupByLibrary.simpleMessage("An error occurred."),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("Forgot Password?"),
         "login": MessageLookupByLibrary.simpleMessage("Login"),
         "logout": MessageLookupByLibrary.simpleMessage("Logout"),
+        "newUserRegister":
+            MessageLookupByLibrary.simpleMessage("New User Register"),
         "password": MessageLookupByLibrary.simpleMessage("Password"),
+        "passwordRequired":
+            MessageLookupByLibrary.simpleMessage("Password is required"),
+        "phone": MessageLookupByLibrary.simpleMessage("Phone"),
+        "phoneRequired":
+            MessageLookupByLibrary.simpleMessage("Phone number is required"),
+        "register": MessageLookupByLibrary.simpleMessage("Register"),
+        "role": MessageLookupByLibrary.simpleMessage("Role"),
+        "roleRequired":
+            MessageLookupByLibrary.simpleMessage("Role is required"),
+        "validEmail":
+            MessageLookupByLibrary.simpleMessage("Enter a valid email"),
+        "validPassword": MessageLookupByLibrary.simpleMessage(
+            "Password must be at least 6 characters"),
+        "validPhone": MessageLookupByLibrary.simpleMessage(
+            "Enter a valid 10-digit phone number"),
         "welcomeMessage":
             MessageLookupByLibrary.simpleMessage("Welcome to the app!")
       };

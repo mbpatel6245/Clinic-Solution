@@ -129,6 +129,116 @@ class S {
       args: [],
     );
   }
+
+  /// `New User Register`
+  String get newUserRegister {
+    return Intl.message(
+      'New User Register',
+      name: 'newUserRegister',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Phone`
+  String get phone {
+    return Intl.message(
+      'Phone',
+      name: 'phone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Role`
+  String get role {
+    return Intl.message(
+      'Role',
+      name: 'role',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Register`
+  String get register {
+    return Intl.message(
+      'Register',
+      name: 'register',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Email is required`
+  String get emailRequired {
+    return Intl.message(
+      'Email is required',
+      name: 'emailRequired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter a valid email`
+  String get validEmail {
+    return Intl.message(
+      'Enter a valid email',
+      name: 'validEmail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Password is required`
+  String get passwordRequired {
+    return Intl.message(
+      'Password is required',
+      name: 'passwordRequired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Password must be at least 6 characters`
+  String get validPassword {
+    return Intl.message(
+      'Password must be at least 6 characters',
+      name: 'validPassword',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Phone number is required`
+  String get phoneRequired {
+    return Intl.message(
+      'Phone number is required',
+      name: 'phoneRequired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter a valid 10-digit phone number`
+  String get validPhone {
+    return Intl.message(
+      'Enter a valid 10-digit phone number',
+      name: 'validPhone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Role is required`
+  String get roleRequired {
+    return Intl.message(
+      'Role is required',
+      name: 'roleRequired',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

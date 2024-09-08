@@ -1,25 +1,34 @@
+import 'package:clinic_solution/core/constants/locale_key.dart';
+import 'package:clinic_solution/ui/views/register/register_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'core/utils/locale_provider.dart';
-import 'ui/views/login/login.dart';
+import 'firebase_options.dart';
+import 'ui/views/login/login_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
+
   runApp(ChangeNotifierProvider(
     create: (_) => LocaleProvider(),
     child: MyApp(),
   ));
 }
-
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  //const MyApp({super.key});
+
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     final localeProvider = Provider.of<LocaleProvider>(context);
-    return MaterialApp(
+    return MaterialApp.router(
         debugShowCheckedModeBanner: false,
         locale: localeProvider.locale,
         localizationsDelegates: const [
@@ -34,28 +43,41 @@ class MyApp extends StatelessWidget {
           Locale('hi', ''), // Add other locales here
         ],
         theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // TRY THIS: Try running your application with "flutter run". You'll see
-          // the application has a purple toolbar. Then, without quitting the app,
-          // try changing the seedColor in the colorScheme below to Colors.green
-          // and then invoke "hot reload" (save your changes or press the "hot
-          // reload" button in a Flutter-supported IDE, or press "r" if you used
-          // the command line to start the app).
-          //
-          // Notice that the counter didn't reset back to zero; the application
-          // state is not lost during the reload. To reset the state, use hot
-          // restart instead.
-          //
-          // This works for code too, not just values: Most code changes can be
-          // tested with just a hot reload.
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.grey),
           useMaterial3: true,
         ),
-        home: LoginPage() //const MyHomePage(title: 'Flutter Demo Home Page'),
+        routerConfig: _router
+        //const MyHomePage(title: 'Flutter Demo Home Page'),
         );
   }
 }
+
+final GoRouter _router = GoRouter(
+  //initialLocation: LoginPage(),
+  navigatorKey: navigatorKey,
+  routes: <RouteBase>[
+    GoRoute(
+      path: '/',
+      builder: (BuildContext context, GoRouterState state) {
+        return LoginScreen();
+      },
+      routes: <RouteBase>[
+        GoRoute(
+          path: Strings.navRegister,
+          builder: (BuildContext context, GoRouterState state) {
+            return RegisterScreen();
+          },
+        ),
+        GoRoute(
+          path: Strings.navLogin,
+          builder: (BuildContext context, GoRouterState state) {
+            return LoginScreen();
+          },
+        ),
+      ],
+    ),
+  ],
+);
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
