@@ -239,6 +239,46 @@ class S {
       args: [],
     );
   }
+
+  /// `Registered successfully!`
+  String get registerSuccessfully {
+    return Intl.message(
+      'Registered successfully!',
+      name: 'registerSuccessfully',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Name`
+  String get name {
+    return Intl.message(
+      'Name',
+      name: 'name',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Name required`
+  String get nameRequired {
+    return Intl.message(
+      'Name required',
+      name: 'nameRequired',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `User authentication failed. Please try again!`
+  String get userAuthenticationFailed {
+    return Intl.message(
+      'User authentication failed. Please try again!',
+      name: 'userAuthenticationFailed',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {

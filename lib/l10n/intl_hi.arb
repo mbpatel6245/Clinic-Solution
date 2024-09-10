@@ -17,5 +17,9 @@
   "validPassword": "पासवर्ड कम से कम ६ अंकों का होना चाहिए",
   "phoneRequired": "फ़ोन नंबर आवश्यक है",
   "validPhone": "मान्य १०-अंकीय फ़ोन नंबर दर्ज करें",
-  "roleRequired": "भूमिका आवश्यक है"
+  "roleRequired": "भूमिका आवश्यक है",
+  "registerSuccessfully":"सफलतापूर्वक पंजीकृत!",
+  "name":"नाम",
+  "nameRequired":"नाम आवश्यक",
+  "userAuthenticationFailed":"उपयोगकर्ता प्रमाणीकरण विफल हुआ। कृपया पुनः प्रयास करें!"
 }

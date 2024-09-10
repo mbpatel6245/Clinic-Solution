@@ -31,6 +31,8 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("પાસવર્ડ ભૂલી ગયા છો?"),
         "login": MessageLookupByLibrary.simpleMessage("લૉગિન કરો"),
         "logout": MessageLookupByLibrary.simpleMessage("લોગઆઉટ"),
+        "name": MessageLookupByLibrary.simpleMessage("નામ"),
+        "nameRequired": MessageLookupByLibrary.simpleMessage("નામ જરૂરી છે"),
         "newUserRegister":
             MessageLookupByLibrary.simpleMessage("નવું વપરાશકર્તા રજિસ્ટર"),
         "password": MessageLookupByLibrary.simpleMessage("પાસવર્ડ"),
@@ -40,8 +42,12 @@ class MessageLookup extends MessageLookupByLibrary {
         "phoneRequired":
             MessageLookupByLibrary.simpleMessage("ફોન નંબર જરૂરી છે"),
         "register": MessageLookupByLibrary.simpleMessage("નોંધણી કરો"),
+        "registerSuccessfully":
+            MessageLookupByLibrary.simpleMessage("સફળતાપૂર્વક નોંધણી થઈ!"),
         "role": MessageLookupByLibrary.simpleMessage("ભૂમિકા"),
         "roleRequired": MessageLookupByLibrary.simpleMessage("ભૂમિકા જરૂરી છે"),
+        "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
+            "વપરાશકર્તા પ્રમાણીકરણ નિષ્ફળ થયું. કૃપા કરીને ફરી પ્રયાસ કરો!"),
         "validEmail":
             MessageLookupByLibrary.simpleMessage("માન્ય ઇમેઇલ દાખલ કરો"),
         "validPassword": MessageLookupByLibrary.simpleMessage(

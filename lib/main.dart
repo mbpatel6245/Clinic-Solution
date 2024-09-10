@@ -1,5 +1,7 @@
 import 'package:clinic_solution/core/constants/locale_key.dart';
+import 'package:clinic_solution/ui/views/home/home_screen.dart';
 import 'package:clinic_solution/ui/views/register/register_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,11 +10,13 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'core/utils/locale_provider.dart';
 import 'firebase_options.dart';
+import 'ui/navigation/navigation.dart';
 import 'ui/views/login/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
+  //await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
 
   runApp(ChangeNotifierProvider(
     create: (_) => LocaleProvider(),
@@ -46,38 +50,13 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.grey),
           useMaterial3: true,
         ),
-        routerConfig: _router
+        routerConfig: router
         //const MyHomePage(title: 'Flutter Demo Home Page'),
         );
   }
 }
 
-final GoRouter _router = GoRouter(
-  //initialLocation: LoginPage(),
-  navigatorKey: navigatorKey,
-  routes: <RouteBase>[
-    GoRoute(
-      path: '/',
-      builder: (BuildContext context, GoRouterState state) {
-        return LoginScreen();
-      },
-      routes: <RouteBase>[
-        GoRoute(
-          path: Strings.navRegister,
-          builder: (BuildContext context, GoRouterState state) {
-            return RegisterScreen();
-          },
-        ),
-        GoRoute(
-          path: Strings.navLogin,
-          builder: (BuildContext context, GoRouterState state) {
-            return LoginScreen();
-          },
-        ),
-      ],
-    ),
-  ],
-);
+
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});

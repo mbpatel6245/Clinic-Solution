@@ -32,6 +32,8 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Forgot Password?"),
         "login": MessageLookupByLibrary.simpleMessage("Login"),
         "logout": MessageLookupByLibrary.simpleMessage("Logout"),
+        "name": MessageLookupByLibrary.simpleMessage("Name"),
+        "nameRequired": MessageLookupByLibrary.simpleMessage("Name required"),
         "newUserRegister":
             MessageLookupByLibrary.simpleMessage("New User Register"),
         "password": MessageLookupByLibrary.simpleMessage("Password"),
@@ -41,9 +43,13 @@ class MessageLookup extends MessageLookupByLibrary {
         "phoneRequired":
             MessageLookupByLibrary.simpleMessage("Phone number is required"),
         "register": MessageLookupByLibrary.simpleMessage("Register"),
+        "registerSuccessfully":
+            MessageLookupByLibrary.simpleMessage("Registered successfully!"),
         "role": MessageLookupByLibrary.simpleMessage("Role"),
         "roleRequired":
             MessageLookupByLibrary.simpleMessage("Role is required"),
+        "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
+            "User authentication failed. Please try again!"),
         "validEmail":
             MessageLookupByLibrary.simpleMessage("Enter a valid email"),
         "validPassword": MessageLookupByLibrary.simpleMessage(

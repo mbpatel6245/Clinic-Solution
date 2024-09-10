@@ -17,5 +17,9 @@
   "validPassword": "Password must be at least 6 characters",
   "phoneRequired": "Phone number is required",
   "validPhone": "Enter a valid 10-digit phone number",
-  "roleRequired": "Role is required"
+  "roleRequired": "Role is required",
+  "registerSuccessfully":"Registered successfully!",
+  "name":"Name",
+  "nameRequired":"Name required",
+  "userAuthenticationFailed":"User authentication failed. Please try again!"
 }

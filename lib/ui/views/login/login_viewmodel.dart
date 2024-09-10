@@ -1,32 +1,47 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import '../../../core/utils/locale_provider.dart';
+import '../../../main.dart';
+import '../../themes/text_styles.dart';
 
-class LoginViewModel {
+class LoginViewModel with ChangeNotifier {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  final _errorController = BehaviorSubject<String?>();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Stream<String?> get errorStream => _errorController.stream;
+  Future<void> signIn(Function(User?) signInCallback) async {
+    var localeProvider = Provider.of<LocaleProvider>(
+        navigatorKey.currentContext!,
+        listen: false);
+    try {
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+      signInCallback(userCredential.user);
+    } catch (e, stacktrace) {
+      print(stacktrace.toString());
 
-  void login() {
-    final email = emailController.text;
-    final password = passwordController.text;
-
-    if (email.isEmpty || password.isEmpty) {
-      _errorController.add('Please fill in all fields');
-      return;
+      ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(SnackBar(
+        content: Text(
+            AppLocalizations.of(navigatorKey.currentContext!)!
+                .userAuthenticationFailed,
+            style: AppTextStyles.getRegularTextStyle(localeProvider.locale)
+                .copyWith(color: Colors.white)),
+      ));
     }
+  }
 
-    // Perform login logic here, such as calling a repository
-    // Example: authenticationRepository.login(email, password);
-
-    _errorController.add(null); // Clear errors if login is successful
+  bool validateForm(GlobalKey<FormState> formKey) {
+    return formKey.currentState?.validate() ?? false;
   }
 
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
-    _errorController.close();
+    //_errorController.close();
   }
 }

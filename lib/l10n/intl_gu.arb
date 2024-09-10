@@ -17,5 +17,9 @@
   "validPassword": "પાસવર્ડ ઓછામાં ઓછો ૬ અક્ષરનો હોવો જોઈએ",
   "phoneRequired": "ફોન નંબર જરૂરી છે",
   "validPhone": "માન્ય ૧૦-અંકનો ફોન નંબર દાખલ કરો",
-  "roleRequired": "ભૂમિકા જરૂરી છે"
+  "roleRequired": "ભૂમિકા જરૂરી છે",
+  "registerSuccessfully":"સફળતાપૂર્વક નોંધણી થઈ!",
+  "name":"નામ",
+  "nameRequired":"નામ જરૂરી છે",
+  "userAuthenticationFailed":"વપરાશકર્તા પ્રમાણીકરણ નિષ્ફળ થયું. કૃપા કરીને ફરી પ્રયાસ કરો!"
 }
