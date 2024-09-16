@@ -1,4 +1,5 @@
 import 'package:clinic_solution/core/constants/locale_key.dart';
+import 'package:clinic_solution/services/firestore_services.dart';
 import 'package:clinic_solution/ui/views/home/home_screen.dart';
 import 'package:clinic_solution/ui/views/register/register_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,11 +18,22 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
   //await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
-
-  runApp(ChangeNotifierProvider(
-    create: (_) => LocaleProvider(),
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => LocaleProvider()), // Independent
+      ChangeNotifierProvider(create: (_) => FirebaseFireStore()), // Independent
+      /*ChangeNotifierProxyProvider<LocaleProvider, FirebaseFireStore>(
+        create: (_) => FirebaseFireStore(),
+        update: (context, authService, firestoreService) =>
+        firestoreService!..updateUserId(authService.userId), // Updating with AuthService
+      ),*/
+    ],
     child: MyApp(),
   ));
+ /* runApp(ChangeNotifierProvider(
+    create: (_) => LocaleProvider(),
+    child: MyApp(),
+  ));*/
 }
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 class MyApp extends StatelessWidget {

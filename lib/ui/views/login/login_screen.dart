@@ -78,11 +78,7 @@ class LoginScreen extends StatelessWidget {
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () {
-                        // Handle forgot password logic
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Forgot Password Clicked')),
-                        );
+                        context.go('/${Strings.navForgot}');
                       },
                       child: Text(AppLocalizations.of(context)!.forgotPassword,
                           style: AppTextStyles.getSemiBoldTextStyle(

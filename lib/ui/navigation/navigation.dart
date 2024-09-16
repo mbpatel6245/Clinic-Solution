@@ -1,3 +1,4 @@
+import 'package:clinic_solution/ui/views/forgot/forgot_password_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -44,7 +45,13 @@ final GoRouter router = GoRouter(
                 // return ErrorScreen();
               }
               return HomeScreen(user: user!);
-            })
+            }),
+        GoRoute(
+          path: Strings.navForgot,
+          builder: (BuildContext context, GoRouterState state) {
+            return ForgotPasswordScreen();
+          },
+        ),
       ],
     ),
   ],

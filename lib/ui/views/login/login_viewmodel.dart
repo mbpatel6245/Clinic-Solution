@@ -4,22 +4,23 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/locale_provider.dart';
 import '../../../main.dart';
+import '../../../services/auth_services.dart';
 import '../../themes/text_styles.dart';
 
 class LoginViewModel with ChangeNotifier {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final AuthService _authService = AuthService();
 
   Future<void> signIn(Function(User?) signInCallback) async {
     var localeProvider = Provider.of<LocaleProvider>(
         navigatorKey.currentContext!,
         listen: false);
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+      UserCredential userCredential = await _authService.login(
+        emailController.text.trim(),
+        passwordController.text.trim(),
       );
       signInCallback(userCredential.user);
     } catch (e, stacktrace) {

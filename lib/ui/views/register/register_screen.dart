@@ -27,7 +27,7 @@ class RegisterScreen extends StatelessWidget {
           ),
         ),
         body: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Center(
             child: Consumer<RegisterViewModel>(
               builder: (context, viewModel, child) {

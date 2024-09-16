@@ -21,5 +21,7 @@
   "registerSuccessfully":"Registered successfully!",
   "name":"Name",
   "nameRequired":"Name required",
-  "userAuthenticationFailed":"User authentication failed. Please try again!"
+  "userAuthenticationFailed":"User authentication failed. Please try again!",
+  "sendResetEmail":"Send Reset email",
+  "forgotPasswordLabel": "Forgot Password"
 }

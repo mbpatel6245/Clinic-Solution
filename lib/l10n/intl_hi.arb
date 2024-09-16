@@ -21,5 +21,7 @@
   "registerSuccessfully":"सफलतापूर्वक पंजीकृत!",
   "name":"नाम",
   "nameRequired":"नाम आवश्यक",
-  "userAuthenticationFailed":"उपयोगकर्ता प्रमाणीकरण विफल हुआ। कृपया पुनः प्रयास करें!"
+  "userAuthenticationFailed":"उपयोगकर्ता प्रमाणीकरण विफल हुआ। कृपया पुनः प्रयास करें!",
+   "sendResetEmail":"रीसेट ईमेल भेजें",
+    "forgotPasswordLabel": "पासवर्ड भूल गए"
 }

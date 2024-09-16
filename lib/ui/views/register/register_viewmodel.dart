@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../services/auth_services.dart';
+import '../../../services/firestore_services.dart';
+
 class RegisterViewModel with ChangeNotifier {
   // Text Editing Controllers
   final TextEditingController nameController = TextEditingController();
@@ -9,8 +12,8 @@ class RegisterViewModel with ChangeNotifier {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFireStore _fireStoreService = FirebaseFireStore();
 
   // Selected Role
   String? selectedRole;
@@ -31,21 +34,12 @@ class RegisterViewModel with ChangeNotifier {
   // Save data to Firestore
   Future<void> registerUser() async {
     try {
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-
-      await _firestore.collection('users').doc(userCredential.user?.uid).set({
-        'name': nameController.text,
-        'email': userCredential.user?.email,
-        'password': passwordController.text,
-        // For demo purposes only; avoid saving passwords like this in production
-        'phone': phoneController.text,
-        'role': selectedRole,
-        'createdAt': Timestamp.now(),
-      });
+      _fireStoreService.registerUserData(
+          emailController.text.trim(),
+          passwordController.text.trim(),
+          nameController.text.trim(),
+          phoneController.text,
+          selectedRole ?? selectedRole![0]);
     } catch (e) {
       print('Error saving data: $e');
     }
