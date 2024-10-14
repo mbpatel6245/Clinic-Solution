@@ -2,9 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/utils/locale_provider.dart';
 import '../../../main.dart';
 import '../../../services/auth_services.dart';
+import '../../../services/local/secure_data_viewmodel.dart';
 import '../../themes/text_styles.dart';
 
 class LoginViewModel with ChangeNotifier {
@@ -12,6 +14,9 @@ class LoginViewModel with ChangeNotifier {
   final passwordController = TextEditingController();
 
   final AuthService _authService = AuthService();
+  final SecureDataViewModel _secureDataViewModel;
+
+  LoginViewModel(this._secureDataViewModel);
 
   Future<void> signIn(Function(User?) signInCallback) async {
     var localeProvider = Provider.of<LocaleProvider>(
@@ -22,7 +27,23 @@ class LoginViewModel with ChangeNotifier {
         emailController.text.trim(),
         passwordController.text.trim(),
       );
-      signInCallback(userCredential.user);
+      // await _secureDataViewModel.saveData(jsonEncode(userCredential.user));
+      // signInCallback(userCredential.user);
+
+      // Extract necessary fields from the user object
+      final user = userCredential.user;
+      if (user != null) {
+        // Save user data securely
+        await _secureDataViewModel.saveData(
+            user.uid,
+            user.email ?? '',
+            user.displayName ?? '',
+            user.photoURL ?? '',
+            user.phoneNumber ?? '');
+
+        // Notify UI of successful login
+        signInCallback(user);
+      }
     } catch (e, stacktrace) {
       print(stacktrace.toString());
 

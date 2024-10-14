@@ -23,16 +23,21 @@ class MessageLookup extends MessageLookupByLibrary {
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
+        "appointments": MessageLookupByLibrary.simpleMessage("નિમણૂંકો"),
         "email": MessageLookupByLibrary.simpleMessage("ઇમેઇલ"),
         "emailRequired":
             MessageLookupByLibrary.simpleMessage("ઇમેઇલ આવશ્યક છે"),
         "errorMessage": MessageLookupByLibrary.simpleMessage("એક ભૂલ આવી."),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("પાસવર્ડ ભૂલી ગયા છો?"),
+        "forgotPasswordLabel":
+            MessageLookupByLibrary.simpleMessage("પાસવર્ડ ભૂલી ગયા છો"),
         "login": MessageLookupByLibrary.simpleMessage("લૉગિન કરો"),
         "logout": MessageLookupByLibrary.simpleMessage("લોગઆઉટ"),
         "name": MessageLookupByLibrary.simpleMessage("નામ"),
         "nameRequired": MessageLookupByLibrary.simpleMessage("નામ જરૂરી છે"),
+        "newPrescription":
+            MessageLookupByLibrary.simpleMessage("નવું પ્રિસ્ક્રિપ્શન"),
         "newUserRegister":
             MessageLookupByLibrary.simpleMessage("નવું વપરાશકર્તા રજિસ્ટર"),
         "password": MessageLookupByLibrary.simpleMessage("પાસવર્ડ"),
@@ -41,11 +46,16 @@ class MessageLookup extends MessageLookupByLibrary {
         "phone": MessageLookupByLibrary.simpleMessage("ફોન"),
         "phoneRequired":
             MessageLookupByLibrary.simpleMessage("ફોન નંબર જરૂરી છે"),
+        "prescriptionList":
+            MessageLookupByLibrary.simpleMessage("પ્રિસ્ક્રિપ્શન સૂચિ"),
         "register": MessageLookupByLibrary.simpleMessage("નોંધણી કરો"),
         "registerSuccessfully":
             MessageLookupByLibrary.simpleMessage("સફળતાપૂર્વક નોંધણી થઈ!"),
         "role": MessageLookupByLibrary.simpleMessage("ભૂમિકા"),
         "roleRequired": MessageLookupByLibrary.simpleMessage("ભૂમિકા જરૂરી છે"),
+        "sendResetEmail":
+            MessageLookupByLibrary.simpleMessage("રીસેટ ઈમેલ મોકલો"),
+        "stockInward": MessageLookupByLibrary.simpleMessage("સ્ટોક ઇનવર્ડ"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
             "વપરાશકર્તા પ્રમાણીકરણ નિષ્ફળ થયું. કૃપા કરીને ફરી પ્રયાસ કરો!"),
         "validEmail":

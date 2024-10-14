@@ -38,13 +38,13 @@ final GoRouter router = GoRouter(
         GoRoute(
             path: Strings.navHome,
             builder: (BuildContext context, GoRouterState state) {
-              final localeProvider = Provider.of<LocaleProvider>(context);
-              final user = state.extra as User?;
-              if (user == null) {
+              //final localeProvider = Provider.of<LocaleProvider>(context);
+              //final user = state.extra as User?;
+             // if (user == null) {
                 // Handle the case where the object was not passed correctly
                 // return ErrorScreen();
-              }
-              return HomeScreen(user: user!);
+             // }
+              return HomeScreen();
             }),
         GoRoute(
           path: Strings.navForgot,

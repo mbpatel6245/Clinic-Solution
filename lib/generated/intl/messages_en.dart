@@ -23,6 +23,7 @@ class MessageLookup extends MessageLookupByLibrary {
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
+        "appointments": MessageLookupByLibrary.simpleMessage("Appointments"),
         "email": MessageLookupByLibrary.simpleMessage("Email"),
         "emailRequired":
             MessageLookupByLibrary.simpleMessage("Email is required"),
@@ -30,10 +31,14 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("An error occurred."),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("Forgot Password?"),
+        "forgotPasswordLabel":
+            MessageLookupByLibrary.simpleMessage("Forgot Password"),
         "login": MessageLookupByLibrary.simpleMessage("Login"),
         "logout": MessageLookupByLibrary.simpleMessage("Logout"),
         "name": MessageLookupByLibrary.simpleMessage("Name"),
         "nameRequired": MessageLookupByLibrary.simpleMessage("Name required"),
+        "newPrescription":
+            MessageLookupByLibrary.simpleMessage("New Prescription"),
         "newUserRegister":
             MessageLookupByLibrary.simpleMessage("New User Register"),
         "password": MessageLookupByLibrary.simpleMessage("Password"),
@@ -42,12 +47,17 @@ class MessageLookup extends MessageLookupByLibrary {
         "phone": MessageLookupByLibrary.simpleMessage("Phone"),
         "phoneRequired":
             MessageLookupByLibrary.simpleMessage("Phone number is required"),
+        "prescriptionList":
+            MessageLookupByLibrary.simpleMessage("Prescription list"),
         "register": MessageLookupByLibrary.simpleMessage("Register"),
         "registerSuccessfully":
             MessageLookupByLibrary.simpleMessage("Registered successfully!"),
         "role": MessageLookupByLibrary.simpleMessage("Role"),
         "roleRequired":
             MessageLookupByLibrary.simpleMessage("Role is required"),
+        "sendResetEmail":
+            MessageLookupByLibrary.simpleMessage("Send Reset email"),
+        "stockInward": MessageLookupByLibrary.simpleMessage("Stock Inward"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
             "User authentication failed. Please try again!"),
         "validEmail":

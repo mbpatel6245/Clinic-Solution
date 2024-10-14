@@ -43,6 +43,8 @@ dependencies:
   cloud_firestore: ^5.4.1
   firebase_core: ^3.4.1
   firebase_auth: ^5.2.1
+  shared_preferences: ^2.0.13
+  encrypt: ^5.0.0
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +69,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   generate: true
+  #assets:
+  #  - web/index.html
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

@@ -6,14 +6,13 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/locale_key.dart';
 import '../../../core/utils/locale_provider.dart';
+import '../../../services/local/secure_data_viewmodel.dart';
 import '../../themes/text_styles.dart';
 import '../../widgets/common_button.dart';
 import '../../widgets/common_textfield.dart';
 import 'login_viewmodel.dart';
 
 class LoginScreen extends StatelessWidget {
-
-  final LoginViewModel _viewModel = LoginViewModel();
   var localeProvider = LocaleProvider();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -23,8 +22,18 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     localeProvider = Provider.of<LocaleProvider>(context, listen: false);
 
-    return ChangeNotifierProvider(
-      create: (_) => LoginViewModel(),
+    checkDataSaved(context);
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SecureDataViewModel()),
+        ChangeNotifierProxyProvider<SecureDataViewModel, LoginViewModel>(
+          create: (context) =>
+              LoginViewModel(context.read<SecureDataViewModel>()),
+          update: (context, secureDataViewModel, loginViewModel) =>
+              loginViewModel ?? LoginViewModel(secureDataViewModel),
+        ),
+      ],
       child: Scaffold(
         body: Center(child:
             Consumer<LoginViewModel>(builder: (context, viewModel, child) {
@@ -47,7 +56,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 30),
                     CommonTextField(
-                      controller: _viewModel.emailController,
+                      controller: viewModel.emailController,
                       labelText: AppLocalizations.of(context)!.email,
                       isPassword: false,
                       hintText: "",
@@ -56,7 +65,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     CommonTextField(
-                      controller: _viewModel.passwordController,
+                      controller: viewModel.passwordController,
                       labelText: AppLocalizations.of(context)!.password,
                       isPassword: true,
                       hintText: "",
@@ -67,10 +76,10 @@ class LoginScreen extends StatelessWidget {
                     CommonButton(
                       text: AppLocalizations.of(context)!.login,
                       onPressed: () {
-                        if (_viewModel.validateForm(_formKey)) {
+                        if (viewModel.validateForm(_formKey)) {
                           //
-                          _viewModel.signIn((user) {
-                            context.go('/${Strings.navHome}', extra: user);
+                          viewModel.signIn((user) {
+                            context.go('/${Strings.navHome}');
                           });
                         }
                       },
@@ -104,6 +113,16 @@ class LoginScreen extends StatelessWidget {
         })),
       ),
     );
+  }
+
+  checkDataSaved(BuildContext context) async {
+    var viewModel = SecureDataViewModel();
+    var uid = await viewModel.getUID();
+    var email = await viewModel.getEmail();
+
+    if (uid?.isNotEmpty == true && email?.isNotEmpty == true) {
+      context.go('/${Strings.navHome}');
+    }
   }
 
   Center languageBar() {

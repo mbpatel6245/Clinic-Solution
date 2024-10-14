@@ -23,5 +23,9 @@
   "nameRequired":"નામ જરૂરી છે",
   "userAuthenticationFailed":"વપરાશકર્તા પ્રમાણીકરણ નિષ્ફળ થયું. કૃપા કરીને ફરી પ્રયાસ કરો!",
    "sendResetEmail":"રીસેટ ઈમેલ મોકલો",
-    "forgotPasswordLabel": "પાસવર્ડ ભૂલી ગયા છો"
+    "forgotPasswordLabel": "પાસવર્ડ ભૂલી ગયા છો",
+    "newPrescription":"નવું પ્રિસ્ક્રિપ્શન",
+      "prescriptionList":"પ્રિસ્ક્રિપ્શન સૂચિ",
+      "appointments":"નિમણૂંકો",
+      "stockInward":"સ્ટોક ઇનવર્ડ"
 }

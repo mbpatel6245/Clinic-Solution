@@ -23,5 +23,9 @@
   "nameRequired":"नाम आवश्यक",
   "userAuthenticationFailed":"उपयोगकर्ता प्रमाणीकरण विफल हुआ। कृपया पुनः प्रयास करें!",
    "sendResetEmail":"रीसेट ईमेल भेजें",
-    "forgotPasswordLabel": "पासवर्ड भूल गए"
+    "forgotPasswordLabel": "पासवर्ड भूल गए",
+    "newPrescription":"नया नुस्खा",
+      "prescriptionList":"प्रिस्क्रिप्शन सूची",
+      "appointments":"नियुक्ति",
+      "stockInward":"स्टॉक आवक"
 }

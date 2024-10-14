@@ -23,5 +23,9 @@
   "nameRequired":"Name required",
   "userAuthenticationFailed":"User authentication failed. Please try again!",
   "sendResetEmail":"Send Reset email",
-  "forgotPasswordLabel": "Forgot Password"
+  "forgotPasswordLabel": "Forgot Password",
+  "newPrescription":"New Prescription",
+  "prescriptionList":"Prescription list",
+  "appointments":"Appointments",
+  "stockInward":"Stock Inward"
 }

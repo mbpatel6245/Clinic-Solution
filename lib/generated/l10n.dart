@@ -279,6 +279,66 @@ class S {
       args: [],
     );
   }
+
+  /// `Send Reset email`
+  String get sendResetEmail {
+    return Intl.message(
+      'Send Reset email',
+      name: 'sendResetEmail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Forgot Password`
+  String get forgotPasswordLabel {
+    return Intl.message(
+      'Forgot Password',
+      name: 'forgotPasswordLabel',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `New Prescription`
+  String get newPrescription {
+    return Intl.message(
+      'New Prescription',
+      name: 'newPrescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Prescription list`
+  String get prescriptionList {
+    return Intl.message(
+      'Prescription list',
+      name: 'prescriptionList',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Appointments`
+  String get appointments {
+    return Intl.message(
+      'Appointments',
+      name: 'appointments',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Stock Inward`
+  String get stockInward {
+    return Intl.message(
+      'Stock Inward',
+      name: 'stockInward',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<S> {
