@@ -1,4 +1,6 @@
+import 'package:clinic_solution/ui/widgets/common_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/utils/locale_provider.dart';
@@ -7,7 +9,6 @@ import '../../themes/text_styles.dart';
 import '../../widgets/common_button.dart';
 import '../../widgets/common_textfield.dart';
 import 'forgot_password_viewmodel.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ForgotPasswordScreen extends StatelessWidget {
   final ForgotPasswordViewModel viewModel = ForgotPasswordViewModel();
@@ -21,8 +22,8 @@ class ForgotPasswordScreen extends StatelessWidget {
       create: (_) => ForgotPasswordViewModel(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-            AppLocalizations.of(context)!.forgotPasswordLabel,
+          title: CommonText(
+            text: AppLocalizations.of(context)!.forgotPasswordLabel,
             style: AppTextStyles.getBoldTextStyle(localeProvider.locale),
           ),
         ),
@@ -66,8 +67,8 @@ class ForgotPasswordScreen extends StatelessWidget {
                       if (viewModel.errorMessage != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 20),
-                          child: Text(
-                            viewModel.errorMessage!,
+                          child: CommonText(
+                            text:viewModel.errorMessage!,
                             style: TextStyle(color: Colors.red),
                           ),
                         ),

@@ -1,13 +1,15 @@
 import 'package:clinic_solution/core/utils/validator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/utils/locale_provider.dart';
 import '../../themes/text_styles.dart';
 import '../../widgets/common_button.dart';
 import '../../widgets/common_dropdown.dart';
+import '../../widgets/common_text.dart';
 import '../../widgets/common_textfield.dart';
 import 'register_viewmodel.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class RegisterScreen extends StatelessWidget {
   RegisterScreen({Key? key}) : super(key: key);
@@ -21,8 +23,8 @@ class RegisterScreen extends StatelessWidget {
       create: (_) => RegisterViewModel(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-            AppLocalizations.of(context)!.register,
+          title: CommonText(
+            text: AppLocalizations.of(context)!.register,
             style: AppTextStyles.getBoldTextStyle(localeProvider.locale),
           ),
         ),
@@ -95,8 +97,9 @@ class RegisterScreen extends StatelessWidget {
                               // Show success message
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(AppLocalizations.of(context)!
-                                      .registerSuccessfully),
+                                  content: CommonText(
+                                      text: AppLocalizations.of(context)!
+                                          .registerSuccessfully),
                                 ),
                               );
                             }

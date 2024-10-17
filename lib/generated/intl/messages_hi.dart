@@ -24,30 +24,55 @@ class MessageLookup extends MessageLookupByLibrary {
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
         "appointments": MessageLookupByLibrary.simpleMessage("नियुक्ति"),
+        "billNo": MessageLookupByLibrary.simpleMessage("बिल नंबर/इनवॉइस नंबर."),
+        "box": MessageLookupByLibrary.simpleMessage("बॉक्स"),
+        "brandName": MessageLookupByLibrary.simpleMessage("ब्रांड का नाम"),
+        "colorOfContent":
+            MessageLookupByLibrary.simpleMessage("सामग्री का रंग"),
+        "containsOfMedicine":
+            MessageLookupByLibrary.simpleMessage("दवा शामिल है"),
+        "dateOfPurchase": MessageLookupByLibrary.simpleMessage("खरीद की तिथि"),
         "email": MessageLookupByLibrary.simpleMessage("ईमेल"),
         "emailRequired":
             MessageLookupByLibrary.simpleMessage("ईमेल की जरूरत है"),
         "errorMessage":
             MessageLookupByLibrary.simpleMessage("एक त्रुटि पाई गई।"),
+        "expiryDate": MessageLookupByLibrary.simpleMessage("समाप्ति तिथि"),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("पासवर्ड भूल गए?"),
         "forgotPasswordLabel":
             MessageLookupByLibrary.simpleMessage("पासवर्ड भूल गए"),
+        "formType": MessageLookupByLibrary.simpleMessage(
+            "फ़ॉर्म प्रकार (सिरप/टैबलेट/अन्य)"),
         "login": MessageLookupByLibrary.simpleMessage("लॉग इन करें"),
         "logout": MessageLookupByLibrary.simpleMessage("लॉग आउट"),
+        "manufacturerName":
+            MessageLookupByLibrary.simpleMessage("निर्माता का नाम"),
+        "maximumAvailability":
+            MessageLookupByLibrary.simpleMessage("अधिकतम उपलब्धता"),
+        "medicine": MessageLookupByLibrary.simpleMessage("दवा"),
+        "minimumAvailability":
+            MessageLookupByLibrary.simpleMessage("न्यूनतम उपलब्धता"),
         "name": MessageLookupByLibrary.simpleMessage("नाम"),
         "nameRequired": MessageLookupByLibrary.simpleMessage("नाम आवश्यक"),
+        "nearestDurationDays":
+            MessageLookupByLibrary.simpleMessage("निकटतम अवधि दिन"),
         "newPrescription": MessageLookupByLibrary.simpleMessage("नया नुस्खा"),
         "newUserRegister":
             MessageLookupByLibrary.simpleMessage("नया उपयोगकर्ता रजिस्टर"),
+        "others": MessageLookupByLibrary.simpleMessage("अन्य"),
         "password": MessageLookupByLibrary.simpleMessage("पासवर्ड"),
         "passwordRequired":
             MessageLookupByLibrary.simpleMessage("पासवर्ड आवश्यक है"),
         "phone": MessageLookupByLibrary.simpleMessage("फ़ोन"),
         "phoneRequired":
             MessageLookupByLibrary.simpleMessage("फ़ोन नंबर आवश्यक है"),
+        "powerOfSize": MessageLookupByLibrary.simpleMessage("आकार की शक्ति"),
         "prescriptionList":
             MessageLookupByLibrary.simpleMessage("प्रिस्क्रिप्शन सूची"),
+        "purchasingPersonOrStockist": MessageLookupByLibrary.simpleMessage(
+            "खरीदने वाला व्यक्ति/स्टॉकिस्ट का नाम"),
+        "quantity": MessageLookupByLibrary.simpleMessage("मात्रा"),
         "register": MessageLookupByLibrary.simpleMessage("पंजीकरण करवाना"),
         "registerSuccessfully":
             MessageLookupByLibrary.simpleMessage("सफलतापूर्वक पंजीकृत!"),
@@ -56,7 +81,11 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("भूमिका आवश्यक है"),
         "sendResetEmail":
             MessageLookupByLibrary.simpleMessage("रीसेट ईमेल भेजें"),
+        "shortName": MessageLookupByLibrary.simpleMessage("संक्षिप्त नाम"),
         "stockInward": MessageLookupByLibrary.simpleMessage("स्टॉक आवक"),
+        "tabletsOrStrips":
+            MessageLookupByLibrary.simpleMessage("टैबलेट/पट्टियाँ"),
+        "typeOfStock": MessageLookupByLibrary.simpleMessage("स्टॉक के प्रकार"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
             "उपयोगकर्ता प्रमाणीकरण विफल हुआ। कृपया पुनः प्रयास करें!"),
         "validEmail":
@@ -65,6 +94,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "पासवर्ड कम से कम ६ अंकों का होना चाहिए"),
         "validPhone": MessageLookupByLibrary.simpleMessage(
             "मान्य १०-अंकीय फ़ोन नंबर दर्ज करें"),
+        "visibilityShowOrHide":
+            MessageLookupByLibrary.simpleMessage("दृश्यता (दिखाएँ/छिपाएँ)"),
         "welcomeMessage":
             MessageLookupByLibrary.simpleMessage("ऐप में आपका स्वागत है!")
       };

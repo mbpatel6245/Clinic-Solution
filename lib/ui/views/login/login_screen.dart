@@ -1,4 +1,5 @@
 import 'package:clinic_solution/core/utils/validator.dart';
+import 'package:clinic_solution/ui/widgets/common_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -48,8 +49,8 @@ class LoginScreen extends StatelessWidget {
                   children: [
                     const Icon(Icons.lock, size: 80, color: Colors.black38),
                     const SizedBox(height: 20),
-                    Text(
-                      AppLocalizations.of(context)!.login,
+                    CommonText(
+                      text: AppLocalizations.of(context)!.login,
                       style:
                           AppTextStyles.getBoldTextStyle(localeProvider.locale)
                               .copyWith(fontSize: 32),
@@ -89,7 +90,8 @@ class LoginScreen extends StatelessWidget {
                       onPressed: () {
                         context.go('/${Strings.navForgot}');
                       },
-                      child: Text(AppLocalizations.of(context)!.forgotPassword,
+                      child: CommonText(
+                          text:AppLocalizations.of(context)!.forgotPassword,
                           style: AppTextStyles.getSemiBoldTextStyle(
                               localeProvider.locale)),
                     ),
@@ -100,7 +102,8 @@ class LoginScreen extends StatelessWidget {
                       onTap: () {
                         context.go('/${Strings.navRegister}');
                       },
-                      child: Text(AppLocalizations.of(context)!.newUserRegister,
+                      child: CommonText(
+                          text:AppLocalizations.of(context)!.newUserRegister,
                           style: AppTextStyles.getRegularTextStyle(
                                   localeProvider.locale)
                               .copyWith(decoration: TextDecoration.underline)),
@@ -134,7 +137,8 @@ class LoginScreen extends StatelessWidget {
             onTap: () {
               localeProvider.setLocale(const Locale('en', ''));
             },
-            child: Text('English',
+            child: CommonText(
+                text:'English',
                 style: AppTextStyles.getRegularTextStyle(localeProvider.locale)
                     .copyWith(decoration: TextDecoration.underline)),
           ),
@@ -143,7 +147,8 @@ class LoginScreen extends StatelessWidget {
             onTap: () {
               localeProvider.setLocale(const Locale('hi', ''));
             },
-            child: Text('हिंदी',
+            child: CommonText(
+                text:'हिंदी',
                 style: AppTextStyles.getRegularTextStyle(localeProvider.locale)
                     .copyWith(decoration: TextDecoration.underline)),
           ),
@@ -152,7 +157,8 @@ class LoginScreen extends StatelessWidget {
             onTap: () {
               localeProvider.setLocale(const Locale('gu', ''));
             },
-            child: Text('ગુજરાતી',
+            child: CommonText(
+                text:'ગુજરાતી',
                 style: AppTextStyles.getRegularTextStyle(localeProvider.locale)
                     .copyWith(decoration: TextDecoration.underline)),
           ),

@@ -1,5 +1,9 @@
 import 'dart:io';
 
+import 'package:clinic_solution/core/utils/size_utils.dart';
+import 'package:clinic_solution/ui/views/home/appointment/tab_appointments.dart';
+import 'package:clinic_solution/ui/views/home/new_prescription/tab_new_prescription.dart';
+import 'package:clinic_solution/ui/views/home/prescription_list/tab_prescription_list.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +15,9 @@ import '../../../core/constants/locale_key.dart';
 import '../../../core/utils/locale_provider.dart';
 import '../../../services/local/secure_data_viewmodel.dart';
 import '../../themes/text_styles.dart';
+import '../../widgets/common_text.dart';
 import 'home_viewmodel.dart';
+import 'stock_inward/tab_stock_inward.dart';
 
 class HomeScreen extends StatelessWidget {
   //final User user;
@@ -51,13 +57,13 @@ class HomeScreen extends StatelessWidget {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const CircularProgressIndicator(); // Show loading indicator
                       } else if (snapshot.hasError) {
-                        return Text('Error: ${snapshot.error}');
+                        return CommonText(text: 'Error: ${snapshot.error}');
                       } else {
                         String email = snapshot.data?[0] ?? 'No email';
                         String displayName = snapshot.data?[1] ?? 'User';
 
-                        return Text(
-                          'Welcome, $displayName ($email)',
+                        return CommonText(
+                          text: 'Welcome, $displayName ($email)',
                           style: AppTextStyles.getRegularTextStyle(
                               localeProvider.locale),
                         );
@@ -116,10 +122,10 @@ class HomeScreen extends StatelessWidget {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const CircularProgressIndicator(); // Show loading indicator
                       } else if (snapshot.hasError) {
-                        return Text('Error: ${snapshot.error}');
+                        return CommonText(text: 'Error: ${snapshot.error}');
                       } else {
-                        String email = snapshot.data?[0] ?? 'No email';
-                        String displayName = snapshot.data?[1] ?? 'User';
+                        // String email = snapshot.data?[0] ?? 'No email';
+                        // String displayName = snapshot.data?[1] ?? 'User';
 
                         return Column(
                           children: [
@@ -130,10 +136,10 @@ class HomeScreen extends StatelessWidget {
                             Expanded(
                               child: TabBarView(
                                 children: [
-                                  Tab1(),
-                                  Tab2(),
-                                  Tab3(),
-                                  Tab4(),
+                                  TabNewPrescription(),
+                                  TabPrescriptionList(),
+                                  TabAppointments(),
+                                  TabStockInward(),
                                 ],
                               ),
                             ),
@@ -154,28 +160,34 @@ class HomeScreen extends StatelessWidget {
     if (kIsWeb) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(iconData),
           const SizedBox(width: 5),
-          Text(
-            tabTitle,
-            style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
+          CommonText(
+            text: tabTitle,
+            style: AppTextStyles.getSemiBoldTextStyle(localeProvider.locale),
+            height: getSize(40),
           ),
         ],
       );
     } else if (Platform.isAndroid || Platform.isIOS) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(iconData),
-          const SizedBox(width: 5),
-          Text(
-            tabTitle,
-            style: AppTextStyles.getRegularTextStyle(localeProvider.locale,
-                fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      return SizedBox(
+        width: double.infinity,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(iconData),
+            const SizedBox(width: 5),
+            CommonText(
+              text: tabTitle,
+              style: AppTextStyles.getSemiBoldTextStyle(localeProvider.locale,
+                  fontSize: 10),
+              textAlign: TextAlign.center,
+              height: getSize(15),
+            ),
+          ],
+        ),
       );
     } else {
       return Row(
@@ -183,9 +195,9 @@ class HomeScreen extends StatelessWidget {
         children: [
           Icon(iconData),
           const SizedBox(width: 5),
-          Text(
-            tabTitle,
-            style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
+          CommonText(
+            text: tabTitle,
+            style: AppTextStyles.getSemiBoldTextStyle(localeProvider.locale),
           ),
         ],
       );
@@ -211,63 +223,3 @@ class HomeScreen extends StatelessWidget {
 //     }
 //   }
 // }
-
-class Tab1 extends StatelessWidget {
-  var localeProvider = LocaleProvider();
-
-  @override
-  Widget build(BuildContext context) {
-    localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    return Center(
-      child: Text(
-        "Content for Tab 1",
-        style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
-      ),
-    );
-  }
-}
-
-class Tab2 extends StatelessWidget {
-  var localeProvider = LocaleProvider();
-
-  @override
-  Widget build(BuildContext context) {
-    localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    return Center(
-      child: Text(
-        "Content for Tab 2",
-        style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
-      ),
-    );
-  }
-}
-
-class Tab3 extends StatelessWidget {
-  var localeProvider = LocaleProvider();
-
-  @override
-  Widget build(BuildContext context) {
-    localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    return Center(
-      child: Text(
-        "Content for Tab 3",
-        style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
-      ),
-    );
-  }
-}
-
-class Tab4 extends StatelessWidget {
-  var localeProvider = LocaleProvider();
-
-  @override
-  Widget build(BuildContext context) {
-    localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    return Center(
-      child: Text(
-        "Content for Tab 4",
-        style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
-      ),
-    );
-  }
-}

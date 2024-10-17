@@ -24,18 +24,37 @@ class MessageLookup extends MessageLookupByLibrary {
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
         "appointments": MessageLookupByLibrary.simpleMessage("નિમણૂંકો"),
+        "billNo": MessageLookupByLibrary.simpleMessage("બિલ નંબર/ઇનવોઇસ નંબર."),
+        "box": MessageLookupByLibrary.simpleMessage("બોક્સ"),
+        "brandName": MessageLookupByLibrary.simpleMessage("બ્રાંડનું નામ"),
+        "colorOfContent": MessageLookupByLibrary.simpleMessage("સામગ્રીનો રંગ"),
+        "containsOfMedicine":
+            MessageLookupByLibrary.simpleMessage("દવા ધરાવે છે"),
+        "dateOfPurchase": MessageLookupByLibrary.simpleMessage("ખરીદીની તારીખ"),
         "email": MessageLookupByLibrary.simpleMessage("ઇમેઇલ"),
         "emailRequired":
             MessageLookupByLibrary.simpleMessage("ઇમેઇલ આવશ્યક છે"),
         "errorMessage": MessageLookupByLibrary.simpleMessage("એક ભૂલ આવી."),
+        "expiryDate": MessageLookupByLibrary.simpleMessage("સમાપ્તિ તારીખ"),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("પાસવર્ડ ભૂલી ગયા છો?"),
         "forgotPasswordLabel":
             MessageLookupByLibrary.simpleMessage("પાસવર્ડ ભૂલી ગયા છો"),
+        "formType": MessageLookupByLibrary.simpleMessage(
+            "ફોર્મનો પ્રકાર (સીરપ/ટેબ્લેટ/અન્ય)"),
         "login": MessageLookupByLibrary.simpleMessage("લૉગિન કરો"),
         "logout": MessageLookupByLibrary.simpleMessage("લોગઆઉટ"),
+        "manufacturerName":
+            MessageLookupByLibrary.simpleMessage("ઉત્પાદકનું નામ"),
+        "maximumAvailability":
+            MessageLookupByLibrary.simpleMessage("મહત્તમ ઉપલબ્ધતા"),
+        "medicine": MessageLookupByLibrary.simpleMessage("દવા"),
+        "minimumAvailability":
+            MessageLookupByLibrary.simpleMessage("ન્યૂનતમ ઉપલબ્ધતા"),
         "name": MessageLookupByLibrary.simpleMessage("નામ"),
         "nameRequired": MessageLookupByLibrary.simpleMessage("નામ જરૂરી છે"),
+        "nearestDurationDays":
+            MessageLookupByLibrary.simpleMessage("નજીકની અવધિના દિવસો"),
         "newPrescription":
             MessageLookupByLibrary.simpleMessage("નવું પ્રિસ્ક્રિપ્શન"),
         "newUserRegister":
@@ -46,8 +65,12 @@ class MessageLookup extends MessageLookupByLibrary {
         "phone": MessageLookupByLibrary.simpleMessage("ફોન"),
         "phoneRequired":
             MessageLookupByLibrary.simpleMessage("ફોન નંબર જરૂરી છે"),
+        "powerOfSize": MessageLookupByLibrary.simpleMessage("કદની શક્તિ"),
         "prescriptionList":
             MessageLookupByLibrary.simpleMessage("પ્રિસ્ક્રિપ્શન સૂચિ"),
+        "purchasingPersonOrStockist": MessageLookupByLibrary.simpleMessage(
+            "ખરીદી વ્યક્તિ/સ્ટોકિસ્ટનું નામ"),
+        "quantity": MessageLookupByLibrary.simpleMessage("જથ્થા"),
         "register": MessageLookupByLibrary.simpleMessage("નોંધણી કરો"),
         "registerSuccessfully":
             MessageLookupByLibrary.simpleMessage("સફળતાપૂર્વક નોંધણી થઈ!"),
@@ -55,7 +78,10 @@ class MessageLookup extends MessageLookupByLibrary {
         "roleRequired": MessageLookupByLibrary.simpleMessage("ભૂમિકા જરૂરી છે"),
         "sendResetEmail":
             MessageLookupByLibrary.simpleMessage("રીસેટ ઈમેલ મોકલો"),
+        "shortName": MessageLookupByLibrary.simpleMessage("ટૂંકું નામ"),
         "stockInward": MessageLookupByLibrary.simpleMessage("સ્ટોક ઇનવર્ડ"),
+        "tabletsOrStrips": MessageLookupByLibrary.simpleMessage("ગોળીઓ/પટ્ટાઓ"),
+        "typeOfStock": MessageLookupByLibrary.simpleMessage("સ્ટોકના પ્રકાર"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
             "વપરાશકર્તા પ્રમાણીકરણ નિષ્ફળ થયું. કૃપા કરીને ફરી પ્રયાસ કરો!"),
         "validEmail":
@@ -64,6 +90,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "પાસવર્ડ ઓછામાં ઓછો ૬ અક્ષરનો હોવો જોઈએ"),
         "validPhone": MessageLookupByLibrary.simpleMessage(
             "માન્ય ૧૦-અંકનો ફોન નંબર દાખલ કરો"),
+        "visibilityShowOrHide":
+            MessageLookupByLibrary.simpleMessage("દૃશ્યતા (બતાવો/છુપાવો)"),
         "welcomeMessage": MessageLookupByLibrary.simpleMessage(
             "એપ્લિકેશનમાં આપનું સ્વાગત છે!")
       };

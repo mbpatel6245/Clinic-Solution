@@ -24,31 +24,57 @@ class MessageLookup extends MessageLookupByLibrary {
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
         "appointments": MessageLookupByLibrary.simpleMessage("Appointments"),
+        "billNo": MessageLookupByLibrary.simpleMessage("Bill No./Invoice No."),
+        "box": MessageLookupByLibrary.simpleMessage("Box"),
+        "brandName": MessageLookupByLibrary.simpleMessage("Brand Name"),
+        "colorOfContent":
+            MessageLookupByLibrary.simpleMessage("Color of content"),
+        "containsOfMedicine":
+            MessageLookupByLibrary.simpleMessage("Contains of Medicine"),
+        "dateOfPurchase":
+            MessageLookupByLibrary.simpleMessage("Date Of Purchase"),
         "email": MessageLookupByLibrary.simpleMessage("Email"),
         "emailRequired":
             MessageLookupByLibrary.simpleMessage("Email is required"),
         "errorMessage":
             MessageLookupByLibrary.simpleMessage("An error occurred."),
+        "expiryDate": MessageLookupByLibrary.simpleMessage("Expiry Date"),
         "forgotPassword":
             MessageLookupByLibrary.simpleMessage("Forgot Password?"),
         "forgotPasswordLabel":
             MessageLookupByLibrary.simpleMessage("Forgot Password"),
+        "formType": MessageLookupByLibrary.simpleMessage(
+            "Form Type (Syrup/Tablets/Others)"),
         "login": MessageLookupByLibrary.simpleMessage("Login"),
         "logout": MessageLookupByLibrary.simpleMessage("Logout"),
+        "manufacturerName":
+            MessageLookupByLibrary.simpleMessage("Manufacturer Name"),
+        "maximumAvailability":
+            MessageLookupByLibrary.simpleMessage("Maximum Availability"),
+        "medicine": MessageLookupByLibrary.simpleMessage("Medicine"),
+        "minimumAvailability":
+            MessageLookupByLibrary.simpleMessage("Minimum Availability"),
         "name": MessageLookupByLibrary.simpleMessage("Name"),
         "nameRequired": MessageLookupByLibrary.simpleMessage("Name required"),
+        "nearestDurationDays":
+            MessageLookupByLibrary.simpleMessage("Nearest duration Days"),
         "newPrescription":
             MessageLookupByLibrary.simpleMessage("New Prescription"),
         "newUserRegister":
             MessageLookupByLibrary.simpleMessage("New User Register"),
+        "others": MessageLookupByLibrary.simpleMessage("Others"),
         "password": MessageLookupByLibrary.simpleMessage("Password"),
         "passwordRequired":
             MessageLookupByLibrary.simpleMessage("Password is required"),
         "phone": MessageLookupByLibrary.simpleMessage("Phone"),
         "phoneRequired":
             MessageLookupByLibrary.simpleMessage("Phone number is required"),
+        "powerOfSize": MessageLookupByLibrary.simpleMessage("Power Of Size"),
         "prescriptionList":
             MessageLookupByLibrary.simpleMessage("Prescription list"),
+        "purchasingPersonOrStockist": MessageLookupByLibrary.simpleMessage(
+            "Purchasing Person/Stockist Name"),
+        "quantity": MessageLookupByLibrary.simpleMessage("Quantity"),
         "register": MessageLookupByLibrary.simpleMessage("Register"),
         "registerSuccessfully":
             MessageLookupByLibrary.simpleMessage("Registered successfully!"),
@@ -57,7 +83,11 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Role is required"),
         "sendResetEmail":
             MessageLookupByLibrary.simpleMessage("Send Reset email"),
+        "shortName": MessageLookupByLibrary.simpleMessage("Short Name"),
         "stockInward": MessageLookupByLibrary.simpleMessage("Stock Inward"),
+        "tabletsOrStrips":
+            MessageLookupByLibrary.simpleMessage("Tablets/Stripes"),
+        "typeOfStock": MessageLookupByLibrary.simpleMessage("Types of Stock"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
             "User authentication failed. Please try again!"),
         "validEmail":
@@ -66,6 +96,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "Password must be at least 6 characters"),
         "validPhone": MessageLookupByLibrary.simpleMessage(
             "Enter a valid 10-digit phone number"),
+        "visibilityShowOrHide":
+            MessageLookupByLibrary.simpleMessage("Visibility (Show/Hide)"),
         "welcomeMessage":
             MessageLookupByLibrary.simpleMessage("Welcome to the app!")
       };

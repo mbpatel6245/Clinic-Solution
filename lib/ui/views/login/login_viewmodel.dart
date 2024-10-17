@@ -8,6 +8,7 @@ import '../../../main.dart';
 import '../../../services/auth_services.dart';
 import '../../../services/local/secure_data_viewmodel.dart';
 import '../../themes/text_styles.dart';
+import '../../widgets/common_text.dart';
 
 class LoginViewModel with ChangeNotifier {
   final emailController = TextEditingController();
@@ -48,7 +49,7 @@ class LoginViewModel with ChangeNotifier {
       print(stacktrace.toString());
 
       ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(SnackBar(
-        content: Text(
+        content: CommonText(text:
             AppLocalizations.of(navigatorKey.currentContext!)!
                 .userAuthenticationFailed,
             style: AppTextStyles.getRegularTextStyle(localeProvider.locale)

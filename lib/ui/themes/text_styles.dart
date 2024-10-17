@@ -4,7 +4,6 @@ import '../../core/utils/responsive_text_util.dart';
 import '../../main.dart';
 
 class AppTextStyles {
-
   static double getFontSize(Locale locale, double baseSize) {
     switch (locale.languageCode) {
       case 'gu': // Example for Arabic
@@ -16,72 +15,90 @@ class AppTextStyles {
     }
   }
 
-  static TextStyle getRegularTextStyle(Locale locale,{double fontSize=20}) {
+  static TextStyle getRegularTextStyle(Locale locale, {double fontSize = 20}) {
     switch (locale.languageCode) {
       case 'hi':
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, fontSize)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w400,
             fontFamily: "Noto Sans",
             color: Colors.black87);
       case 'gu':
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, fontSize)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w400,
             fontFamily: '"Noto Sans"',
             color: Colors.black87);
       // Add more cases for other locales if needed
       default:
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, fontSize)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w400,
             fontFamily: "Noto Sans",
             color: Colors.black87);
     }
   }
 
-  static TextStyle getSemiBoldTextStyle(Locale locale) {
+  static TextStyle getSemiBoldTextStyle(Locale locale, {double fontSize = 20}) {
     switch (locale.languageCode) {
       case 'hi':
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, 20)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w600,
             fontFamily: "Noto Sans",
             color: Colors.black87);
       case 'gu':
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, 20)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w600,
             fontFamily: '"Noto Sans"',
             color: Colors.black87);
       // Add more cases for other locales if needed
       default:
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, 20)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w600,
             fontFamily: "Noto Sans",
             color: Colors.black87);
     }
   }
 
-  static TextStyle getBoldTextStyle(Locale locale) {
+  static TextStyle getBoldTextStyle(Locale locale,{double fontSize = 20}) {
     switch (locale.languageCode) {
       case 'hi':
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, 20)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w700,
             fontFamily: "Noto Sans",
             color: Colors.black87);
       case 'gu':
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, 20)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w700,
             fontFamily: '"Noto Sans"',
             color: Colors.black87);
       // Add more cases for other locales if needed
       default:
         return TextStyle(
-            fontSize: ResponsiveTextUtil.getResponsiveFontSize(navigatorKey.currentContext!, baseFontSize: getFontSize(locale, 20)),
+            fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                navigatorKey.currentContext!,
+                baseFontSize: getFontSize(locale, fontSize)),
             fontWeight: FontWeight.w700,
             fontFamily: "Noto Sans",
             color: Colors.black87);
