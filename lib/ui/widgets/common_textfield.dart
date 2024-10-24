@@ -11,9 +11,11 @@ class CommonTextField extends StatelessWidget {
   final TextEditingController? controller;
   final TextInputType keyboardType;
   final bool isPassword;
+  final bool isReadOnly;
   final IconData? prefixIcon;
   final IconData? suffixIcon;
   final Function(String)? onChanged;
+  final Function()? onTap;
   final String? Function(String?)? validator;
   final double? height;
   final double? fontSize;
@@ -25,9 +27,11 @@ class CommonTextField extends StatelessWidget {
     this.controller,
     this.keyboardType = TextInputType.text,
     this.isPassword = false,
+    this.isReadOnly = false,
     this.prefixIcon,
     this.suffixIcon,
     this.onChanged,
+    this.onTap,
     this.validator,
     this.height,
     this.fontSize
@@ -43,6 +47,8 @@ class CommonTextField extends StatelessWidget {
         obscureText: isPassword,
         onChanged: onChanged,
         validator: validator,
+        readOnly: isReadOnly,
+        onTap: onTap,
         style: AppTextStyles.getRegularTextStyle(localeProvider.locale,fontSize: fontSize??getSize(20)),
         decoration: InputDecoration(
           labelText: labelText,

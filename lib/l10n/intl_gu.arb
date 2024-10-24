@@ -48,5 +48,16 @@
    "visibilityShowOrHide": "દૃશ્યતા (બતાવો/છુપાવો)",
    "shortName": "ટૂંકું નામ",
    "colorOfContent": "સામગ્રીનો રંગ",
-   "billNo": "બિલ નંબર/ઇનવોઇસ નંબર."
+   "billNo": "બિલ નંબર/ઇનવોઇસ નંબર.",
+   "show":"બતાવો",
+     "hide":"છુપાવો",
+     "submit":"સમર્પિત કરવું",
+     "stockSavedSuccessfully":"સ્ટોક સફળતાપૂર્વક સાચવ્યો!",
+     "contentName":"સામગ્રી નામ",
+       "size":"માપ",
+       "addMoreContent":"વધુ સામગ્રી ઉમેરો",
+       "addStockOfData":"ડેટાનો સ્ટોક ઉમેરો",
+         "updateStockOfData":"ડેટાનો સ્ટોક અપડેટ કરો",
+         "listOfStockData":"સ્ટોક ડેટાની સૂચિ",
+         "stockDeletedSuccessfully":"સ્ટોક સફળતાપૂર્વક કાઢી નાખ્યો!"
 }

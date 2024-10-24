@@ -22,6 +22,10 @@ class MessageLookup extends MessageLookupByLibrary {
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
+        "addMoreContent":
+            MessageLookupByLibrary.simpleMessage("વધુ સામગ્રી ઉમેરો"),
+        "addStockOfData":
+            MessageLookupByLibrary.simpleMessage("ડેટાનો સ્ટોક ઉમેરો"),
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
         "appointments": MessageLookupByLibrary.simpleMessage("નિમણૂંકો"),
         "billNo": MessageLookupByLibrary.simpleMessage("બિલ નંબર/ઇનવોઇસ નંબર."),
@@ -30,6 +34,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "colorOfContent": MessageLookupByLibrary.simpleMessage("સામગ્રીનો રંગ"),
         "containsOfMedicine":
             MessageLookupByLibrary.simpleMessage("દવા ધરાવે છે"),
+        "contentName": MessageLookupByLibrary.simpleMessage("સામગ્રી નામ"),
         "dateOfPurchase": MessageLookupByLibrary.simpleMessage("ખરીદીની તારીખ"),
         "email": MessageLookupByLibrary.simpleMessage("ઇમેઇલ"),
         "emailRequired":
@@ -42,6 +47,9 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("પાસવર્ડ ભૂલી ગયા છો"),
         "formType": MessageLookupByLibrary.simpleMessage(
             "ફોર્મનો પ્રકાર (સીરપ/ટેબ્લેટ/અન્ય)"),
+        "hide": MessageLookupByLibrary.simpleMessage("છુપાવો"),
+        "listOfStockData":
+            MessageLookupByLibrary.simpleMessage("સ્ટોક ડેટાની સૂચિ"),
         "login": MessageLookupByLibrary.simpleMessage("લૉગિન કરો"),
         "logout": MessageLookupByLibrary.simpleMessage("લોગઆઉટ"),
         "manufacturerName":
@@ -79,9 +87,18 @@ class MessageLookup extends MessageLookupByLibrary {
         "sendResetEmail":
             MessageLookupByLibrary.simpleMessage("રીસેટ ઈમેલ મોકલો"),
         "shortName": MessageLookupByLibrary.simpleMessage("ટૂંકું નામ"),
+        "show": MessageLookupByLibrary.simpleMessage("બતાવો"),
+        "size": MessageLookupByLibrary.simpleMessage("માપ"),
+        "stockDeletedSuccessfully": MessageLookupByLibrary.simpleMessage(
+            "સ્ટોક સફળતાપૂર્વક કાઢી નાખ્યો!"),
         "stockInward": MessageLookupByLibrary.simpleMessage("સ્ટોક ઇનવર્ડ"),
+        "stockSavedSuccessfully":
+            MessageLookupByLibrary.simpleMessage("સ્ટોક સફળતાપૂર્વક સાચવ્યો!"),
+        "submit": MessageLookupByLibrary.simpleMessage("સમર્પિત કરવું"),
         "tabletsOrStrips": MessageLookupByLibrary.simpleMessage("ગોળીઓ/પટ્ટાઓ"),
         "typeOfStock": MessageLookupByLibrary.simpleMessage("સ્ટોકના પ્રકાર"),
+        "updateStockOfData":
+            MessageLookupByLibrary.simpleMessage("ડેટાનો સ્ટોક અપડેટ કરો"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
             "વપરાશકર્તા પ્રમાણીકરણ નિષ્ફળ થયું. કૃપા કરીને ફરી પ્રયાસ કરો!"),
         "validEmail":

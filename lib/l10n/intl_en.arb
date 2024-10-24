@@ -48,5 +48,16 @@
   "visibilityShowOrHide":"Visibility (Show/Hide)",
   "shortName":"Short Name",
   "colorOfContent":"Color of content",
-  "billNo":"Bill No./Invoice No."
+  "billNo":"Bill No./Invoice No.",
+  "show":"Show",
+  "hide":"Hide",
+  "submit":"Submit",
+  "stockSavedSuccessfully":"Stock saved Successfully!",
+  "contentName":"Content name",
+  "size":"Size",
+  "addMoreContent":"Add More Content",
+  "addStockOfData":"Add Stock of Data",
+  "updateStockOfData":"Update Stock of Data",
+  "listOfStockData":"List of Stock Data",
+  "stockDeletedSuccessfully":"Stock deleted Successfully!"
 }

@@ -22,6 +22,10 @@ class MessageLookup extends MessageLookupByLibrary {
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
+        "addMoreContent":
+            MessageLookupByLibrary.simpleMessage("Add More Content"),
+        "addStockOfData":
+            MessageLookupByLibrary.simpleMessage("Add Stock of Data"),
         "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
         "appointments": MessageLookupByLibrary.simpleMessage("Appointments"),
         "billNo": MessageLookupByLibrary.simpleMessage("Bill No./Invoice No."),
@@ -31,6 +35,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Color of content"),
         "containsOfMedicine":
             MessageLookupByLibrary.simpleMessage("Contains of Medicine"),
+        "contentName": MessageLookupByLibrary.simpleMessage("Content name"),
         "dateOfPurchase":
             MessageLookupByLibrary.simpleMessage("Date Of Purchase"),
         "email": MessageLookupByLibrary.simpleMessage("Email"),
@@ -45,6 +50,9 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Forgot Password"),
         "formType": MessageLookupByLibrary.simpleMessage(
             "Form Type (Syrup/Tablets/Others)"),
+        "hide": MessageLookupByLibrary.simpleMessage("Hide"),
+        "listOfStockData":
+            MessageLookupByLibrary.simpleMessage("List of Stock Data"),
         "login": MessageLookupByLibrary.simpleMessage("Login"),
         "logout": MessageLookupByLibrary.simpleMessage("Logout"),
         "manufacturerName":
@@ -84,10 +92,19 @@ class MessageLookup extends MessageLookupByLibrary {
         "sendResetEmail":
             MessageLookupByLibrary.simpleMessage("Send Reset email"),
         "shortName": MessageLookupByLibrary.simpleMessage("Short Name"),
+        "show": MessageLookupByLibrary.simpleMessage("Show"),
+        "size": MessageLookupByLibrary.simpleMessage("Size"),
+        "stockDeletedSuccessfully":
+            MessageLookupByLibrary.simpleMessage("Stock deleted Successfully!"),
         "stockInward": MessageLookupByLibrary.simpleMessage("Stock Inward"),
+        "stockSavedSuccessfully":
+            MessageLookupByLibrary.simpleMessage("Stock saved Successfully!"),
+        "submit": MessageLookupByLibrary.simpleMessage("Submit"),
         "tabletsOrStrips":
             MessageLookupByLibrary.simpleMessage("Tablets/Stripes"),
         "typeOfStock": MessageLookupByLibrary.simpleMessage("Types of Stock"),
+        "updateStockOfData":
+            MessageLookupByLibrary.simpleMessage("Update Stock of Data"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
             "User authentication failed. Please try again!"),
         "validEmail":

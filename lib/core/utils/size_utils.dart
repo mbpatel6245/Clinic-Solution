@@ -132,7 +132,16 @@ EdgeInsetsGeometry getMarginOrPadding({
   );
 }
 
+bool isTabletOrDesktop(BuildContext context) {
+  // Get the screen width and orientation
+  var screenWidth = MediaQuery.of(context).size.width;
+  var orientation = MediaQuery.of(context).orientation;
 
+  // Determine whether to use 1 or 2 columns based on screen width and orientation
+  bool isTabletOrDesktop =
+      screenWidth >= 600 && orientation == Orientation.landscape;
+  return isTabletOrDesktop;
+}
 /// The function calculates the size of a given text with a specified text style.
 ///
 /// Args:

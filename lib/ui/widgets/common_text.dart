@@ -1,4 +1,3 @@
-import 'package:clinic_solution/core/utils/size_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -33,21 +32,23 @@ class CommonText extends StatelessWidget {
     if (height == null) {
       return Text(
         text,
-        style: style?.copyWith(color: color) ??
+        style: style?.copyWith(color: color ?? Colors.black87) ??
             AppTextStyles.getRegularTextStyle(localeProvider.locale,
-                fontSize: fontSize ?? 20),
+                    fontSize: fontSize ?? 20)
+                .copyWith(color: color ?? Colors.black87),
         textAlign: textAlign,
         maxLines: maxLines,
         overflow: overflow ?? TextOverflow.ellipsis,
       );
     } else {
       return SizedBox(
-        height: height ,
+        height: height,
         child: Text(
           text,
-          style: style?.copyWith(color: color) ??
+          style: style?.copyWith(color: color ?? Colors.black87) ??
               AppTextStyles.getRegularTextStyle(localeProvider.locale,
-                  fontSize: fontSize ?? 20),
+                  fontSize: fontSize ?? 20)
+                  .copyWith(color: color ?? Colors.black87),
           textAlign: textAlign,
           maxLines: maxLines,
           overflow: overflow ?? TextOverflow.ellipsis,

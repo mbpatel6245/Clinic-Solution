@@ -43,7 +43,7 @@ class LoginScreen extends StatelessWidget {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Container(
-                constraints: const BoxConstraints(maxWidth: 400),
+                constraints: const BoxConstraints(maxWidth: 450),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

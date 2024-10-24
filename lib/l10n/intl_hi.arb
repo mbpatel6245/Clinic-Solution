@@ -48,5 +48,16 @@
   "visibilityShowOrHide": "दृश्यता (दिखाएँ/छिपाएँ)",
   "shortName": "संक्षिप्त नाम",
   "colorOfContent": "सामग्री का रंग",
-  "billNo": "बिल नंबर/इनवॉइस नंबर."
+  "billNo": "बिल नंबर/इनवॉइस नंबर.",
+  "show":"दिखाएँ",
+    "hide":"छिपाएँ",
+    "submit":"जमा करना",
+    "stockSavedSuccessfully":"स्टॉक सफलतापूर्वक सहेजा गया!",
+    "contentName":"सामग्री का नाम",
+      "size":"माप",
+      "addMoreContent":"अधिक सामग्री जोड़ें",
+      "addStockOfData":"डेटा का स्टॉक जोड़ें",
+        "updateStockOfData":"डेटा का अद्यतन स्टॉक",
+        "listOfStockData":"स्टॉक डेटा की सूची",
+        "stockDeletedSuccessfully":"स्टॉक सफलतापूर्वक हटा दिया गया!"
 }

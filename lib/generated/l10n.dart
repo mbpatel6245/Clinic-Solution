@@ -549,6 +549,116 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Show`
+  String get show {
+    return Intl.message(
+      'Show',
+      name: 'show',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Hide`
+  String get hide {
+    return Intl.message(
+      'Hide',
+      name: 'hide',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Submit`
+  String get submit {
+    return Intl.message(
+      'Submit',
+      name: 'submit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Stock saved Successfully!`
+  String get stockSavedSuccessfully {
+    return Intl.message(
+      'Stock saved Successfully!',
+      name: 'stockSavedSuccessfully',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Content name`
+  String get contentName {
+    return Intl.message(
+      'Content name',
+      name: 'contentName',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Size`
+  String get size {
+    return Intl.message(
+      'Size',
+      name: 'size',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Add More Content`
+  String get addMoreContent {
+    return Intl.message(
+      'Add More Content',
+      name: 'addMoreContent',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Add Stock of Data`
+  String get addStockOfData {
+    return Intl.message(
+      'Add Stock of Data',
+      name: 'addStockOfData',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Update Stock of Data`
+  String get updateStockOfData {
+    return Intl.message(
+      'Update Stock of Data',
+      name: 'updateStockOfData',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `List of Stock Data`
+  String get listOfStockData {
+    return Intl.message(
+      'List of Stock Data',
+      name: 'listOfStockData',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Stock deleted Successfully!`
+  String get stockDeletedSuccessfully {
+    return Intl.message(
+      'Stock deleted Successfully!',
+      name: 'stockDeletedSuccessfully',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -157,7 +157,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget commonTabView(
       BuildContext context, IconData iconData, String tabTitle) {
-    if (kIsWeb) {
+    if (isTabletOrDesktop(context)) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -171,7 +171,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       );
-    } else if (Platform.isAndroid || Platform.isIOS) {
+    } else  {
       return SizedBox(
         width: double.infinity,
         child: Column(
@@ -188,18 +188,6 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
-      );
-    } else {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(iconData),
-          const SizedBox(width: 5),
-          CommonText(
-            text: tabTitle,
-            style: AppTextStyles.getSemiBoldTextStyle(localeProvider.locale),
-          ),
-        ],
       );
     }
   }
