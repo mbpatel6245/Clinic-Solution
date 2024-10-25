@@ -27,7 +27,8 @@ class TabStockInward extends StatefulWidget {
 class _TabStockInwardState extends State<TabStockInward> {
   var localeProvider = LocaleProvider();
   bool isPowerOfSizeListEmpty = false;
-  String? _selectedOption;
+  bool isUpdateStockEnable = false;
+  String? typeOfStock;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -35,7 +36,7 @@ class _TabStockInwardState extends State<TabStockInward> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Initialize _selectedOption here where AppLocalizations is available
-    _selectedOption ??= AppLocalizations.of(context)!.medicine;
+    typeOfStock ??= AppLocalizations.of(context)!.medicine;
   }
 
   @override
@@ -50,12 +51,7 @@ class _TabStockInwardState extends State<TabStockInward> {
           child: Consumer<StockInwardViewmodel>(
             builder: (context, viewModel, child) {
               if (!isPowerOfSizeListEmpty) {
-                viewModel.posNameListController
-                    .add(TextEditingController(text: ""));
-                viewModel.posSizeListController
-                    .add(TextEditingController(text: "0"));
-                viewModel.powerOfSizeWidgetList.add(buildPowerOfSize(viewModel,
-                    context, viewModel.powerOfSizeWidgetList.length));
+                addPowerOfSize(viewModel, context);
                 isPowerOfSizeListEmpty = true;
               }
 
@@ -65,7 +61,8 @@ class _TabStockInwardState extends State<TabStockInward> {
                       ? Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: viewListOfData(context, viewModel)),
+                            Expanded(
+                                child: stockListOfData(context, viewModel)),
                             const VerticalDivider(
                               color: Colors.grey,
                               thickness: 1, // Thickness of the divider
@@ -96,7 +93,8 @@ class _TabStockInwardState extends State<TabStockInward> {
                         )
                       : Column(
                           children: [
-                            Expanded(child: viewListOfData(context, viewModel)),
+                            Expanded(
+                                child: stockListOfData(context, viewModel)),
                             const SizedBox(height: 15.0),
                             const Divider(),
                             const SizedBox(height: 15.0),
@@ -111,7 +109,7 @@ class _TabStockInwardState extends State<TabStockInward> {
     );
   }
 
-  Widget viewListOfData(BuildContext context, StockInwardViewmodel viewModel) {
+  Widget stockListOfData(BuildContext context, StockInwardViewmodel viewModel) {
     return Column(
       children: [
         Center(
@@ -139,131 +137,7 @@ class _TabStockInwardState extends State<TabStockInward> {
                 StockModel stock = StockModel.fromFirestore(
                     document as DocumentSnapshot<Map<String, dynamic>>, null);
 
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.symmetric(
-                      vertical: 8.0, horizontal: 10.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Row for Stock details and Action icons (Update/Delete)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Expanded widget for the stock details text
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Short Name
-                                  CommonText(
-                                    text: (stock.shortName ?? 'No Short Name')
-                                        .toUpperCase(),
-                                    style: AppTextStyles.getBoldTextStyle(
-                                        localeProvider.locale,
-                                        fontSize: 16),
-                                  ),
-                                  const SizedBox(height: 4),
-
-                                  // Bill Number
-                                  CommonText(
-                                      fontSize: 14,
-                                      text:
-                                          'Bill Number: ${stock.billNumber ?? 'N/A'}'),
-                                  const SizedBox(height: 4),
-
-                                  // Expiry Date and Manufacturer
-                                  CommonText(
-                                      fontSize: 14,
-                                      text:
-                                          'Expiry Date: ${stock.expiryDate ?? 'No Expiry Date'}'),
-                                  CommonText(
-                                      fontSize: 14,
-                                      text:
-                                          'Manufacturer: ${stock.manufacturerName ?? 'No Manufacturer'}'),
-
-                                  const SizedBox(height: 4),
-
-                                  // Availability
-                                  CommonText(
-                                      fontSize: 14,
-                                      text:
-                                          'Availability: Min ${stock.minimumAvailability ?? 'N/A'} - Max ${stock.maximumAvailability ?? 'N/A'}'),
-
-                                  // Quantity details
-                                  CommonText(
-                                      fontSize: 14,
-                                      text:
-                                          'Quantity: ${stock.quantityMedicine ?? 'N/A'}-Medicines OR ${stock.quantityTablets ?? 'N/A'}-Tablets OR ${stock.quantityBox ?? 'N/A'}-Boxes'),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit,
-                                      color: Colors.lightBlue),
-                                  onPressed: () {
-                                    // Add your update logic here
-                                    print(
-                                        'Update clicked for ${stock.shortName}');
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  onPressed: () {
-                                    print(
-                                        'Delete clicked for ${stock.shortName}');
-                                    viewModel.deleteStockData(document.id);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            AppLocalizations.of(context)!
-                                                .stockDeletedSuccessfully),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-
-                        const Divider(),
-
-                        // Trailing Section for Purchase date and Stock Type
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Purchase Date
-                            CommonText(
-                              text:
-                                  'Purchased: ${stock.dateOfPurchase ?? 'Unknown'}',
-                              style: AppTextStyles.getRegularTextStyle(
-                                      localeProvider.locale,
-                                      fontSize: 14)
-                                  .copyWith(color: Colors.grey[600]),
-                            ),
-                            // Type of Stock (Medicine or Other)
-                            CommonText(
-                              fontSize: 14,
-                              text: stock.typeOfStock == 'Medicine'
-                                  ? 'Medicine'
-                                  : 'Other',
-                              color: stock.typeOfStock == 'Medicine'
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+                return stockListItem(stock, viewModel, context, document);
               }).toList(),
             );
           },
@@ -272,26 +146,199 @@ class _TabStockInwardState extends State<TabStockInward> {
     );
   }
 
+  Card stockListItem(StockModel stock, StockInwardViewmodel viewModel,
+      BuildContext context, DocumentSnapshot<Map<String, dynamic>> document) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
+      child: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row for Stock details and Action icons (Update/Delete)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Expanded widget for the stock details text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Short Name
+                      CommonText(
+                        text:
+                            (stock.shortName ?? 'No Short Name').toUpperCase(),
+                        style: AppTextStyles.getBoldTextStyle(
+                            localeProvider.locale,
+                            fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+
+                      // Bill Number
+                      CommonText(
+                          fontSize: 14,
+                          text: 'Bill Number: ${stock.billNumber ?? 'N/A'}'),
+                      const SizedBox(height: 4),
+
+                      // Expiry Date and Manufacturer
+                      CommonText(
+                          fontSize: 14,
+                          text:
+                              'Expiry Date: ${stock.expiryDate ?? 'No Expiry Date'}'),
+                      CommonText(
+                          fontSize: 14,
+                          text:
+                              'Manufacturer: ${stock.manufacturerName ?? 'No Manufacturer'}'),
+
+                      const SizedBox(height: 4),
+
+                      // Availability
+                      CommonText(
+                          fontSize: 14,
+                          text:
+                              'Availability: Min ${stock.minimumAvailability ?? 'N/A'} - Max ${stock.maximumAvailability ?? 'N/A'}'),
+
+                      // Quantity details
+                      CommonText(
+                          fontSize: 14,
+                          text:
+                              'Quantity: ${stock.quantityMedicine ?? 'N/A'}-Medicines OR ${stock.quantityTablets ?? 'N/A'}-Tablets OR ${stock.quantityBox ?? 'N/A'}-Boxes'),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.lightBlue),
+                      onPressed: () {
+                        isUpdateStockEnable = true;
+                        viewModel.stockVisibility = stock.visibility;
+                        viewModel.quntTabletCnt.text =
+                            stock.quantityTablets ?? "";
+
+                        viewModel.billNoCnt.text = stock.billNumber ?? "";
+                        viewModel.shortNameCnt.text = stock.shortName ?? "";
+                        viewModel.manufacturerCnt.text =
+                            stock.manufacturerName ?? "";
+                        viewModel.expiryDateController.text =
+                            stock.expiryDate ?? "";
+                        viewModel.minAvailCnt.text =
+                            stock.minimumAvailability ?? "";
+                        viewModel.maxAvailCnt.text =
+                            stock.maximumAvailability ?? "";
+                        viewModel.nearestDurationDayController.text =
+                            stock.nearestDurationDay ?? "";
+                        viewModel.brandNameCnt.text = stock.brandName ?? "";
+                        viewModel.purchasePersonCnt.text =
+                            stock.purchasingPerson ?? "";
+                        viewModel.containsMedicineCnt.text =
+                            stock.containsMedicine ?? "";
+                        viewModel.dateOfPurchaseController.text =
+                            stock.dateOfPurchase ?? "";
+                        viewModel.quntMedicineCnt.text =
+                            stock.quantityMedicine ?? "";
+                        viewModel.quntBoxCnt.text = stock.quantityBox ?? "";
+                        viewModel.quntTabletCnt.text =
+                            stock.quantityTablets ?? "";
+                        viewModel.formTypeCnt.text = stock.formType ?? "";
+                        viewModel.colorContentCnt.text =
+                            stock.colorOfContent ?? "";
+                        typeOfStock = (stock.typeOfStock ==
+                                AppLocalizations.of(context)!.medicine)
+                            ? AppLocalizations.of(context)!.medicine
+                            : AppLocalizations.of(context)!.others;
+
+                        if (stock.posContentName?.isNotEmpty == true &&
+                            stock.posContentSize?.isNotEmpty == true &&
+                            stock.posContentName?.length ==
+                                stock.posContentSize?.length) {
+                          for (final (index, item)
+                              in stock.posContentName!.indexed) {
+                            viewModel.posNameListController
+                                .add(TextEditingController(text: item));
+                            viewModel.posSizeListController.add(
+                                TextEditingController(
+                                    text: stock.posContentSize?[index]));
+                            viewModel.powerOfSizeWidgetList.add(
+                                buildPowerOfSize(viewModel, context,
+                                    viewModel.powerOfSizeWidgetList.length));
+                          }
+                        }
+                        setState(() {
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () {
+                        viewModel.deleteStockData(document.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(AppLocalizations.of(context)!
+                                .stockDeletedSuccessfully),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const Divider(),
+
+            // Trailing Section for Purchase date and Stock Type
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Purchase Date
+                CommonText(
+                  text: 'Purchased: ${stock.dateOfPurchase ?? 'Unknown'}',
+                  style: AppTextStyles.getRegularTextStyle(
+                          localeProvider.locale,
+                          fontSize: 14)
+                      .copyWith(color: Colors.grey[600]),
+                ),
+                // Type of Stock (Medicine or Other)
+                CommonText(
+                  fontSize: 14,
+                  text: stock.typeOfStock == 'Medicine' ? 'Medicine' : 'Other',
+                  color: stock.typeOfStock == 'Medicine'
+                      ? Colors.green
+                      : Colors.red,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget addOrUpdateData(BuildContext context, StockInwardViewmodel viewModel) {
     return Column(
       children: [
         Center(
             child: CommonText(
-          text: AppLocalizations.of(context)!.addStockOfData,
+          text: isUpdateStockEnable
+              ? AppLocalizations.of(context)!.updateStockOfData
+              : AppLocalizations.of(context)!.addStockOfData,
           color: Colors.lightBlue,
           height: getSize(35),
         )),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.symmetric(vertical: 10),
-            children: addOrUpdateContent(context, viewModel),
+            children: addOrUpdateItem(context, viewModel),
           ),
         ),
       ],
     );
   }
 
-  List<Widget> addOrUpdateContent(
+  List<Widget> addOrUpdateItem(
       BuildContext context, StockInwardViewmodel viewModel) {
     return [
       CommonRadioGroup<String>(
@@ -305,10 +352,10 @@ class _TabStockInwardState extends State<TabStockInward> {
           AppLocalizations.of(context)!.others
         ],
         // Labels for each radio
-        selectedValue: _selectedOption,
+        selectedValue: typeOfStock,
         onChanged: (value) {
           setState(() {
-            _selectedOption = value;
+            typeOfStock = value;
           });
         },
       ),
@@ -499,7 +546,7 @@ class _TabStockInwardState extends State<TabStockInward> {
                 const Spacer(),
                 GestureDetector(
                   onTap: () {
-                    addRow(viewModel, context);
+                    addPowerOfSize(viewModel, context);
                   },
                   child: CommonText(
                     text: AppLocalizations.of(context)!.addMoreContent,
@@ -559,7 +606,7 @@ class _TabStockInwardState extends State<TabStockInward> {
       CommonButton(
         onPressed: () async {
           if (viewModel.validateForm(_formKey)) {
-            await viewModel.addNewStockData(_selectedOption!);
+            await viewModel.addNewStockData(typeOfStock!);
             isPowerOfSizeListEmpty = false;
             setState(() {});
             ScaffoldMessenger.of(context).showSnackBar(
@@ -575,7 +622,7 @@ class _TabStockInwardState extends State<TabStockInward> {
     ];
   }
 
-  void addRow(StockInwardViewmodel viewModel, BuildContext context) {
+  void addPowerOfSize(StockInwardViewmodel viewModel, BuildContext context) {
     setState(() {
       viewModel.posNameListController.add(TextEditingController(text: ""));
       viewModel.posSizeListController.add(TextEditingController(text: "0"));
