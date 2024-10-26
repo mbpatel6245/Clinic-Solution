@@ -50,10 +50,12 @@ class _TabStockInwardState extends State<TabStockInward> {
         child: Center(
           child: Consumer<StockInwardViewmodel>(
             builder: (context, viewModel, child) {
-              if (!isPowerOfSizeListEmpty) {
-                addPowerOfSize(viewModel, context);
-                isPowerOfSizeListEmpty = true;
-              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!isPowerOfSizeListEmpty) {
+                  addPowerOfSize(viewModel, context);
+                  isPowerOfSizeListEmpty = true;
+                }
+              });
 
               return Form(
                   key: _formKey,
