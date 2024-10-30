@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/locale_key.dart';
+import '../../../../data/datasources/stock_model.dart';
 import '../../../../services/firestore_services.dart';
 
 class StockInwardViewmodel with ChangeNotifier {
@@ -24,22 +26,23 @@ class StockInwardViewmodel with ChangeNotifier {
   TextEditingController quntBoxCnt = TextEditingController();
   TextEditingController formTypeCnt = TextEditingController();
   TextEditingController colorContentCnt = TextEditingController();
-  String? stockVisibility;
+  String stockVisibility = Constants.show;
 
+  //String typeOfStock = Constants.medicine;
   final FirebaseFireStore _fireStoreService = FirebaseFireStore();
   List<Widget> powerOfSizeWidgetList = [];
   List<TextEditingController> posNameListController = [];
   List<TextEditingController> posSizeListController = [];
 
   // List of roles for the dropdown
-  final List<String> visibilityList = ["Show", "Hide"];
+  final List<String> visibilityList = [Constants.show, Constants.hide];
 
   final Stream<QuerySnapshot> stockStream = FirebaseFirestore.instance
       .collection(FirebaseFireStore.pathStock)
       .snapshots();
 
   void onVisibilityChanged(String? value) {
-    stockVisibility = value;
+    stockVisibility = value ?? Constants.show;
     notifyListeners();
   }
 
@@ -76,31 +79,75 @@ class StockInwardViewmodel with ChangeNotifier {
     return jsonEncode(jsonList);
   }
 
-  // Save data to Firestore
-  Future<void> addNewStockData(String typeOfStock) async {
+  Future<void> updateStockData(String typeOfStock, String docId,
+      Function successCallback, Function errorCallback) async {
     try {
-      _fireStoreService.addNewStockData(
-          typeOfStock,
-          billNoCnt.text,
-          shortNameCnt.text,
-          manufacturerCnt.text,
-          expiryDateController.text,
-          stockVisibility ?? stockVisibility![0],
-          minAvailCnt.text,
-          maxAvailCnt.text,
-          nearestDurationDayController.text,
-          brandNameCnt.text,
-          purchasePersonCnt.text,
-          containsMedicineCnt.text,
-          dateOfPurchaseController.text,
-          quntMedicineCnt.text,
-          quntBoxCnt.text,
-          quntTabletCnt.text,
-          formTypeCnt.text,
-          colorContentCnt.text,
-          getListOfTextEditController(posSizeListController),
-          getListOfTextEditController(posNameListController));
+     await _fireStoreService.updateStock(
+          StockModel(
+              typeOfStock: typeOfStock,
+              billNumber: billNoCnt.text,
+              shortName: shortNameCnt.text,
+              manufacturerName: manufacturerCnt.text,
+              expiryDate: expiryDateController.text,
+              visibility: stockVisibility,
+              minimumAvailability: minAvailCnt.text,
+              maximumAvailability: maxAvailCnt.text,
+              nearestDurationDay: nearestDurationDayController.text,
+              brandName: brandNameCnt.text,
+              purchasingPerson: purchasePersonCnt.text,
+              containsMedicine: containsMedicineCnt.text,
+              dateOfPurchase: dateOfPurchaseController.text,
+              quantityMedicine: quntMedicineCnt.text,
+              quantityBox: quntBoxCnt.text,
+              quantityTablets: quntTabletCnt.text,
+              formType: formTypeCnt.text,
+              colorOfContent: colorContentCnt.text,
+              posContentSize:
+                  getListOfTextEditController(posSizeListController),
+              posContentName:
+                  getListOfTextEditController(posNameListController)),
+          docId,
+          successCallback,
+          errorCallback);
       clearData();
+      clearPowerOfSize();
+    } catch (e,stack) {
+      print(stack.toString());
+      print('Error saving data: $e');
+    }
+  }
+
+  Future<void> addNewStockData(String typeOfStock, Function successCallback,
+      Function errorCallback) async {
+    try {
+      await _fireStoreService.addNewStock(
+          StockModel(
+              typeOfStock: typeOfStock,
+              billNumber: billNoCnt.text,
+              shortName: shortNameCnt.text,
+              manufacturerName: manufacturerCnt.text,
+              expiryDate: expiryDateController.text,
+              visibility: stockVisibility,
+              minimumAvailability: minAvailCnt.text,
+              maximumAvailability: maxAvailCnt.text,
+              nearestDurationDay: nearestDurationDayController.text,
+              brandName: brandNameCnt.text,
+              purchasingPerson: purchasePersonCnt.text,
+              containsMedicine: containsMedicineCnt.text,
+              dateOfPurchase: dateOfPurchaseController.text,
+              quantityMedicine: quntMedicineCnt.text,
+              quantityBox: quntBoxCnt.text,
+              quantityTablets: quntTabletCnt.text,
+              formType: formTypeCnt.text,
+              colorOfContent: colorContentCnt.text,
+              posContentSize:
+                  getListOfTextEditController(posSizeListController),
+              posContentName:
+                  getListOfTextEditController(posNameListController)),
+          successCallback,
+          errorCallback);
+      clearData();
+      clearPowerOfSize();
     } catch (e) {
       print('Error saving data: $e');
     }
@@ -114,11 +161,14 @@ class StockInwardViewmodel with ChangeNotifier {
     }
   }
 
-  void clearData() {
+  void clearPowerOfSize() {
     powerOfSizeWidgetList.clear();
     posNameListController.clear();
     posSizeListController.clear();
-    stockVisibility = "";
+  }
+
+  void clearData() {
+    stockVisibility = Constants.show;
     billNoCnt.text = "";
     shortNameCnt.text = "";
     manufacturerCnt.text = "";

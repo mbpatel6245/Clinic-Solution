@@ -26,7 +26,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Add More Content"),
         "addStockOfData":
             MessageLookupByLibrary.simpleMessage("Add Stock of Data"),
-        "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
+        "appTitle": MessageLookupByLibrary.simpleMessage("Clinical Solution"),
         "appointments": MessageLookupByLibrary.simpleMessage("Appointments"),
         "billNo": MessageLookupByLibrary.simpleMessage("Bill No./Invoice No."),
         "box": MessageLookupByLibrary.simpleMessage("Box"),
@@ -89,6 +89,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "role": MessageLookupByLibrary.simpleMessage("Role"),
         "roleRequired":
             MessageLookupByLibrary.simpleMessage("Role is required"),
+        "searchStock": MessageLookupByLibrary.simpleMessage("Search stock"),
         "sendResetEmail":
             MessageLookupByLibrary.simpleMessage("Send Reset email"),
         "shortName": MessageLookupByLibrary.simpleMessage("Short Name"),
@@ -99,10 +100,13 @@ class MessageLookup extends MessageLookupByLibrary {
         "stockInward": MessageLookupByLibrary.simpleMessage("Stock Inward"),
         "stockSavedSuccessfully":
             MessageLookupByLibrary.simpleMessage("Stock saved Successfully!"),
+        "stockUpdatedSuccessfully":
+            MessageLookupByLibrary.simpleMessage("Stock updated Successfully!"),
         "submit": MessageLookupByLibrary.simpleMessage("Submit"),
         "tabletsOrStrips":
             MessageLookupByLibrary.simpleMessage("Tablets/Stripes"),
         "typeOfStock": MessageLookupByLibrary.simpleMessage("Types of Stock"),
+        "update": MessageLookupByLibrary.simpleMessage("Update"),
         "updateStockOfData":
             MessageLookupByLibrary.simpleMessage("Update Stock of Data"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(

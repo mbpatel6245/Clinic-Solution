@@ -17,7 +17,7 @@ import '../../../services/local/secure_data_viewmodel.dart';
 import '../../themes/text_styles.dart';
 import '../../widgets/common_text.dart';
 import 'home_viewmodel.dart';
-import 'stock_inward/tab_stock_inward.dart';
+import 'stock_inward/tab_stock_inward_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   //final User user;
@@ -75,7 +75,7 @@ class HomeScreen extends StatelessWidget {
               IconButton(
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
-                  context.go('/${Strings.navLogin}');
+                  context.go('/${Constants.navLogin}');
                 },
                 icon: const Icon(Icons.logout),
               ),

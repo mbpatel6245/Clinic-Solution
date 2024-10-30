@@ -80,7 +80,7 @@ class LoginScreen extends StatelessWidget {
                         if (viewModel.validateForm(_formKey)) {
                           //
                           viewModel.signIn((user) {
-                            context.go('/${Strings.navHome}');
+                            context.go('/${Constants.navHome}');
                           });
                         }
                       },
@@ -88,7 +88,7 @@ class LoginScreen extends StatelessWidget {
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () {
-                        context.go('/${Strings.navForgot}');
+                        context.go('/${Constants.navForgot}');
                       },
                       child: CommonText(
                           text:AppLocalizations.of(context)!.forgotPassword,
@@ -100,7 +100,7 @@ class LoginScreen extends StatelessWidget {
                     const SizedBox(height: 40),
                     GestureDetector(
                       onTap: () {
-                        context.go('/${Strings.navRegister}');
+                        context.go('/${Constants.navRegister}');
                       },
                       child: CommonText(
                           text:AppLocalizations.of(context)!.newUserRegister,
@@ -124,7 +124,7 @@ class LoginScreen extends StatelessWidget {
     var email = await viewModel.getEmail();
 
     if (uid?.isNotEmpty == true && email?.isNotEmpty == true) {
-      context.go('/${Strings.navHome}');
+      context.go('/${Constants.navHome}');
     }
   }
 

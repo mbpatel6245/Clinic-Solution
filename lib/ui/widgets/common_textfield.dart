@@ -16,6 +16,7 @@ class CommonTextField extends StatelessWidget {
   final IconData? suffixIcon;
   final Function(String)? onChanged;
   final Function()? onTap;
+  final Function()? suffixOnTap;
   final String? Function(String?)? validator;
   final double? height;
   final double? fontSize;
@@ -32,6 +33,7 @@ class CommonTextField extends StatelessWidget {
     this.suffixIcon,
     this.onChanged,
     this.onTap,
+    this.suffixOnTap,
     this.validator,
     this.height,
     this.fontSize
@@ -58,7 +60,7 @@ class CommonTextField extends StatelessWidget {
           // Background color with M3 surface variant
           labelStyle: AppTextStyles.getRegularTextStyle(localeProvider.locale,fontSize: fontSize??getSize(20)),
           hintStyle: AppTextStyles.getRegularTextStyle(localeProvider.locale)
-              .copyWith(color: Colors.white38),
+              .copyWith(color: Colors.white24),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.0),
             borderSide: const BorderSide(
@@ -81,7 +83,8 @@ class CommonTextField extends StatelessWidget {
           prefixIcon:
               prefixIcon != null ? Icon(prefixIcon, color: Colors.black87) : null,
           suffixIcon:
-              suffixIcon != null ? Icon(suffixIcon, color: Colors.black87) : null,
+              suffixIcon != null ? GestureDetector(onTap:suffixOnTap,child: Icon(suffixIcon, color: Colors.black87)) : null,
+
         ),
       ),
     );

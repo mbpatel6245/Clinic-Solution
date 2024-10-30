@@ -34,72 +34,43 @@ class FirebaseFireStore with ChangeNotifier {
         createdAt: Timestamp.now()));
   }
 
-  void addNewStockData(
-    String typeOfStock,
-    String billNo,
-    String shortName,
-    String manufacturerName,
-    String expiryDate,
-    String stockVisibility,
-    String minAvailability,
-    String maxAvailability,
-    String nearestDurationDay,
-    String brandName,
-    String purchasePerson,
-    String containsMedicine,
-    String dateOfPurchase,
-    String quantityMedicine,
-    String quantityBox,
-    String quantityTablet,
-    String formType,
-    String colorContent,
-    List<String> posContentSize,
-    List<String> posContentName,
-  ) {
-    addNewStock(StockModel(
-        typeOfStock: typeOfStock,
-        billNumber: billNo,
-        shortName: shortName,
-        manufacturerName: manufacturerName,
-        expiryDate: expiryDate,
-        visibility: stockVisibility,
-        minimumAvailability: minAvailability,
-        maximumAvailability: maxAvailability,
-        nearestDurationDay: nearestDurationDay,
-        brandName: brandName,
-        purchasingPerson: purchasePerson,
-        containsMedicine: containsMedicine,
-        dateOfPurchase: dateOfPurchase,
-        quantityMedicine: quantityMedicine,
-        quantityBox: quantityBox,
-        quantityTablets: quantityTablet,
-        formType: formType,
-        colorOfContent: colorContent,
-        posContentSize: posContentSize,
-        posContentName: posContentName));
-  }
-
   //---------------------------
   Future<void> deleteStock(String stockDocumentId) async {
     try {
       deleteDocument(path: pathStock, id: stockDocumentId);
-
     } catch (e) {
       print('Error deleting stock: $e');
     }
   }
 
-  Future<void> addNewStock(StockModel stock) async {
+  Future<void> addNewStock(StockModel stock, Function successCallback,
+      Function errorCallback) async {
     try {
-      //addDocument(path: pathStock, data: stock.toJson());
-      final docRef = _db
-          .collection(pathStock)
-          .withConverter(
+      final docRef = _db.collection(pathStock).withConverter(
+            fromFirestore: StockModel.fromFirestore,
+            toFirestore: (StockModel stockModel, options) =>
+                stockModel.toFirestore(),
+          );
+      await docRef
+          .add(stock)
+          .then((onValue) => successCallback(), onError: (e) => errorCallback);
+    } catch (e) {
+      print('Error adding stock: $e');
+    }
+  }
+
+  Future<void> updateStock(StockModel stock, String documentId,
+      Function successCallback, Function errorCallback) async {
+    try {
+      final docRef = _db.collection(pathStock).doc(documentId);
+      /*.withConverter(
         fromFirestore: StockModel.fromFirestore,
         toFirestore: (StockModel stockModel, options) => stockModel.toFirestore(),
-      );
-          //.doc("LA");
-      await docRef.add(stock);
+      );*/
+      await docRef
+          .update(stock.toFirestore())
+          .then((onValue) => successCallback(), onError: (e) => errorCallback);
+      //await docRef.add(stock);
     } catch (e) {
       print('Error adding stock: $e');
     }

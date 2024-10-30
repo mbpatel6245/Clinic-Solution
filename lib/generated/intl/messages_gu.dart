@@ -26,7 +26,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("વધુ સામગ્રી ઉમેરો"),
         "addStockOfData":
             MessageLookupByLibrary.simpleMessage("ડેટાનો સ્ટોક ઉમેરો"),
-        "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
+        "appTitle": MessageLookupByLibrary.simpleMessage("Clinical Solution"),
         "appointments": MessageLookupByLibrary.simpleMessage("નિમણૂંકો"),
         "billNo": MessageLookupByLibrary.simpleMessage("બિલ નંબર/ઇનવોઇસ નંબર."),
         "box": MessageLookupByLibrary.simpleMessage("બોક્સ"),
@@ -84,6 +84,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("સફળતાપૂર્વક નોંધણી થઈ!"),
         "role": MessageLookupByLibrary.simpleMessage("ભૂમિકા"),
         "roleRequired": MessageLookupByLibrary.simpleMessage("ભૂમિકા જરૂરી છે"),
+        "searchStock": MessageLookupByLibrary.simpleMessage("સ્ટોક શોધો"),
         "sendResetEmail":
             MessageLookupByLibrary.simpleMessage("રીસેટ ઈમેલ મોકલો"),
         "shortName": MessageLookupByLibrary.simpleMessage("ટૂંકું નામ"),
@@ -94,11 +95,14 @@ class MessageLookup extends MessageLookupByLibrary {
         "stockInward": MessageLookupByLibrary.simpleMessage("સ્ટોક ઇનવર્ડ"),
         "stockSavedSuccessfully":
             MessageLookupByLibrary.simpleMessage("સ્ટોક સફળતાપૂર્વક સાચવ્યો!"),
+        "stockUpdatedSuccessfully": MessageLookupByLibrary.simpleMessage(
+            "સ્ટોક સફળતાપૂર્વક અદ્યતન થઇ ગયો છે!"),
         "submit": MessageLookupByLibrary.simpleMessage("સમર્પિત કરવું"),
         "tabletsOrStrips": MessageLookupByLibrary.simpleMessage("ગોળીઓ/પટ્ટાઓ"),
         "typeOfStock": MessageLookupByLibrary.simpleMessage("સ્ટોકના પ્રકાર"),
+        "update": MessageLookupByLibrary.simpleMessage("અદ્યતન બનાવવું"),
         "updateStockOfData":
-            MessageLookupByLibrary.simpleMessage("ડેટાનો સ્ટોક અપડેટ કરો"),
+            MessageLookupByLibrary.simpleMessage("ડેટાનો સ્ટોક અદ્યતન બનાવો"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(
             "વપરાશકર્તા પ્રમાણીકરણ નિષ્ફળ થયું. કૃપા કરીને ફરી પ્રયાસ કરો!"),
         "validEmail":

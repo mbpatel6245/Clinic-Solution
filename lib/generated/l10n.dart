@@ -50,10 +50,10 @@ class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  /// `My Flutter App`
+  /// `Clinical Solution`
   String get appTitle {
     return Intl.message(
-      'My Flutter App',
+      'Clinical Solution',
       name: 'appTitle',
       desc: '',
       args: [],
@@ -655,6 +655,36 @@ class AppLocalizations {
     return Intl.message(
       'Stock deleted Successfully!',
       name: 'stockDeletedSuccessfully',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Update`
+  String get update {
+    return Intl.message(
+      'Update',
+      name: 'update',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Stock updated Successfully!`
+  String get stockUpdatedSuccessfully {
+    return Intl.message(
+      'Stock updated Successfully!',
+      name: 'stockUpdatedSuccessfully',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Search stock`
+  String get searchStock {
+    return Intl.message(
+      'Search stock',
+      name: 'searchStock',
       desc: '',
       args: [],
     );

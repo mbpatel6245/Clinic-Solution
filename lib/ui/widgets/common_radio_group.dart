@@ -10,13 +10,13 @@ class CommonRadioGroup<T> extends StatefulWidget {
   final List<T> options;
   final T? selectedValue;
   final ValueChanged<T?> onChanged;
-  final List<String> labels;
+ // final List<String> labels;
   final String title;
 
   const CommonRadioGroup({
     Key? key,
     required this.options,
-    required this.labels,
+    //required this.labels,
     required this.selectedValue,
     required this.onChanged,
     required this.title,
@@ -42,40 +42,29 @@ class _CommonRadioGroupState<T> extends State<CommonRadioGroup<T>> {
             height: getSize(25),
           ),
         ),
-        const SizedBox(height: 2), // Add spacing between title and options
+        const SizedBox(height: 2),
         Row(
           children: widget.options.asMap().entries.map((entry) {
             int index = entry.key;
             T value = entry.value;
 
-            return Row(
-              children: [
-                Radio<T>(
-                  value: value,
-                  groupValue: widget.selectedValue,
-                  onChanged: widget.onChanged,
-                ),
-                Text(
-                  widget.labels[index],
-                  style: AppTextStyles.getRegularTextStyle(
-                      localeProvider.locale,
-                      fontSize: 14),
-                ),
-              ],
-            );
-            return ListTile(
-              title: Text(widget.labels[index],
-                  style: AppTextStyles.getRegularTextStyle(
-                      localeProvider.locale,
-                      fontSize: 14)),
-              leading: Radio<T>(
-                value: value,
-                groupValue: widget.selectedValue,
-                onChanged: widget.onChanged,
+            return GestureDetector(
+              onTap: () => widget.onChanged(value),
+              child: Row(
+                children: [
+                  Radio<T>(
+                    value: value,
+                    groupValue: widget.selectedValue,
+                    onChanged: widget.onChanged,
+                  ),
+                  Text(
+                    widget.options[index].toString(),
+                    style: AppTextStyles.getRegularTextStyle(
+                        localeProvider.locale,
+                        fontSize: 14),
+                  ),
+                ],
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
-              dense: true,
             );
           }).toList(),
         ),

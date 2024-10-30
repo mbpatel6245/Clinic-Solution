@@ -26,7 +26,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("अधिक सामग्री जोड़ें"),
         "addStockOfData":
             MessageLookupByLibrary.simpleMessage("डेटा का स्टॉक जोड़ें"),
-        "appTitle": MessageLookupByLibrary.simpleMessage("My Flutter App"),
+        "appTitle": MessageLookupByLibrary.simpleMessage("Clinical Solution"),
         "appointments": MessageLookupByLibrary.simpleMessage("नियुक्ति"),
         "billNo": MessageLookupByLibrary.simpleMessage("बिल नंबर/इनवॉइस नंबर."),
         "box": MessageLookupByLibrary.simpleMessage("बॉक्स"),
@@ -87,6 +87,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "role": MessageLookupByLibrary.simpleMessage("भूमिका"),
         "roleRequired":
             MessageLookupByLibrary.simpleMessage("भूमिका आवश्यक है"),
+        "searchStock": MessageLookupByLibrary.simpleMessage("स्टॉक खोजें"),
         "sendResetEmail":
             MessageLookupByLibrary.simpleMessage("रीसेट ईमेल भेजें"),
         "shortName": MessageLookupByLibrary.simpleMessage("संक्षिप्त नाम"),
@@ -97,10 +98,13 @@ class MessageLookup extends MessageLookupByLibrary {
         "stockInward": MessageLookupByLibrary.simpleMessage("स्टॉक आवक"),
         "stockSavedSuccessfully": MessageLookupByLibrary.simpleMessage(
             "स्टॉक सफलतापूर्वक सहेजा गया!"),
+        "stockUpdatedSuccessfully": MessageLookupByLibrary.simpleMessage(
+            "स्टॉक सफलतापूर्वक अद्यतन किया गया!"),
         "submit": MessageLookupByLibrary.simpleMessage("जमा करना"),
         "tabletsOrStrips":
             MessageLookupByLibrary.simpleMessage("टैबलेट/पट्टियाँ"),
         "typeOfStock": MessageLookupByLibrary.simpleMessage("स्टॉक के प्रकार"),
+        "update": MessageLookupByLibrary.simpleMessage("अद्यतन"),
         "updateStockOfData":
             MessageLookupByLibrary.simpleMessage("डेटा का अद्यतन स्टॉक"),
         "userAuthenticationFailed": MessageLookupByLibrary.simpleMessage(

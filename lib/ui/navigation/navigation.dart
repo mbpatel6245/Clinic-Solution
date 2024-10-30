@@ -24,19 +24,19 @@ final GoRouter router = GoRouter(
       },
       routes: <RouteBase>[
         GoRoute(
-          path: Strings.navRegister,
+          path: Constants.navRegister,
           builder: (BuildContext context, GoRouterState state) {
             return RegisterScreen();
           },
         ),
         GoRoute(
-          path: Strings.navLogin,
+          path: Constants.navLogin,
           builder: (BuildContext context, GoRouterState state) {
             return LoginScreen();
           },
         ),
         GoRoute(
-            path: Strings.navHome,
+            path: Constants.navHome,
             builder: (BuildContext context, GoRouterState state) {
               //final localeProvider = Provider.of<LocaleProvider>(context);
               //final user = state.extra as User?;
@@ -47,7 +47,7 @@ final GoRouter router = GoRouter(
               return HomeScreen();
             }),
         GoRoute(
-          path: Strings.navForgot,
+          path: Constants.navForgot,
           builder: (BuildContext context, GoRouterState state) {
             return ForgotPasswordScreen();
           },
