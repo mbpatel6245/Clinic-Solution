@@ -16,6 +16,15 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 final GoRouter router = GoRouter(
   //initialLocation: LoginPage(),
   navigatorKey: navigatorKey,
+  redirect: (context, state) {
+    final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+    final loggingIn = state.fullPath?.contains('/${Constants.navLogin}')??false;
+
+    if (!isLoggedIn && !loggingIn) {
+      return '/${Constants.navLogin}';
+    }
+    return null;
+  },
   routes: <RouteBase>[
     GoRoute(
       path: '/',

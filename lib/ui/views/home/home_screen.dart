@@ -25,9 +25,20 @@ class HomeScreen extends StatelessWidget {
   HomeScreen({Key? key}) : super(key: key);
   var localeProvider = LocaleProvider();
 
+ /* checkDataSaved(BuildContext context) async {
+    var viewModel = SecureDataViewModel();
+    var uid = await viewModel.getUID();
+    var email = await viewModel.getEmail();
+
+    if (uid?.isNotEmpty == true && email?.isNotEmpty == true) {
+      context.go('/${Constants.navHome}');
+    }
+  }*/
+
   @override
   Widget build(BuildContext context) {
     localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+   // checkDataSaved(context);
 
     return MultiProvider(
       providers: [
@@ -74,6 +85,8 @@ class HomeScreen extends StatelessWidget {
             actions: [
               IconButton(
                 onPressed: () async {
+                  var viewModel = SecureDataViewModel();
+                  viewModel.clearData();
                   await FirebaseAuth.instance.signOut();
                   context.go('/${Constants.navLogin}');
                 },
