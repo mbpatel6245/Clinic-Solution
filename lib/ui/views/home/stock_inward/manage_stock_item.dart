@@ -115,7 +115,7 @@ class _ManageStockItemState extends State<ManageStockItem> {
       viewModel.quntMedicineCnt.text = stock.quantityMedicine ?? "";
       viewModel.quntBoxCnt.text = stock.quantityBox ?? "";
       viewModel.quntTabletCnt.text = stock.quantityTablets ?? "";
-      viewModel.formTypeCnt.text = stock.formType ?? "";
+      viewModel.onTypeOfFormChanged(stock.formType);
       viewModel.colorContentCnt.text = stock.colorOfContent ?? "";
       typeOfStock = stock.typeOfStock ?? Constants.medicine;
 
@@ -170,11 +170,11 @@ class _ManageStockItemState extends State<ManageStockItem> {
               ),
               const SizedBox(height: 15.0),
               CommonTextField(
-                controller: viewModel.billNoCnt,
+                controller: viewModel.containsMedicineCnt,
                 keyboardType: TextInputType.text,
                 hintText: '',
-                labelText: AppLocalizations.of(context)!.billNo,
-                prefixIcon: Icons.inventory_outlined,
+                labelText: AppLocalizations.of(context)!.containsOfMedicine,
+                prefixIcon: FontAwesomeIcons.pills,
                 //validator: Validator().validatePhone,
               ),
               const SizedBox(height: 15.0),
@@ -194,6 +194,39 @@ class _ManageStockItemState extends State<ManageStockItem> {
                 labelText: AppLocalizations.of(context)!.shortName,
                 prefixIcon: Icons.short_text,
                 //validator: Validator().validatePhone,
+              ),
+              const SizedBox(height: 15.0),
+              CommonTextField(
+                controller: viewModel.purchasePersonCnt,
+                keyboardType: TextInputType.text,
+                hintText: '',
+                labelText:
+                AppLocalizations.of(context)!.purchasingPersonOrStockist,
+                prefixIcon: FontAwesomeIcons.person,
+                //validator: Validator().validatePhone,
+              ),
+              const SizedBox(height: 15.0),
+              CommonTextField(
+                controller: viewModel.billNoCnt,
+                keyboardType: TextInputType.text,
+                hintText: '',
+                labelText: AppLocalizations.of(context)!.billNo,
+                prefixIcon: Icons.inventory_outlined,
+                //validator: Validator().validatePhone,
+              ),
+              const SizedBox(height: 15.0),
+              CommonTextField(
+                controller: viewModel.dateOfPurchaseController,
+                keyboardType: TextInputType.datetime,
+                hintText: '',
+                isReadOnly: true,
+                labelText: AppLocalizations.of(context)!.dateOfPurchase,
+                prefixIcon: Icons.date_range_rounded,
+                //validator: Validator().validatePhone,
+                onTap: () {
+                  viewModel.selectDate(
+                      context, viewModel.dateOfPurchaseController);
+                },
               ),
               const SizedBox(height: 15.0),
               CommonTextField(
@@ -255,39 +288,8 @@ class _ManageStockItemState extends State<ManageStockItem> {
                 },
               ),
               const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.purchasePersonCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText:
-                    AppLocalizations.of(context)!.purchasingPersonOrStockist,
-                prefixIcon: FontAwesomeIcons.person,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.containsMedicineCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.containsOfMedicine,
-                prefixIcon: FontAwesomeIcons.pills,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.dateOfPurchaseController,
-                keyboardType: TextInputType.datetime,
-                hintText: '',
-                isReadOnly: true,
-                labelText: AppLocalizations.of(context)!.dateOfPurchase,
-                prefixIcon: Icons.date_range_rounded,
-                //validator: Validator().validatePhone,
-                onTap: () {
-                  viewModel.selectDate(
-                      context, viewModel.dateOfPurchaseController);
-                },
-              ),
-              const SizedBox(height: 15.0),
+
+
               Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -345,13 +347,15 @@ class _ManageStockItemState extends State<ManageStockItem> {
 
               managePOSUI(context),
               const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.formTypeCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.formType,
+              CommonDropdown<String>(
+                label: AppLocalizations.of(context)!.formType,
+                selectedItem: viewModel.typeOfForm ?? "",
+                items: viewModel.formTypeList,
+                onChanged: viewModel.onTypeOfFormChanged,
+                validator: (value) => value == null
+                    ? AppLocalizations.of(context)!.formType
+                    : null,
                 prefixIcon: Icons.medical_information,
-                //validator: Validator().validatePhone,
               ),
               const SizedBox(height: 15.0),
 
@@ -373,6 +377,24 @@ class _ManageStockItemState extends State<ManageStockItem> {
                     ? AppLocalizations.of(context)!.visibilityShowOrHide
                     : null,
                 prefixIcon: Icons.visibility,
+              ),
+              const SizedBox(height: 15.0),
+              CommonTextField(
+                controller: viewModel.ratePurchaseCnt,
+                keyboardType: TextInputType.text,
+                hintText: '',
+                labelText: AppLocalizations.of(context)!.rateOfPurchase,
+                prefixIcon: Icons.currency_rupee,
+                //validator: Validator().validatePhone,
+              ),
+              const SizedBox(height: 15.0),
+              CommonTextField(
+                controller: viewModel.mrpCnt,
+                keyboardType: TextInputType.text,
+                hintText: '',
+                labelText: AppLocalizations.of(context)!.mrp,
+                prefixIcon: Icons.currency_rupee,
+                //validator: Validator().validatePhone,
               ),
               const SizedBox(height: 15.0),
               submitButton(context),

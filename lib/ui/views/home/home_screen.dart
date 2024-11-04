@@ -54,7 +54,7 @@ class HomeScreen extends StatelessWidget {
         }),
       ],
       child: DefaultTabController(
-        length: 4,
+        length: 1,
         child: Scaffold(
           appBar: AppBar(
             title: Consumer2<HomeViewModel, SecureDataViewModel>(
@@ -93,36 +93,36 @@ class HomeScreen extends StatelessWidget {
                 icon: const Icon(Icons.logout),
               ),
             ],
-            bottom: TabBar(
-              labelPadding: const EdgeInsets.symmetric(horizontal: 0),
-              indicator: const BoxDecoration(
-                color: Colors.green,
-              ),
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.black,
-              unselectedLabelStyle: const TextStyle(fontSize: 12),
-              labelStyle: const TextStyle(fontSize: 12),
-              automaticIndicatorColorAdjustment: true,
-              tabs: [
-                Tab(
-                  child: commonTabView(context, Icons.library_add_rounded,
-                      AppLocalizations.of(context)?.newPrescription ?? ''),
-                ),
-                Tab(
-                  child: commonTabView(context, Icons.list,
-                      AppLocalizations.of(context)?.prescriptionList ?? ''),
-                ),
-                Tab(
-                  child: commonTabView(context, Icons.book_online,
-                      AppLocalizations.of(context)?.appointments ?? ''),
-                ),
-                Tab(
-                  child: commonTabView(context, Icons.add_home_work_rounded,
-                      AppLocalizations.of(context)?.stockInward ?? ''),
-                ),
-              ],
+            // bottom: TabBar(
+            //   labelPadding: const EdgeInsets.symmetric(horizontal: 0),
+            //   indicator: const BoxDecoration(
+            //     color: Colors.green,
+            //   ),
+            //   labelColor: Colors.white,
+            //   unselectedLabelColor: Colors.black,
+            //   unselectedLabelStyle: const TextStyle(fontSize: 12),
+            //   labelStyle: const TextStyle(fontSize: 12),
+            //   automaticIndicatorColorAdjustment: true,
+            //   tabs: [
+                // Tab(
+                //   child: commonTabView(context, Icons.library_add_rounded,
+                //       AppLocalizations.of(context)?.newPrescription ?? ''),
+                // ),
+                // Tab(
+                //   child: commonTabView(context, Icons.list,
+                //       AppLocalizations.of(context)?.prescriptionList ?? ''),
+                // ),
+                // Tab(
+                //   child: commonTabView(context, Icons.book_online,
+                //       AppLocalizations.of(context)?.appointments ?? ''),
+                // ),
+              //   Tab(
+              //     child: commonTabView(context, Icons.add_home_work_rounded,
+              //         AppLocalizations.of(context)?.stockInward ?? ''),
+              //   ),
+              // ],
             ),
-          ),
+         // ),
           body: Center(
             child: Consumer2<HomeViewModel, SecureDataViewModel>(
               builder: (context, homeViewModel, secureDataViewModel, child) {
@@ -147,14 +147,14 @@ class HomeScreen extends StatelessWidget {
                             //   '($email)',
                             // ),
                             Expanded(
-                              child: TabBarView(
-                                children: [
-                                  TabNewPrescription(),
-                                  TabPrescriptionList(),
-                                  TabAppointments(),
+                              child: //TabBarView(
+                                //children: [
+                                  // TabNewPrescription(),
+                                  // TabPrescriptionList(),
+                                  // TabAppointments(),
                                   TabStockInward(),
-                                ],
-                              ),
+                               //],
+                              //),
                             ),
                           ],
                         );

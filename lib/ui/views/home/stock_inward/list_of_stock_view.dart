@@ -184,41 +184,141 @@ class _ListOfStocksState extends State<ListOfStocks> {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Table(
+                    columnWidths: const {
+                      0: FlexColumnWidth(1),
+                      1: FlexColumnWidth(1),
+                    },
                     children: [
-                      CommonText(
-                        text:
-                            (stock.shortName ?? 'No Short Name').toUpperCase(),
-                        style: AppTextStyles.getBoldTextStyle(
-                            localeProvider.locale,
-                            fontSize: 16),
+                      // First Row with multiple columns
+                      TableRow(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CommonText(
+                                text: AppLocalizations.of(context)!.shortName,
+                                style: AppTextStyles.getBoldTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              CommonText(
+                                text: (stock.shortName ?? '').toUpperCase(),
+                                style: AppTextStyles.getRegularTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CommonText(
+                                text: AppLocalizations.of(context)!.containsOfMedicine,
+                                style: AppTextStyles.getBoldTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              CommonText(
+                                text: stock.containsMedicine ?? '',
+                                style: AppTextStyles.getRegularTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CommonText(
+                                text: AppLocalizations.of(context)!.brandName,
+                                style: AppTextStyles.getBoldTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              CommonText(
+                                text: stock.brandName ?? '',
+                                style: AppTextStyles.getRegularTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      CommonText(
-                          fontSize: 14,
-                          text: 'Bill Number: ${stock.billNumber ?? 'N/A'}'),
-                      const SizedBox(height: 4),
-                      CommonText(
-                          fontSize: 14,
-                          text:
-                              'Expiry Date: ${stock.expiryDate ?? 'No Expiry Date'}'),
-                      CommonText(
-                          fontSize: 14,
-                          text:
-                              'Manufacturer: ${stock.manufacturerName ?? 'No Manufacturer'}'),
-                      const SizedBox(height: 4),
-                      CommonText(
-                          fontSize: 14,
-                          text:
-                              'Availability: Min ${stock.minimumAvailability ?? 'N/A'} - Max ${stock.maximumAvailability ?? 'N/A'}'),
-                      CommonText(
-                          fontSize: 14,
-                          text:
-                              'Quantity: ${stock.quantityMedicine ?? 'N/A'}-Medicines OR ${stock.quantityTablets ?? 'N/A'}-Tablets OR ${stock.quantityBox ?? 'N/A'}-Boxes'),
+                      // Third row for Availability and Quantity
+                      TableRow(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CommonText(
+                                text: AppLocalizations.of(context)!.quantity,
+                                style: AppTextStyles.getBoldTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              CommonText(
+                                text:
+                                '${stock.quantityMedicine ?? '0'} Medicines | ${stock.quantityTablets ?? '0'} Tablets | ${stock.quantityBox ?? '0'} Boxes',
+                                style: AppTextStyles.getRegularTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CommonText(
+                                text: AppLocalizations.of(context)!.purchasingPerson,
+                                style: AppTextStyles.getBoldTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              CommonText(
+                                text:
+                                stock.purchasingPerson??"",
+                                style: AppTextStyles.getRegularTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CommonText(
+                                text: AppLocalizations.of(context)!.expiryDate,
+                                style: AppTextStyles.getBoldTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              CommonText(
+                                text: stock.expiryDate ?? '',
+                                style: AppTextStyles.getRegularTextStyle(
+                                  localeProvider.locale,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -228,7 +328,6 @@ class _ListOfStocksState extends State<ListOfStocks> {
                       icon: const Icon(Icons.edit, color: Colors.lightBlue),
                       onPressed: () {
                         handleSelection(Constants.update, document.id, stock);
-                        // setState(() {});
                       },
                     ),
                     IconButton(
@@ -237,8 +336,9 @@ class _ListOfStocksState extends State<ListOfStocks> {
                         viewModel.deleteStockData(document.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(AppLocalizations.of(context)!
-                                .stockDeletedSuccessfully),
+                            content: Text(
+                              AppLocalizations.of(context)!.stockDeletedSuccessfully,
+                            ),
                           ),
                         );
                         handleSelection(Constants.delete, document.id, stock);
@@ -248,28 +348,36 @@ class _ListOfStocksState extends State<ListOfStocks> {
                 ),
               ],
             ),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //const Divider(),
+            // Final Row for Purchase and Type
+           /* Table(
+              columnWidths: const {
+                0: FlexColumnWidth(1),
+                1: FlexColumnWidth(1),
+              },
               children: [
-                CommonText(
-                  text: 'Purchased: ${stock.dateOfPurchase ?? 'Unknown'}',
-                  style: AppTextStyles.getRegularTextStyle(
-                          localeProvider.locale,
-                          fontSize: 14)
-                      .copyWith(color: Colors.grey[600]),
-                ),
-                CommonText(
-                  fontSize: 14,
-                  text: stock.typeOfStock == Constants.medicine
-                      ? Constants.medicine
-                      : Constants.others,
-                  color: stock.typeOfStock == Constants.medicine
-                      ? Colors.green
-                      : Colors.red,
+                TableRow(
+                  children: [
+                    CommonText(
+                      text: 'Purchased: ${stock.dateOfPurchase ?? 'Unknown'}',
+                      style: AppTextStyles.getRegularTextStyle(
+                        localeProvider.locale,
+                        fontSize: 14,
+                      ).copyWith(color: Colors.grey[600]),
+                    ),
+                    CommonText(
+                      fontSize: 14,
+                      text: stock.typeOfStock == Constants.medicine
+                          ? Constants.medicine
+                          : Constants.others,
+                      color: stock.typeOfStock == Constants.medicine
+                          ? Colors.green
+                          : Colors.red,
+                    ),
+                  ],
                 ),
               ],
-            ),
+            ),*/
           ],
         ),
       ),

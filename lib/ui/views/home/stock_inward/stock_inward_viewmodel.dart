@@ -24,9 +24,12 @@ class StockInwardViewmodel with ChangeNotifier {
   TextEditingController quntMedicineCnt = TextEditingController();
   TextEditingController quntTabletCnt = TextEditingController();
   TextEditingController quntBoxCnt = TextEditingController();
-  TextEditingController formTypeCnt = TextEditingController();
+  //TextEditingController formTypeCnt = TextEditingController();
   TextEditingController colorContentCnt = TextEditingController();
+  TextEditingController ratePurchaseCnt = TextEditingController();
+  TextEditingController mrpCnt = TextEditingController();
   String stockVisibility = Constants.show;
+  String typeOfForm = Constants.tablets;
 
   //String typeOfStock = Constants.medicine;
   final FirebaseFireStore _fireStoreService = FirebaseFireStore();
@@ -36,6 +39,7 @@ class StockInwardViewmodel with ChangeNotifier {
 
   // List of roles for the dropdown
   final List<String> visibilityList = [Constants.show, Constants.hide];
+  final List<String> formTypeList = [ Constants.tablets,Constants.syrup, Constants.capsule, Constants.powder, Constants.others];
 
   final Stream<QuerySnapshot> stockStream = FirebaseFirestore.instance
       .collection(FirebaseFireStore.pathStock)
@@ -43,6 +47,11 @@ class StockInwardViewmodel with ChangeNotifier {
 
   void onVisibilityChanged(String? value) {
     stockVisibility = value ?? Constants.show;
+    notifyListeners();
+  }
+
+  void onTypeOfFormChanged(String? value) {
+    typeOfForm = value ?? Constants.tablets;
     notifyListeners();
   }
 
@@ -82,7 +91,7 @@ class StockInwardViewmodel with ChangeNotifier {
   Future<void> updateStockData(String typeOfStock, String docId,
       Function successCallback, Function errorCallback) async {
     try {
-     await _fireStoreService.updateStock(
+      await _fireStoreService.updateStock(
           StockModel(
               typeOfStock: typeOfStock,
               billNumber: billNoCnt.text,
@@ -100,18 +109,20 @@ class StockInwardViewmodel with ChangeNotifier {
               quantityMedicine: quntMedicineCnt.text,
               quantityBox: quntBoxCnt.text,
               quantityTablets: quntTabletCnt.text,
-              formType: formTypeCnt.text,
+              formType: typeOfForm,
               colorOfContent: colorContentCnt.text,
               posContentSize:
                   getListOfTextEditController(posSizeListController),
               posContentName:
-                  getListOfTextEditController(posNameListController)),
+                  getListOfTextEditController(posNameListController),
+              rateOfPurchase: ratePurchaseCnt.text,
+              mrp: mrpCnt.text),
           docId,
           successCallback,
           errorCallback);
       clearData();
       clearPowerOfSize();
-    } catch (e,stack) {
+    } catch (e, stack) {
       print(stack.toString());
       print('Error saving data: $e');
     }
@@ -138,12 +149,14 @@ class StockInwardViewmodel with ChangeNotifier {
               quantityMedicine: quntMedicineCnt.text,
               quantityBox: quntBoxCnt.text,
               quantityTablets: quntTabletCnt.text,
-              formType: formTypeCnt.text,
+              formType: typeOfForm,
               colorOfContent: colorContentCnt.text,
               posContentSize:
                   getListOfTextEditController(posSizeListController),
               posContentName:
-                  getListOfTextEditController(posNameListController)),
+                  getListOfTextEditController(posNameListController),
+              rateOfPurchase: ratePurchaseCnt.text,
+              mrp: mrpCnt.text),
           successCallback,
           errorCallback);
       clearData();
@@ -183,7 +196,7 @@ class StockInwardViewmodel with ChangeNotifier {
     quntMedicineCnt.text = "";
     quntBoxCnt.text = "";
     quntTabletCnt.text = "";
-    formTypeCnt.text = "";
+    typeOfForm = Constants.tablets;
     colorContentCnt.text = "";
   }
 
@@ -204,7 +217,6 @@ class StockInwardViewmodel with ChangeNotifier {
     quntMedicineCnt.dispose();
     quntBoxCnt.dispose();
     quntTabletCnt.dispose();
-    formTypeCnt.dispose();
     colorContentCnt.dispose();
 
     super.dispose();

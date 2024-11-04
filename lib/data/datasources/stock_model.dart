@@ -21,6 +21,8 @@ class StockModel {
   String? formType;
   String? colorOfContent;
   String? visibility;
+  String? rateOfPurchase;
+  String? mrp;
 
   StockModel(
       {this.typeOfStock,
@@ -42,7 +44,9 @@ class StockModel {
       this.posContentSize,
       this.formType,
       this.colorOfContent,
-      this.visibility});
+      this.visibility,
+      this.rateOfPurchase,
+      this.mrp});
 
   factory StockModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -73,7 +77,10 @@ class StockModel {
             : null,
         formType: data?['form_type'],
         colorOfContent: data?['color_of_content'],
-        visibility: data?['visibility']);
+        visibility: data?['visibility'],
+        rateOfPurchase: data?['rate_of_purchase'],
+        mrp: data?['mrp']
+    );
   }
 
   Map<String, dynamic> toFirestore() {
@@ -100,7 +107,9 @@ class StockModel {
       if (posContentSize != null) 'pos_content_size': posContentSize,
       if (formType != null) 'form_type': formType,
       if (colorOfContent != null) 'color_of_content': colorOfContent,
-      if (visibility != null) 'visibility': visibility
+      if (visibility != null) 'visibility': visibility,
+      if (rateOfPurchase != null) 'rate_of_purchase' : rateOfPurchase,
+      if (mrp != null) 'mrp' : mrp
     };
   }
 }

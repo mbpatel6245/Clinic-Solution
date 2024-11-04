@@ -38,6 +38,7 @@
   "brandName": "ब्रांड का नाम",
   "containsOfMedicine": "दवा शामिल है",
   "purchasingPersonOrStockist": "खरीदने वाला व्यक्ति/स्टॉकिस्ट का नाम",
+  "purchasingPerson": "खरीदने वाला व्यक्ति",
   "quantity": "मात्रा",
   "tabletsOrStrips": "टैबलेट/पट्टियाँ",
   "box": "बॉक्स",
@@ -62,5 +63,7 @@
   "stockDeletedSuccessfully": "स्टॉक सफलतापूर्वक हटा दिया गया!",
   "update": "अद्यतन",
   "stockUpdatedSuccessfully":"स्टॉक सफलतापूर्वक अद्यतन किया गया!",
-  "searchStock":"स्टॉक खोजें"
+  "searchStock":"स्टॉक खोजें",
+  "rateOfPurchase":"खरीद की दर",
+    "mrp":"एमआरपी"
 }

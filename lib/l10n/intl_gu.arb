@@ -38,6 +38,7 @@
   "brandName": "બ્રાંડનું નામ",
   "containsOfMedicine": "દવા ધરાવે છે",
   "purchasingPersonOrStockist": "ખરીદી વ્યક્તિ/સ્ટોકિસ્ટનું નામ",
+  "purchasingPerson": "ખરીદી વ્યક્તિ",
   "quantity": "જથ્થા",
   "tabletsOrStrips": "ગોળીઓ/પટ્ટાઓ",
   "box": "બોક્સ",
@@ -62,5 +63,7 @@
   "stockDeletedSuccessfully": "સ્ટોક સફળતાપૂર્વક કાઢી નાખ્યો!",
   "update": "અદ્યતન બનાવવું",
   "stockUpdatedSuccessfully":"સ્ટોક સફળતાપૂર્વક અદ્યતન થઇ ગયો છે!",
-  "searchStock":"સ્ટોક શોધો"
+  "searchStock":"સ્ટોક શોધો",
+  "rateOfPurchase":"ખરીદીનો દર",
+    "mrp":"એમઆરપી"
 }

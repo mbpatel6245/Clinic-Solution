@@ -38,6 +38,7 @@
   "brandName":"Brand Name",
   "containsOfMedicine":"Contains of Medicine",
   "purchasingPersonOrStockist":"Purchasing Person/Stockist Name",
+  "purchasingPerson":"Purchasing Person",
   "quantity":"Quantity",
   "tabletsOrStrips":"Tablets/Stripes",
   "box":"Box",
@@ -62,5 +63,7 @@
   "stockDeletedSuccessfully":"Stock deleted Successfully!",
   "update":"Update",
   "stockUpdatedSuccessfully":"Stock updated Successfully!",
-  "searchStock":"Search stock"
+  "searchStock":"Search stock",
+  "rateOfPurchase":"Rate of purchase",
+  "mrp":"MRP"
 }

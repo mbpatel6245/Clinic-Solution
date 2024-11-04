@@ -59,6 +59,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "medicine": MessageLookupByLibrary.simpleMessage("દવા"),
         "minimumAvailability":
             MessageLookupByLibrary.simpleMessage("ન્યૂનતમ ઉપલબ્ધતા"),
+        "mrp": MessageLookupByLibrary.simpleMessage("એમઆરપી"),
         "name": MessageLookupByLibrary.simpleMessage("નામ"),
         "nameRequired": MessageLookupByLibrary.simpleMessage("નામ જરૂરી છે"),
         "nearestDurationDays":
@@ -76,9 +77,12 @@ class MessageLookup extends MessageLookupByLibrary {
         "powerOfSize": MessageLookupByLibrary.simpleMessage("કદની શક્તિ"),
         "prescriptionList":
             MessageLookupByLibrary.simpleMessage("પ્રિસ્ક્રિપ્શન સૂચિ"),
+        "purchasingPerson":
+            MessageLookupByLibrary.simpleMessage("ખરીદી વ્યક્તિ"),
         "purchasingPersonOrStockist": MessageLookupByLibrary.simpleMessage(
             "ખરીદી વ્યક્તિ/સ્ટોકિસ્ટનું નામ"),
         "quantity": MessageLookupByLibrary.simpleMessage("જથ્થા"),
+        "rateOfPurchase": MessageLookupByLibrary.simpleMessage("ખરીદીનો દર"),
         "register": MessageLookupByLibrary.simpleMessage("નોંધણી કરો"),
         "registerSuccessfully":
             MessageLookupByLibrary.simpleMessage("સફળતાપૂર્વક નોંધણી થઈ!"),

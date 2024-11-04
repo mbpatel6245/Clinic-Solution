@@ -8,6 +8,10 @@ class Constants{
   static const String hide = "Hide";
   static const String medicine = "Medicine";
   static const String others = "Others";
+  static const String syrup = "Syrup";
+  static const String tablets = "Tablets";
+  static const String capsule = "Capsule";
+  static const String powder = "Powder";
 
   static const String add = "add";
   static const String update = "update";

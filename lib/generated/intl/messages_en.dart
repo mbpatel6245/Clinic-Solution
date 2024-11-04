@@ -62,6 +62,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "medicine": MessageLookupByLibrary.simpleMessage("Medicine"),
         "minimumAvailability":
             MessageLookupByLibrary.simpleMessage("Minimum Availability"),
+        "mrp": MessageLookupByLibrary.simpleMessage("MRP"),
         "name": MessageLookupByLibrary.simpleMessage("Name"),
         "nameRequired": MessageLookupByLibrary.simpleMessage("Name required"),
         "nearestDurationDays":
@@ -80,9 +81,13 @@ class MessageLookup extends MessageLookupByLibrary {
         "powerOfSize": MessageLookupByLibrary.simpleMessage("Power Of Size"),
         "prescriptionList":
             MessageLookupByLibrary.simpleMessage("Prescription list"),
+        "purchasingPerson":
+            MessageLookupByLibrary.simpleMessage("Purchasing Person"),
         "purchasingPersonOrStockist": MessageLookupByLibrary.simpleMessage(
             "Purchasing Person/Stockist Name"),
         "quantity": MessageLookupByLibrary.simpleMessage("Quantity"),
+        "rateOfPurchase":
+            MessageLookupByLibrary.simpleMessage("Rate of purchase"),
         "register": MessageLookupByLibrary.simpleMessage("Register"),
         "registerSuccessfully":
             MessageLookupByLibrary.simpleMessage("Registered successfully!"),

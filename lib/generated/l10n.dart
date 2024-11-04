@@ -440,6 +440,16 @@ class AppLocalizations {
     );
   }
 
+  /// `Purchasing Person`
+  String get purchasingPerson {
+    return Intl.message(
+      'Purchasing Person',
+      name: 'purchasingPerson',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Quantity`
   String get quantity {
     return Intl.message(
@@ -685,6 +695,26 @@ class AppLocalizations {
     return Intl.message(
       'Search stock',
       name: 'searchStock',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Rate of purchase`
+  String get rateOfPurchase {
+    return Intl.message(
+      'Rate of purchase',
+      name: 'rateOfPurchase',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `MRP`
+  String get mrp {
+    return Intl.message(
+      'MRP',
+      name: 'mrp',
       desc: '',
       args: [],
     );

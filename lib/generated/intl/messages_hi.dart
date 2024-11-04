@@ -61,6 +61,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "medicine": MessageLookupByLibrary.simpleMessage("दवा"),
         "minimumAvailability":
             MessageLookupByLibrary.simpleMessage("न्यूनतम उपलब्धता"),
+        "mrp": MessageLookupByLibrary.simpleMessage("एमआरपी"),
         "name": MessageLookupByLibrary.simpleMessage("नाम"),
         "nameRequired": MessageLookupByLibrary.simpleMessage("नाम आवश्यक"),
         "nearestDurationDays":
@@ -78,9 +79,12 @@ class MessageLookup extends MessageLookupByLibrary {
         "powerOfSize": MessageLookupByLibrary.simpleMessage("आकार की शक्ति"),
         "prescriptionList":
             MessageLookupByLibrary.simpleMessage("प्रिस्क्रिप्शन सूची"),
+        "purchasingPerson":
+            MessageLookupByLibrary.simpleMessage("खरीदने वाला व्यक्ति"),
         "purchasingPersonOrStockist": MessageLookupByLibrary.simpleMessage(
             "खरीदने वाला व्यक्ति/स्टॉकिस्ट का नाम"),
         "quantity": MessageLookupByLibrary.simpleMessage("मात्रा"),
+        "rateOfPurchase": MessageLookupByLibrary.simpleMessage("खरीद की दर"),
         "register": MessageLookupByLibrary.simpleMessage("पंजीकरण करवाना"),
         "registerSuccessfully":
             MessageLookupByLibrary.simpleMessage("सफलतापूर्वक पंजीकृत!"),
