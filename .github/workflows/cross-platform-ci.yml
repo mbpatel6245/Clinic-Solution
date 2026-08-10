@@ -1,0 +1,64 @@
+name: Cross-platform build checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.44.7
+
+jobs:
+  desktop-and-ios:
+    name: ${{ matrix.target }} build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: Linux
+            os: ubuntu-latest
+            command: flutter build linux --release
+            enable_command: flutter config --enable-linux-desktop
+          - target: Windows
+            os: windows-latest
+            command: flutter build windows --release
+            enable_command: flutter config --enable-windows-desktop
+          - target: macOS
+            os: macos-latest
+            command: flutter build macos --release
+            enable_command: flutter config --enable-macos-desktop
+          - target: iOS
+            os: macos-latest
+            command: flutter build ios --release --no-codesign
+            enable_command: echo "iOS target is enabled by default"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install Linux build tools
+        if: matrix.target == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Enable desktop targets
+        run: ${{ matrix.enable_command }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build ${{ matrix.target }}
+        run: ${{ matrix.command }}
