@@ -1,0 +1,88 @@
+name: Distribute Android app
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: clinic-android-distribution
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.44.7
+  FIREBASE_APP_ID: 1:715512178126:android:cf70974901bb38d482779f
+
+jobs:
+  build-and-distribute:
+    name: Build and distribute APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release --build-number "${{ github.run_number }}"
+
+      - name: Configure Firebase credentials
+        shell: bash
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || { echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON secret"; exit 1; }
+          credentials="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$credentials"
+          chmod 600 "$credentials"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$credentials" >> "$GITHUB_ENV"
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Distribute to Firebase App Distribution
+        shell: bash
+        env:
+          FIREBASE_TESTER_GROUPS: ${{ vars.FIREBASE_TESTER_GROUPS }}
+        run: |
+          args=(
+            appdistribution:distribute
+            build/app/outputs/flutter-apk/app-release.apk
+            --app "$FIREBASE_APP_ID"
+            --release-notes "Clinic MobiTab ${GITHUB_SHA::7} from GitHub Actions run $GITHUB_RUN_NUMBER"
+          )
+          if [[ -n "$FIREBASE_TESTER_GROUPS" ]]; then
+            args+=(--groups "$FIREBASE_TESTER_GROUPS")
+          fi
+          firebase "${args[@]}"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clinic-android-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+
