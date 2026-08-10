@@ -401,6 +401,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/clinic-reviewed-changes.tar.gz" -C .
           rm -f lib/services/local/encryption_service.dart
           rm -f .github/workflows/apply-reviewed-changes.yml
+          git config core.autocrlf true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
