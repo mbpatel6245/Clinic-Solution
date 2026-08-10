@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_VERSION: 3.32.5
+  FLUTTER_VERSION: 3.44.7
   CPANEL_HOST: sh016.hostgator.in
   CPANEL_PORT: 22
   CPANEL_USER: mobituvx
@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -41,7 +41,9 @@ jobs:
         run: flutter pub get
 
       - name: Build Flutter web app
-        run: flutter build web --release --base-href /
+        run: |
+          flutter build web --release --base-href /
+          cp web/.htaccess build/web/.htaccess
 
       - name: Configure deployment key
         env:
