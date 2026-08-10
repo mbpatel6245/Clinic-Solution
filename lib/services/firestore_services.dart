@@ -19,60 +19,76 @@ class FirebaseFireStore with ChangeNotifier {
 
   List<UserModel> get users => _users;
 
-  Future<void> registerUserData(String email, String password, String name,
-      String phone, String role) async {
-    UserCredential userCredential =
-        await _authService.createUserWithEmailAndPassword(email, password);
+  Future<void> registerUserData(
+    String email,
+    String password,
+    String name,
+    String phone,
+    String role,
+  ) async {
+    UserCredential userCredential = await _authService
+        .createUserWithEmailAndPassword(email, password);
 
-    await addUser(UserModel(
+    await addUser(
+      UserModel(
         id: userCredential.user?.uid ?? "",
         name: name,
         email: email,
-        password: password,
         phone: phone,
         role: role,
-        createdAt: Timestamp.now()));
+        createdAt: Timestamp.now(),
+      ),
+    );
   }
 
   //---------------------------
   Future<void> deleteStock(String stockDocumentId) async {
     try {
-      deleteDocument(path: pathStock, id: stockDocumentId);
+      await deleteDocument(path: pathStock, id: stockDocumentId);
     } catch (e) {
       print('Error deleting stock: $e');
     }
   }
 
-  Future<void> addNewStock(StockModel stock, Function successCallback,
-      Function errorCallback) async {
+  Future<void> addNewStock(
+    StockModel stock,
+    Function successCallback,
+    Function errorCallback,
+  ) async {
     try {
-      final docRef = _db.collection(pathStock).withConverter(
+      final docRef = _db
+          .collection(pathStock)
+          .withConverter(
             fromFirestore: StockModel.fromFirestore,
             toFirestore: (StockModel stockModel, options) =>
                 stockModel.toFirestore(),
           );
-      await docRef
-          .add(stock)
-          .then((onValue) => successCallback(), onError: (e) => errorCallback);
+      await docRef.add(stock);
+      successCallback();
     } catch (e) {
       print('Error adding stock: $e');
+      errorCallback(e);
     }
   }
 
-  Future<void> updateStock(StockModel stock, String documentId,
-      Function successCallback, Function errorCallback) async {
+  Future<void> updateStock(
+    StockModel stock,
+    String documentId,
+    Function successCallback,
+    Function errorCallback,
+  ) async {
     try {
       final docRef = _db.collection(pathStock).doc(documentId);
       /*.withConverter(
         fromFirestore: StockModel.fromFirestore,
         toFirestore: (StockModel stockModel, options) => stockModel.toFirestore(),
       );*/
-      await docRef
-          .update(stock.toFirestore())
-          .then((onValue) => successCallback(), onError: (e) => errorCallback);
+      await docRef.update(stock.toFirestore());
+      successCallback();
       //await docRef.add(stock);
     } catch (e) {
       print('Error adding stock: $e');
+      errorCallback(e);
     }
   }
 
@@ -120,7 +136,11 @@ class FirebaseFireStore with ChangeNotifier {
   // Add a new User
   Future<void> addUser(UserModel user) async {
     try {
-      setSpecificDocument(path: pathUser, docId: user.id, data: user.toMap());
+      await setSpecificDocument(
+        path: pathUser,
+        docId: user.id,
+        data: user.toMap(),
+      );
       // await _db.collection(pathUser).add(user.toMap());
       //await fetchUsers(); // Refresh data after adding a new user
     } catch (e) {
@@ -131,7 +151,7 @@ class FirebaseFireStore with ChangeNotifier {
   // Update a User
   Future<void> updateUser(String id, UserModel user) async {
     try {
-      updateDocument(path: pathUser, id: id, data: user.toMap());
+      await updateDocument(path: pathUser, id: id, data: user.toMap());
       //await fetchUsers(); // Refresh data after updating a user
     } catch (e) {
       print('Error updating user: $e');
@@ -141,7 +161,7 @@ class FirebaseFireStore with ChangeNotifier {
   // Delete a User
   Future<void> deleteUser(String id) async {
     try {
-      deleteDocument(path: pathUser, id: id);
+      await deleteDocument(path: pathUser, id: id);
       //await fetchUsers(); // Refresh data after deleting a user
     } catch (e) {
       print('Error deleting user: $e');
@@ -151,8 +171,9 @@ class FirebaseFireStore with ChangeNotifier {
   // Listen to Firestore Changes in Real-Time (Optional)
   Stream<List<UserModel>> streamUsers() {
     return collectionStream(
-        path: pathUser,
-        builder: (data, documentId) => UserModel.fromMap(data, documentId));
+      path: pathUser,
+      builder: (data, documentId) => UserModel.fromMap(data, documentId),
+    );
     /*return _db.collection(pathUser).snapshots().map((snapshot) {
       return snapshot.docs
           .map((doc) =>
@@ -161,7 +182,7 @@ class FirebaseFireStore with ChangeNotifier {
     });*/
   }
 
-//---------------------------
+  //---------------------------
 
   // Fetch data from a collection
   Future<List<T>> getCollection<T>({

@@ -1,13 +1,10 @@
-import 'dart:io';
-
 import 'package:clinic_solution/core/utils/size_utils.dart';
 import 'package:clinic_solution/ui/views/home/appointment/tab_appointments.dart';
 import 'package:clinic_solution/ui/views/home/new_prescription/tab_new_prescription.dart';
 import 'package:clinic_solution/ui/views/home/prescription_list/tab_prescription_list.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:clinic_solution/l10n/generated/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -25,7 +22,7 @@ class HomeScreen extends StatelessWidget {
   HomeScreen({Key? key}) : super(key: key);
   var localeProvider = LocaleProvider();
 
- /* checkDataSaved(BuildContext context) async {
+  /* checkDataSaved(BuildContext context) async {
     var viewModel = SecureDataViewModel();
     var uid = await viewModel.getUID();
     var email = await viewModel.getEmail();
@@ -38,20 +35,21 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-   // checkDataSaved(context);
+    // checkDataSaved(context);
 
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SecureDataViewModel()),
         ChangeNotifierProxyProvider<SecureDataViewModel, HomeViewModel>(
-            create: (context) {
-          var viewModel = HomeViewModel(context.read<SecureDataViewModel>());
-          // viewModel.loadUser(user); // Load user once
-          return viewModel;
-        }, update: (context, secureDataViewModel, homeViewModel) {
-          //    homeViewModel!..loadUser(user),
-          return HomeViewModel(context.read<SecureDataViewModel>());
-        }),
+          create: (context) {
+            var viewModel = HomeViewModel(context.read<SecureDataViewModel>());
+            // viewModel.loadUser(user); // Load user once
+            return viewModel;
+          },
+          update: (context, secureDataViewModel, homeViewModel) {
+            return homeViewModel ?? HomeViewModel(secureDataViewModel);
+          },
+        ),
       ],
       child: DefaultTabController(
         length: 1,
@@ -60,34 +58,34 @@ class HomeScreen extends StatelessWidget {
             title: Consumer2<HomeViewModel, SecureDataViewModel>(
               builder: (context, homeViewModel, secureDataViewModel, child) {
                 return FutureBuilder<List<String?>>(
-                    future: Future.wait([
-                      secureDataViewModel.getEmail(),
-                      secureDataViewModel.getDisplayName()
-                    ]),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircularProgressIndicator(); // Show loading indicator
-                      } else if (snapshot.hasError) {
-                        return CommonText(text: 'Error: ${snapshot.error}');
-                      } else {
-                        String email = snapshot.data?[0] ?? 'No email';
-                        String displayName = snapshot.data?[1] ?? 'User';
+                  future: secureDataViewModel.getProfile(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator(); // Show loading indicator
+                    } else if (snapshot.hasError) {
+                      return CommonText(text: 'Error: ${snapshot.error}');
+                    } else {
+                      String email = snapshot.data?[0] ?? 'No email';
+                      String displayName = snapshot.data?[1] ?? 'User';
 
-                        return CommonText(
-                          text: 'Welcome, $displayName ($email)',
-                          style: AppTextStyles.getRegularTextStyle(
-                              localeProvider.locale),
-                        );
-                      }
-                    });
+                      return CommonText(
+                        text: 'Welcome, $displayName ($email)',
+                        style: AppTextStyles.getRegularTextStyle(
+                          localeProvider.locale,
+                        ),
+                      );
+                    }
+                  },
+                );
               },
             ),
             actions: [
               IconButton(
                 onPressed: () async {
-                  var viewModel = SecureDataViewModel();
-                  viewModel.clearData();
+                  final viewModel = context.read<SecureDataViewModel>();
+                  await viewModel.clearData();
                   await FirebaseAuth.instance.signOut();
+                  if (!context.mounted) return;
                   context.go('/${Constants.navLogin}');
                 },
                 icon: const Icon(Icons.logout),
@@ -104,62 +102,60 @@ class HomeScreen extends StatelessWidget {
             //   labelStyle: const TextStyle(fontSize: 12),
             //   automaticIndicatorColorAdjustment: true,
             //   tabs: [
-                // Tab(
-                //   child: commonTabView(context, Icons.library_add_rounded,
-                //       AppLocalizations.of(context)?.newPrescription ?? ''),
-                // ),
-                // Tab(
-                //   child: commonTabView(context, Icons.list,
-                //       AppLocalizations.of(context)?.prescriptionList ?? ''),
-                // ),
-                // Tab(
-                //   child: commonTabView(context, Icons.book_online,
-                //       AppLocalizations.of(context)?.appointments ?? ''),
-                // ),
-              //   Tab(
-              //     child: commonTabView(context, Icons.add_home_work_rounded,
-              //         AppLocalizations.of(context)?.stockInward ?? ''),
-              //   ),
-              // ],
-            ),
-         // ),
+            // Tab(
+            //   child: commonTabView(context, Icons.library_add_rounded,
+            //       AppLocalizations.of(context)?.newPrescription ?? ''),
+            // ),
+            // Tab(
+            //   child: commonTabView(context, Icons.list,
+            //       AppLocalizations.of(context)?.prescriptionList ?? ''),
+            // ),
+            // Tab(
+            //   child: commonTabView(context, Icons.book_online,
+            //       AppLocalizations.of(context)?.appointments ?? ''),
+            // ),
+            //   Tab(
+            //     child: commonTabView(context, Icons.add_home_work_rounded,
+            //         AppLocalizations.of(context)?.stockInward ?? ''),
+            //   ),
+            // ],
+          ),
+          // ),
           body: Center(
             child: Consumer2<HomeViewModel, SecureDataViewModel>(
               builder: (context, homeViewModel, secureDataViewModel, child) {
                 return FutureBuilder<List<String?>>(
-                    future: Future.wait([
-                      secureDataViewModel.getEmail(),
-                      secureDataViewModel.getDisplayName()
-                    ]),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircularProgressIndicator(); // Show loading indicator
-                      } else if (snapshot.hasError) {
-                        return CommonText(text: 'Error: ${snapshot.error}');
-                      } else {
-                        // String email = snapshot.data?[0] ?? 'No email';
-                        // String displayName = snapshot.data?[1] ?? 'User';
+                  future: secureDataViewModel.getProfile(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator(); // Show loading indicator
+                    } else if (snapshot.hasError) {
+                      return CommonText(text: 'Error: ${snapshot.error}');
+                    } else {
+                      // String email = snapshot.data?[0] ?? 'No email';
+                      // String displayName = snapshot.data?[1] ?? 'User';
 
-                        return Column(
-                          children: [
-                            // Text(
-                            //   'Welcome, $displayName '
-                            //   '($email)',
-                            // ),
-                            Expanded(
-                              child: //TabBarView(
+                      return Column(
+                        children: [
+                          // Text(
+                          //   'Welcome, $displayName '
+                          //   '($email)',
+                          // ),
+                          Expanded(
+                            child: //TabBarView(
                                 //children: [
-                                  // TabNewPrescription(),
-                                  // TabPrescriptionList(),
-                                  // TabAppointments(),
-                                  TabStockInward(),
-                               //],
-                              //),
-                            ),
-                          ],
-                        );
-                      }
-                    });
+                                // TabNewPrescription(),
+                                // TabPrescriptionList(),
+                                // TabAppointments(),
+                                TabStockInward(),
+                            //],
+                            //),
+                          ),
+                        ],
+                      );
+                    }
+                  },
+                );
               },
             ),
           ),
@@ -169,7 +165,10 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget commonTabView(
-      BuildContext context, IconData iconData, String tabTitle) {
+    BuildContext context,
+    IconData iconData,
+    String tabTitle,
+  ) {
     if (isTabletOrDesktop(context)) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -184,7 +183,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       );
-    } else  {
+    } else {
       return SizedBox(
         width: double.infinity,
         child: Column(
@@ -194,8 +193,10 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(width: 5),
             CommonText(
               text: tabTitle,
-              style: AppTextStyles.getSemiBoldTextStyle(localeProvider.locale,
-                  fontSize: 10),
+              style: AppTextStyles.getSemiBoldTextStyle(
+                localeProvider.locale,
+                fontSize: 10,
+              ),
               textAlign: TextAlign.center,
               height: getSize(15),
             ),
@@ -205,6 +206,7 @@ class HomeScreen extends StatelessWidget {
     }
   }
 }
+
 // Platform-specific title example
 //   String _getPlatformSpecificTitle() {
 //     if (kIsWeb) {

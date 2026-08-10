@@ -1,67 +1,55 @@
-import 'package:clinic_solution/ui/views/forgot/forgot_password_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/constants/locale_key.dart';
-import '../../core/utils/locale_provider.dart';
 import '../../main.dart';
-import '../themes/text_styles.dart';
+import '../views/forgot/forgot_password_screen.dart';
 import '../views/home/home_screen.dart';
 import '../views/login/login_screen.dart';
 import '../views/register/register_screen.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+NoTransitionPage<void> _page(GoRouterState state, Widget child) {
+  return NoTransitionPage<void>(key: state.pageKey, child: child);
+}
 
 final GoRouter router = GoRouter(
-  //initialLocation: LoginPage(),
   navigatorKey: navigatorKey,
+  initialLocation: '/${Constants.navLogin}',
   redirect: (context, state) {
     final isLoggedIn = FirebaseAuth.instance.currentUser != null;
-    final loggingIn = state.fullPath?.contains('/${Constants.navLogin}')??false;
+    final isAuthenticationRoute = <String>{
+      '/${Constants.navLogin}',
+      '/${Constants.navRegister}',
+      '/${Constants.navForgot}',
+    }.contains(state.matchedLocation);
 
-    if (!isLoggedIn && !loggingIn) {
+    if (!isLoggedIn && !isAuthenticationRoute) {
       return '/${Constants.navLogin}';
     }
+
+    if (isLoggedIn && state.matchedLocation == '/${Constants.navLogin}') {
+      return '/${Constants.navHome}';
+    }
+
     return null;
   },
   routes: <RouteBase>[
     GoRoute(
-      path: '/',
-      builder: (BuildContext context, GoRouterState state) {
-        return LoginScreen();
-      },
-      routes: <RouteBase>[
-        GoRoute(
-          path: Constants.navRegister,
-          builder: (BuildContext context, GoRouterState state) {
-            return RegisterScreen();
-          },
-        ),
-        GoRoute(
-          path: Constants.navLogin,
-          builder: (BuildContext context, GoRouterState state) {
-            return LoginScreen();
-          },
-        ),
-        GoRoute(
-            path: Constants.navHome,
-            builder: (BuildContext context, GoRouterState state) {
-              //final localeProvider = Provider.of<LocaleProvider>(context);
-              //final user = state.extra as User?;
-             // if (user == null) {
-                // Handle the case where the object was not passed correctly
-                // return ErrorScreen();
-             // }
-              return HomeScreen();
-            }),
-        GoRoute(
-          path: Constants.navForgot,
-          builder: (BuildContext context, GoRouterState state) {
-            return ForgotPasswordScreen();
-          },
-        ),
-      ],
+      path: '/${Constants.navLogin}',
+      pageBuilder: (context, state) => _page(state, LoginScreen()),
+    ),
+    GoRoute(
+      path: '/${Constants.navRegister}',
+      pageBuilder: (context, state) => _page(state, RegisterScreen()),
+    ),
+    GoRoute(
+      path: '/${Constants.navForgot}',
+      pageBuilder: (context, state) => _page(state, ForgotPasswordScreen()),
+    ),
+    GoRoute(
+      path: '/${Constants.navHome}',
+      pageBuilder: (context, state) => _page(state, HomeScreen()),
     ),
   ],
 );

@@ -1,4 +1,4 @@
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:clinic_solution/l10n/generated/app_localizations.dart';
 
 import '../../main.dart';
 

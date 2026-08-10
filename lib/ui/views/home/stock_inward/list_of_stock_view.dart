@@ -1,7 +1,7 @@
 import 'package:clinic_solution/ui/views/home/stock_inward/stock_inward_viewmodel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:clinic_solution/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/constants/locale_key.dart';

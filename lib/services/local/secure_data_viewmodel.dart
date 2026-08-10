@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'encryption_service.dart';
-
 class SecureDataViewModel extends ChangeNotifier {
   //final EncryptionService _encryptionService = EncryptionService();
   //String _storedData = '';
@@ -13,10 +11,28 @@ class SecureDataViewModel extends ChangeNotifier {
   static const String PREF_DISPLAYNAME_KEY = "DISPLAY_NAME";
   static const String PREF_PHOTOURL_KEY = "PHOTO_URL";
   static const String PREF_PHONE_NUMBER_KEY = "PHONE_NUMBER";
+  Future<List<String?>>? _profileFuture;
+
+  Future<List<String?>> getProfile() {
+    return _profileFuture ??= _loadProfile();
+  }
+
+  Future<List<String?>> _loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    return [
+      prefs.getString(PREF_EMAIL_KEY),
+      prefs.getString(PREF_DISPLAYNAME_KEY),
+    ];
+  }
 
   // Save encrypted data
-  Future<void> saveData(String uid, String email, String displayName,
-      String photoURL, String phoneNumber) async {
+  Future<void> saveData(
+    String uid,
+    String email,
+    String displayName,
+    String photoURL,
+    String phoneNumber,
+  ) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     //String encryptedData = _encryptionService.encryptData(data);
     await prefs.setString(PREF_UID_KEY, uid);
@@ -25,12 +41,14 @@ class SecureDataViewModel extends ChangeNotifier {
     await prefs.setString(PREF_PHOTOURL_KEY, photoURL);
     await prefs.setString(PREF_PHONE_NUMBER_KEY, phoneNumber);
 
+    _profileFuture = Future.value([email, displayName]);
+
     notifyListeners(); // Notify UI to update the stored data
   }
 
   Future<String?> getUID() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-   return prefs.getString(PREF_UID_KEY);
+    return prefs.getString(PREF_UID_KEY);
   }
 
   Future<String?> getEmail() async {
@@ -61,5 +79,7 @@ class SecureDataViewModel extends ChangeNotifier {
     await prefs.remove(PREF_DISPLAYNAME_KEY);
     await prefs.remove(PREF_PHOTOURL_KEY);
     await prefs.remove(PREF_PHONE_NUMBER_KEY);
+    _profileFuture = null;
+    notifyListeners();
   }
 }

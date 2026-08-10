@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:clinic_solution/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/utils/locale_provider.dart';
