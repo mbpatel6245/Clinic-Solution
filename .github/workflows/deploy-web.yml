@@ -78,7 +78,7 @@ jobs:
             --delay-updates \
             --exclude='.well-known/' \
             --exclude='.ftpquota' \
-            -e "ssh -i ~/.ssh/cpanel_deploy -p $CPANEL_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            -e "ssh -p $CPANEL_PORT -o IdentityAgent=$SSH_AUTH_SOCK -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o StrictHostKeyChecking=yes" \
             build/web/ \
             "$CPANEL_USER@$CPANEL_HOST:$CPANEL_PATH"
 
