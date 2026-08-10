@@ -48,14 +48,26 @@ jobs:
       - name: Configure deployment key
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CPANEL_SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.CPANEL_SSH_KNOWN_HOSTS }}
+          SSH_KEY_PASSPHRASE: ${{ secrets.CPANEL_SSH_KEY_PASSPHRASE }}
+          SSH_KNOWN_HOSTS: ${{ secrets.CPANEL_SSH_KN_HOSTS }}
         run: |
           test -n "$SSH_PRIVATE_KEY" || { echo "Missing CPANEL_SSH_PRIVATE_KEY secret"; exit 1; }
+          test -n "$SSH_KEY_PASSPHRASE" || { echo "Missing CPANEL_SSH_KEY_PASSPHRASE secret"; exit 1; }
           test -n "$SSH_KNOWN_HOSTS" || { echo "Missing CPANEL_SSH_KNOWN_HOSTS secret"; exit 1; }
           install -d -m 700 ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/cpanel_deploy
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/cpanel_deploy ~/.ssh/known_hosts
+          cat > ~/.ssh/cpanel_askpass <<'EOF'
+          #!/bin/sh
+          printf '%s\n' "$SSH_KEY_PASSPHRASE"
+          EOF
+          chmod 700 ~/.ssh/cpanel_askpass
+          eval "$(ssh-agent -s)"
+          printf 'SSH_AUTH_SOCK=%s\n' "$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          printf 'SSH_AGENT_PID=%s\n' "$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          DISPLAY=:0 SSH_ASKPASS="$HOME/.ssh/cpanel_askpass" SSH_ASKPASS_REQUIRE=force setsid ssh-add ~/.ssh/cpanel_deploy < /dev/null
+          rm -f ~/.ssh/cpanel_askpass
 
       - name: Deploy to cPanel
         run: |
