@@ -27,8 +27,6 @@
 		33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F22044A3C60003C045 /* Assets.xcassets */; };
 		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
-		850C34012CCD5DA80030CC76 /* FlutterMacOS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 850C34002CCD5DA80030CC76 /* FlutterMacOS.framework */; };
-		850C34022CCD5DA80030CC76 /* FlutterMacOS.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 850C34002CCD5DA80030CC76 /* FlutterMacOS.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B255C9CFDEE540EFEFEB8E5F /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5ACAA5B9CC5C9365F4477881 /* Pods_Runner.framework */; };
 		B53A80DDA84183CF827E5FD5 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2BC5B80E41C42BD5450BF66D /* Pods_RunnerTests.framework */; };
 /* End PBXBuildFile section */
@@ -49,20 +47,6 @@
 			remoteInfo = FLX;
 		};
 /* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		850C34032CCD5DA80030CC76 /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				850C34022CCD5DA80030CC76 /* FlutterMacOS.framework in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		044A087C662E365502E5D7CA /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
@@ -94,14 +78,12 @@
 		850C33F22CCD586C0030CC76 /* FlutterInputs.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = FlutterInputs.xcfilelist; sourceTree = "<group>"; };
 		850C33F32CCD586C0030CC76 /* FlutterMacOS.podspec */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlutterMacOS.podspec; sourceTree = "<group>"; };
 		850C33F42CCD586C0030CC76 /* FlutterOutputs.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = FlutterOutputs.xcfilelist; sourceTree = "<group>"; };
-		850C33F62CCD59C40030CC76 /* FlutterMacOS */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = FlutterMacOS; path = "Flutter/ephemeral/FlutterMacOS.xcframework/macos-arm64_x86_64/FlutterMacOS.framework/Versions/A/FlutterMacOS"; sourceTree = "<group>"; };
 		850C33F92CCD5CD80030CC76 /* flutter_export_environment.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = flutter_export_environment.sh; sourceTree = "<group>"; };
 		850C33FA2CCD5CD80030CC76 /* Flutter-Generated.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Generated.xcconfig"; sourceTree = "<group>"; };
 		850C33FB2CCD5CD80030CC76 /* FlutterInputs.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = FlutterInputs.xcfilelist; sourceTree = "<group>"; };
 		850C33FC2CCD5CD80030CC76 /* FlutterMacOS */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlutterMacOS; sourceTree = "<group>"; };
 		850C33FD2CCD5CD80030CC76 /* FlutterMacOS.podspec */ = {isa = PBXFileReference; lastKnownFileType = text; path = FlutterMacOS.podspec; sourceTree = "<group>"; };
 		850C33FE2CCD5CD80030CC76 /* FlutterOutputs.xcfilelist */ = {isa = PBXFileReference; lastKnownFileType = text.xcfilelist; path = FlutterOutputs.xcfilelist; sourceTree = "<group>"; };
-		850C34002CCD5DA80030CC76 /* FlutterMacOS.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FlutterMacOS.framework; path = Flutter/ephemeral/FlutterMacOS.framework; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		ABF0150420953A442B8179BB /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -120,7 +102,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				B255C9CFDEE540EFEFEB8E5F /* Pods_Runner.framework in Frameworks */,
-				850C34012CCD5DA80030CC76 /* FlutterMacOS.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -245,9 +226,7 @@
 		D73912EC22F37F3D000D13A0 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				850C34002CCD5DA80030CC76 /* FlutterMacOS.framework */,
 				850C33FF2CCD5CD80030CC76 /* ephemeral */,
-				850C33F62CCD59C40030CC76 /* FlutterMacOS */,
 				850C33F52CCD586C0030CC76 /* ephemeral */,
 				5ACAA5B9CC5C9365F4477881 /* Pods_Runner.framework */,
 				2BC5B80E41C42BD5450BF66D /* Pods_RunnerTests.framework */,
@@ -287,7 +266,6 @@
 				33CC10EB2044A3C60003C045 /* Resources */,
 				3399D490228B24CF009A79C7 /* ShellScript */,
 				7B39D59EAB2D6FF6496BA0BA /* [CP] Embed Pods Frameworks */,
-				850C34032CCD5DA80030CC76 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -632,9 +610,8 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Flutter/ephemeral/FlutterMacOS.xcframework/macos-arm64_x86_64/FlutterMacOS.framework/Versions/A",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 			};
@@ -773,9 +750,8 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Flutter/ephemeral/FlutterMacOS.xcframework/macos-arm64_x86_64/FlutterMacOS.framework/Versions/A",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -802,9 +778,8 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/Flutter/ephemeral/FlutterMacOS.xcframework/macos-arm64_x86_64/FlutterMacOS.framework/Versions/A",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 			};
