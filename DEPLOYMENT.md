@@ -9,32 +9,30 @@ private key to this repository.
 
 ## One-time setup
 
-1. Generate a deployment key on your computer:
+1. In cPanel, open **Security > SSH Access > Manage SSH Keys > Generate a New
+   Key**. Create a dedicated deployment key named `github_clinic_deploy`, use
+   RSA with a 4096-bit size, and protect it with a strong passphrase.
 
-   ```powershell
-   ssh-keygen -t ed25519 -C "github-actions-clinic" -f "$env:USERPROFILE\.ssh\github_clinic_deploy"
-   ```
-
-   Leave the passphrase empty because GitHub Actions must use the key without
-   interactive input. This key must be used only for this deployment.
-
-2. In cPanel, open **SSH Access > Manage SSH Keys > Import Key**. Import the
-   contents of `github_clinic_deploy.pub`, then select **Manage > Authorize**.
+2. Under **Public Keys**, select **Manage > Authorize** for the new key. Under
+   **Private Keys**, select **View/Download** and copy the OpenSSH/PEM private
+   key, including its BEGIN and END lines. Do not use a PuTTY `.ppk` value.
 
 3. In the GitHub repository, open **Settings > Secrets and variables > Actions**
    and create these repository secrets:
 
-   - `CPANEL_SSH_PRIVATE_KEY`: the complete contents of
-     `github_clinic_deploy`, including its BEGIN and END lines.
-   - `CPANEL_SSH_KNOWN_HOSTS`: the output of:
+   - `CPANEL_SSH_PRIVATE_KEY`: the complete downloaded private key.
+   - `CPANEL_SSH_KEY_PASSPHRASE`: the passphrase used when generating the key.
+   - `CPANEL_SSH_KNOWN_HOSTS`: the verified output of:
 
      ```powershell
      ssh-keyscan -p 22 sh016.hostgator.in
      ```
 
-4. Commit and push the workflow to `main`. Follow the first deployment under
-   the repository's **Actions** tab. You can also start it manually with
-   **Run workflow**.
+   The workflow loads the encrypted key into a temporary SSH agent. Secret
+   values are not written to the repository.
+
+4. Push to `main` or open **Actions > Deploy clinic web app > Run workflow**.
+   Follow the run until the deployment and production verification both pass.
 
 ## Deployment target
 
