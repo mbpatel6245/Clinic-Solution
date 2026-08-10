@@ -2,6 +2,10 @@
 
 Flutter Clinic Solution for Android, iOS, Linux, MacOS, Web and Windows platform complete solutions
 
+Production web deployments are automated through GitHub Actions. See
+[DEPLOYMENT.md](DEPLOYMENT.md) for the one-time SSH-key setup and deployment
+details.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
