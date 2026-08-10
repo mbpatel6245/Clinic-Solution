@@ -400,7 +400,8 @@ jobs:
           echo "93f69fa109eb87717e8ed9eb60478978704bf491d7dd4b6d1ee81ef416f9d673  $RUNNER_TEMP/clinic-reviewed-changes.tar.gz" | sha256sum --check -
           tar -xzf "$RUNNER_TEMP/clinic-reviewed-changes.tar.gz" -C .
           rm -f lib/services/local/encryption_service.dart
-          rm -f .github/workflows/apply-reviewed-changes.yml
+          rm -f .github/workflows/cross-platform-ci.yml .github/workflows/distribute-android.yml
+          git restore .github/workflows/deploy-web.yml
           git config core.autocrlf true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
