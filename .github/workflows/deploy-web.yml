@@ -71,17 +71,29 @@ jobs:
 
       - name: Deploy to cPanel
         run: |
-          rsync \
-            --archive \
-            --compress \
-            --delete-delay \
-            --delay-updates \
-            --exclude='.well-known/' \
-            --exclude='.ftpquota' \
-            -e "ssh -p $CPANEL_PORT -o IdentityAgent=$SSH_AUTH_SOCK -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o StrictHostKeyChecking=yes" \
-            build/web/ \
-            "$CPANEL_USER@$CPANEL_HOST:$CPANEL_PATH"
-
+          test "$CPANEL_PATH" = "/home2/mobituvx/clinic/" || { echo "Unexpected deployment path"; exit 1; }
+          local_archive="/tmp/clinic-web-${GITHUB_RUN_ID}.tar.gz"
+          remote_archive="/home2/mobituvx/clinic-web-${GITHUB_RUN_ID}.tar.gz"
+          tar -C build/web -czf "$local_archive" .
+          printf 'put %s %s\n' "$local_archive" "$remote_archive" | \
+            sftp \
+              -b - \
+              -P "$CPANEL_PORT" \
+              -o IdentityAgent="$SSH_AUTH_SOCK" \
+              -o PreferredAuthentications=publickey \
+              -o PasswordAuthentication=no \
+              -o KbdInteractiveAuthentication=no \
+              -o StrictHostKeyChecking=yes \
+              "$CPANEL_USER@$CPANEL_HOST"
+          ssh \
+            -p "$CPANEL_PORT" \
+            -o IdentityAgent="$SSH_AUTH_SOCK" \
+            -o PreferredAuthentications=publickey \
+            -o PasswordAuthentication=no \
+            -o KbdInteractiveAuthentication=no \
+            -o StrictHostKeyChecking=yes \
+            "$CPANEL_USER@$CPANEL_HOST" \
+            "set -eu; mkdir -p '$CPANEL_PATH'; find '$CPANEL_PATH' -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.ftpquota' -exec rm -rf -- {} +; tar -xzf '$remote_archive' -C '$CPANEL_PATH'; rm -f '$remote_archive'"
       - name: Verify production website
         run: |
           curl \
