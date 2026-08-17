@@ -18,7 +18,7 @@ env:
   CPANEL_HOST: sh016.hostgator.in
   CPANEL_PORT: 22
   CPANEL_USER: mobituvx
-  CPANEL_PATH: /home2/mobituvx/clinic/
+  CPANEL_DOMAIN: clinic.mobitab.co.in
 
 jobs:
   build-and-deploy:
@@ -44,6 +44,7 @@ jobs:
         run: |
           flutter build web --release --base-href /
           cp web/.htaccess build/web/.htaccess
+          printf '%s\n' "$GITHUB_SHA" > build/web/deployment.txt
 
       - name: Configure deployment key
         env:
@@ -69,9 +70,44 @@ jobs:
           DISPLAY=:0 SSH_ASKPASS="$HOME/.ssh/cpanel_askpass" SSH_ASKPASS_REQUIRE=force setsid ssh-add ~/.ssh/cpanel_deploy < /dev/null
           rm -f ~/.ssh/cpanel_askpass
 
+      - name: Resolve cPanel document root
+        shell: bash
+        run: |
+          domain_data="$(
+            ssh \
+              -p "$CPANEL_PORT" \
+              -o IdentityAgent="$SSH_AUTH_SOCK" \
+              -o PreferredAuthentications=publickey \
+              -o PasswordAuthentication=no \
+              -o KbdInteractiveAuthentication=no \
+              -o StrictHostKeyChecking=yes \
+              "$CPANEL_USER@$CPANEL_HOST" \
+              "uapi --output=json DomainInfo single_domain_data domain='$CPANEL_DOMAIN'"
+          )"
+          document_root="$(
+            printf '%s' "$domain_data" | python3 -c '
+          import json
+          import sys
+
+          payload = json.load(sys.stdin)
+          result = payload.get("result", {})
+          data = result.get("data") or {}
+          document_root = data.get("documentroot")
+          if result.get("status") != 1 or not document_root:
+              errors = result.get("errors") or ["cPanel did not return a document root"]
+              raise SystemExit("; ".join(str(error) for error in errors))
+          print(document_root.rstrip("/"))
+          '
+          )"
+          case "$document_root" in
+            "/home2/$CPANEL_USER/"*) ;;
+            *) echo "Refusing unexpected document root: $document_root" >&2; exit 1 ;;
+          esac
+          printf 'CPANEL_PATH=%s/\n' "$document_root" >> "$GITHUB_ENV"
+          printf 'Deploying %s to %s\n' "$CPANEL_DOMAIN" "$document_root"
+
       - name: Deploy to cPanel
         run: |
-          test "$CPANEL_PATH" = "/home2/mobituvx/clinic/" || { echo "Unexpected deployment path"; exit 1; }
           local_archive="/tmp/clinic-web-${GITHUB_RUN_ID}.tar.gz"
           remote_archive="/home2/mobituvx/clinic-web-${GITHUB_RUN_ID}.tar.gz"
           tar -C build/web -czf "$local_archive" .
@@ -95,12 +131,17 @@ jobs:
             "$CPANEL_USER@$CPANEL_HOST" \
             "set -eu; mkdir -p '$CPANEL_PATH'; find '$CPANEL_PATH' -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.ftpquota' -exec rm -rf -- {} +; tar -xzf '$remote_archive' -C '$CPANEL_PATH'; rm -f '$remote_archive'"
       - name: Verify production website
+        shell: bash
         run: |
-          curl \
+          production_sha="$(curl \
             --fail \
             --location \
             --retry 3 \
             --retry-delay 5 \
             --show-error \
             --silent \
-            https://clinic.mobitab.co.in/ > /dev/null
+            "https://$CPANEL_DOMAIN/deployment.txt?run=$GITHUB_RUN_ID")"
+          test "$production_sha" = "$GITHUB_SHA" || {
+            echo "Production commit mismatch: expected $GITHUB_SHA, received $production_sha" >&2
+            exit 1
+          }

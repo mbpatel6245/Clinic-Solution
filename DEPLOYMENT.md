@@ -39,10 +39,15 @@ private key to this repository.
 - Host: `sh016.hostgator.in`
 - SSH port: `22`
 - User: `mobituvx`
-- Server directory: `/home2/mobituvx/clinic/`
+- Domain: `clinic.mobitab.co.in`
+- Server directory: resolved at deployment time from cPanel's `DomainInfo`
+  API, then restricted to the account home directory.
 
 The deploy step synchronizes the generated site and removes obsolete generated
 files. It preserves the server's `.well-known` directory and `.ftpquota` file.
+The workflow publishes `deployment.txt` containing the deployed commit SHA and
+reads it back through the production domain, so updating an unrelated server
+directory can no longer report a successful deployment.
 
 ## Android Firebase App Distribution
 
