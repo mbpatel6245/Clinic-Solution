@@ -40,11 +40,13 @@ private key to this repository.
 - SSH port: `22`
 - User: `mobituvx`
 - Domain: `clinic.mobitab.co.in`
-- Server directory: resolved at deployment time from cPanel's domain metadata,
-  then restricted to the account home directory.
+- Server directory: detected over SFTP by matching the deployed production
+  JavaScript bundle, then restricted to known locations inside the account
+  home directory.
 
-The deploy step synchronizes the generated site and removes obsolete generated
-files. It preserves the server's `.well-known` directory and `.ftpquota` file.
+The deploy step uploads the generated site recursively over SFTP. It does not
+require cPanel shell access and does not alter the server's `.well-known`
+directory or `.ftpquota` file.
 The workflow publishes `deployment.txt` containing the deployed commit SHA and
 reads it back through the production domain, so updating an unrelated server
 directory can no longer report a successful deployment.
