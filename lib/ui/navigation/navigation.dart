@@ -6,6 +6,7 @@ import '../../core/constants/locale_key.dart';
 import '../../main.dart';
 import '../views/forgot/forgot_password_screen.dart';
 import '../views/home/home_screen.dart';
+import '../views/home/appointment/tab_appointments.dart';
 import '../views/login/login_screen.dart';
 import '../views/register/register_screen.dart';
 
@@ -22,6 +23,7 @@ final GoRouter router = GoRouter(
       '/${Constants.navLogin}',
       '/${Constants.navRegister}',
       '/${Constants.navForgot}',
+      '/${Constants.navAppointment}',
     }.contains(state.matchedLocation);
 
     if (!isLoggedIn && !isAuthenticationRoute) {
@@ -50,6 +52,11 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/${Constants.navHome}',
       pageBuilder: (context, state) => _page(state, HomeScreen()),
+    ),
+    GoRoute(
+      path: '/${Constants.navAppointment}',
+      pageBuilder: (context, state) =>
+          _page(state, const PatientAppointmentScreen()),
     ),
   ],
 );

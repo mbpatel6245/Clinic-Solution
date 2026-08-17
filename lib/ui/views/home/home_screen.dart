@@ -1,228 +1,170 @@
-import 'package:clinic_solution/core/utils/size_utils.dart';
-import 'package:clinic_solution/ui/views/home/appointment/tab_appointments.dart';
-import 'package:clinic_solution/ui/views/home/new_prescription/tab_new_prescription.dart';
-import 'package:clinic_solution/ui/views/home/prescription_list/tab_prescription_list.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:clinic_solution/l10n/generated/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/locale_key.dart';
 import '../../../core/utils/locale_provider.dart';
+import '../../../data/datasources/clinical_models.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../services/local/secure_data_viewmodel.dart';
-import '../../themes/text_styles.dart';
-import '../../widgets/common_text.dart';
-import 'home_viewmodel.dart';
+import 'appointment/tab_appointments.dart';
+import 'new_prescription/tab_new_prescription.dart';
+import 'prescription_list/tab_prescription_list.dart';
 import 'stock_inward/tab_stock_inward_screen.dart';
 
-class HomeScreen extends StatelessWidget {
-  //final User user;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
-  HomeScreen({Key? key}) : super(key: key);
-  var localeProvider = LocaleProvider();
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
-  /* checkDataSaved(BuildContext context) async {
-    var viewModel = SecureDataViewModel();
-    var uid = await viewModel.getUID();
-    var email = await viewModel.getEmail();
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+  PatientModel? _prescriptionPatient;
+  int _prescriptionFormVersion = 0;
+  final _secureData = SecureDataViewModel();
 
-    if (uid?.isNotEmpty == true && email?.isNotEmpty == true) {
-      context.go('/${Constants.navHome}');
-    }
-  }*/
+  @override
+  void dispose() {
+    _secureData.dispose();
+    super.dispose();
+  }
+
+  void _startNewVisit(PatientModel patient) {
+    setState(() {
+      _prescriptionPatient = patient;
+      _prescriptionFormVersion++;
+      _selectedIndex = 0;
+    });
+  }
+
+  void _selectDestination(int index) {
+    setState(() {
+      _selectedIndex = index;
+      if (index == 0 && _prescriptionPatient != null) {
+        _prescriptionPatient = null;
+        _prescriptionFormVersion++;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    // checkDataSaved(context);
-
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => SecureDataViewModel()),
-        ChangeNotifierProxyProvider<SecureDataViewModel, HomeViewModel>(
-          create: (context) {
-            var viewModel = HomeViewModel(context.read<SecureDataViewModel>());
-            // viewModel.loadUser(user); // Load user once
-            return viewModel;
-          },
-          update: (context, secureDataViewModel, homeViewModel) {
-            return homeViewModel ?? HomeViewModel(secureDataViewModel);
-          },
-        ),
-      ],
-      child: DefaultTabController(
-        length: 1,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Consumer2<HomeViewModel, SecureDataViewModel>(
-              builder: (context, homeViewModel, secureDataViewModel, child) {
-                return FutureBuilder<List<String?>>(
-                  future: secureDataViewModel.getProfile(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const CircularProgressIndicator(); // Show loading indicator
-                    } else if (snapshot.hasError) {
-                      return CommonText(text: 'Error: ${snapshot.error}');
-                    } else {
-                      String email = snapshot.data?[0] ?? 'No email';
-                      String displayName = snapshot.data?[1] ?? 'User';
-
-                      return CommonText(
-                        text: 'Welcome, $displayName ($email)',
-                        style: AppTextStyles.getRegularTextStyle(
-                          localeProvider.locale,
-                        ),
-                      );
-                    }
-                  },
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                onPressed: () async {
-                  final viewModel = context.read<SecureDataViewModel>();
-                  await viewModel.clearData();
-                  await FirebaseAuth.instance.signOut();
-                  if (!context.mounted) return;
-                  context.go('/${Constants.navLogin}');
-                },
-                icon: const Icon(Icons.logout),
-              ),
-            ],
-            // bottom: TabBar(
-            //   labelPadding: const EdgeInsets.symmetric(horizontal: 0),
-            //   indicator: const BoxDecoration(
-            //     color: Colors.green,
-            //   ),
-            //   labelColor: Colors.white,
-            //   unselectedLabelColor: Colors.black,
-            //   unselectedLabelStyle: const TextStyle(fontSize: 12),
-            //   labelStyle: const TextStyle(fontSize: 12),
-            //   automaticIndicatorColorAdjustment: true,
-            //   tabs: [
-            // Tab(
-            //   child: commonTabView(context, Icons.library_add_rounded,
-            //       AppLocalizations.of(context)?.newPrescription ?? ''),
-            // ),
-            // Tab(
-            //   child: commonTabView(context, Icons.list,
-            //       AppLocalizations.of(context)?.prescriptionList ?? ''),
-            // ),
-            // Tab(
-            //   child: commonTabView(context, Icons.book_online,
-            //       AppLocalizations.of(context)?.appointments ?? ''),
-            // ),
-            //   Tab(
-            //     child: commonTabView(context, Icons.add_home_work_rounded,
-            //         AppLocalizations.of(context)?.stockInward ?? ''),
-            //   ),
-            // ],
-          ),
-          // ),
-          body: Center(
-            child: Consumer2<HomeViewModel, SecureDataViewModel>(
-              builder: (context, homeViewModel, secureDataViewModel, child) {
-                return FutureBuilder<List<String?>>(
-                  future: secureDataViewModel.getProfile(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const CircularProgressIndicator(); // Show loading indicator
-                    } else if (snapshot.hasError) {
-                      return CommonText(text: 'Error: ${snapshot.error}');
-                    } else {
-                      // String email = snapshot.data?[0] ?? 'No email';
-                      // String displayName = snapshot.data?[1] ?? 'User';
-
-                      return Column(
-                        children: [
-                          // Text(
-                          //   'Welcome, $displayName '
-                          //   '($email)',
-                          // ),
-                          Expanded(
-                            child: //TabBarView(
-                                //children: [
-                                // TabNewPrescription(),
-                                // TabPrescriptionList(),
-                                // TabAppointments(),
-                                TabStockInward(),
-                            //],
-                            //),
-                          ),
-                        ],
-                      );
-                    }
-                  },
-                );
-              },
-            ),
-          ),
-        ),
+    final strings = AppLocalizations.of(context)!;
+    final destinations = [
+      NavigationDestination(
+        icon: const Icon(Icons.note_add_outlined),
+        selectedIcon: const Icon(Icons.note_add),
+        label: strings.newPrescription,
       ),
-    );
-  }
+      NavigationDestination(
+        icon: const Icon(Icons.manage_search_outlined),
+        selectedIcon: const Icon(Icons.manage_search),
+        label: strings.prescriptionList,
+      ),
+      NavigationDestination(
+        icon: const Icon(Icons.calendar_month_outlined),
+        selectedIcon: const Icon(Icons.calendar_month),
+        label: strings.appointments,
+      ),
+      NavigationDestination(
+        icon: const Icon(Icons.inventory_2_outlined),
+        selectedIcon: const Icon(Icons.inventory_2),
+        label: strings.stockInward,
+      ),
+    ];
 
-  Widget commonTabView(
-    BuildContext context,
-    IconData iconData,
-    String tabTitle,
-  ) {
-    if (isTabletOrDesktop(context)) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(iconData),
-          const SizedBox(width: 5),
-          CommonText(
-            text: tabTitle,
-            style: AppTextStyles.getSemiBoldTextStyle(localeProvider.locale),
-            height: getSize(40),
-          ),
-        ],
-      );
-    } else {
-      return SizedBox(
-        width: double.infinity,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    final pages = <Widget>[
+      TabNewPrescription(
+        key: ValueKey(_prescriptionFormVersion),
+        initialPatient: _prescriptionPatient,
+        onSaved: () => setState(() => _selectedIndex = 1),
+      ),
+      TabPrescriptionList(onNewVisit: _startNewVisit),
+      const TabAppointments(),
+      const TabStockInward(),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(iconData),
-            const SizedBox(width: 5),
-            CommonText(
-              text: tabTitle,
-              style: AppTextStyles.getSemiBoldTextStyle(
-                localeProvider.locale,
-                fontSize: 10,
-              ),
-              textAlign: TextAlign.center,
-              height: getSize(15),
+            Icon(
+              Icons.local_hospital,
+              color: Theme.of(context).colorScheme.primary,
             ),
+            const SizedBox(width: 10),
+            Text(strings.dashboard),
           ],
         ),
-      );
-    }
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: strings.language,
+            icon: const Icon(Icons.translate),
+            onSelected: (languageCode) =>
+                context.read<LocaleProvider>().setLocale(Locale(languageCode)),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'en', child: Text('English')),
+              PopupMenuItem(value: 'hi', child: Text('हिन्दी')),
+              PopupMenuItem(value: 'gu', child: Text('ગુજરાતી')),
+            ],
+          ),
+          IconButton(
+            tooltip: strings.logout,
+            onPressed: () async {
+              await _secureData.clearData();
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                context.go('/${Constants.navLogin}');
+              }
+            },
+            icon: const Icon(Icons.logout),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 900) {
+            return IndexedStack(index: _selectedIndex, children: pages);
+          }
+          return Row(
+            children: [
+              NavigationRail(
+                selectedIndex: _selectedIndex,
+                onDestinationSelected: _selectDestination,
+                extended: constraints.maxWidth >= 1180,
+                labelType: constraints.maxWidth >= 1180
+                    ? NavigationRailLabelType.none
+                    : NavigationRailLabelType.all,
+                destinations: destinations
+                    .map(
+                      (item) => NavigationRailDestination(
+                        icon: item.icon,
+                        selectedIcon: item.selectedIcon,
+                        label: Text(item.label),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const VerticalDivider(width: 1),
+              Expanded(
+                child: IndexedStack(index: _selectedIndex, children: pages),
+              ),
+            ],
+          );
+        },
+      ),
+      bottomNavigationBar: MediaQuery.sizeOf(context).width < 900
+          ? NavigationBar(
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: _selectDestination,
+              destinations: destinations,
+            )
+          : null,
+    );
   }
 }
-
-// Platform-specific title example
-//   String _getPlatformSpecificTitle() {
-//     if (kIsWeb) {
-//       return "Web TabBar";
-//     } else if (Platform.isAndroid) {
-//       return "Android TabBar";
-//     } else if (Platform.isIOS) {
-//       return "iOS TabBar";
-//     } else if (Platform.isLinux) {
-//       return "Linux TabBar";
-//     } else if (Platform.isMacOS) {
-//       return "MacOS TabBar";
-//     } else if (Platform.isWindows) {
-//       return "Windows TabBar";
-//     } else {
-//       return "TabBar";
-//     }
-//   }
-// }

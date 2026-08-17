@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
 
 import '../data/datasources/stock_model.dart';
+import '../data/datasources/clinical_models.dart';
 import '../data/datasources/user_model.dart';
 import 'auth_services.dart';
 
@@ -13,6 +14,9 @@ class FirebaseFireStore with ChangeNotifier {
 
   static const String pathUser = "users";
   static const String pathStock = "stocks";
+  static const String pathPatients = 'patients';
+  static const String pathPrescriptions = 'prescriptions';
+  static const String pathAppointments = 'appointments';
 
   bool get isLoading => _isLoading;
   List<UserModel> _users = [];
@@ -91,6 +95,146 @@ class FirebaseFireStore with ChangeNotifier {
       errorCallback(e);
     }
   }
+
+  //---------------------------
+
+  Stream<List<InventoryItem>> streamInventory() {
+    return _db.collection(pathStock).snapshots().map((snapshot) {
+      final items = snapshot.docs
+          .map((doc) => InventoryItem.fromMap(doc.data(), doc.id))
+          .where((item) => item.name.isNotEmpty)
+          .toList();
+      items.sort((a, b) {
+        final aDate = a.updatedAt ?? a.createdAt ?? DateTime(1970);
+        final bDate = b.updatedAt ?? b.createdAt ?? DateTime(1970);
+        return bDate.compareTo(aDate);
+      });
+      return items;
+    });
+  }
+
+  Future<void> saveInventoryItem(InventoryItem item) async {
+    final data = item.toMap();
+    if (item.id.isEmpty) {
+      await _db.collection(pathStock).add(data);
+      return;
+    }
+    await _db
+        .collection(pathStock)
+        .doc(item.id)
+        .set(data, SetOptions(merge: true));
+  }
+
+  Future<void> adjustInventory(String id, double adjustment) async {
+    final reference = _db.collection(pathStock).doc(id);
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(reference);
+      if (!snapshot.exists) {
+        throw StateError('Stock item no longer exists.');
+      }
+      final item = InventoryItem.fromMap(snapshot.data()!, snapshot.id);
+      final updated = item.remainingQuantity + adjustment;
+      if (updated < 0) {
+        throw StateError('The used quantity is greater than remaining stock.');
+      }
+      transaction.update(reference, {
+        if (adjustment > 0) 'quantity_in': item.quantityIn + adjustment,
+        'remaining_quantity': updated,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> removeInventoryItem(String id) =>
+      _db.collection(pathStock).doc(id).delete();
+
+  Stream<List<PrescriptionModel>> streamPrescriptions() {
+    return _db.collection(pathPrescriptions).snapshots().map((snapshot) {
+      final items = snapshot.docs
+          .map((doc) => PrescriptionModel.fromMap(doc.data(), doc.id))
+          .toList();
+      items.sort((a, b) {
+        final aDate = a.visitDate ?? a.createdAt ?? DateTime(1970);
+        final bDate = b.visitDate ?? b.createdAt ?? DateTime(1970);
+        return bDate.compareTo(aDate);
+      });
+      return items;
+    });
+  }
+
+  Stream<List<PatientModel>> streamPatients() {
+    return _db.collection(pathPatients).snapshots().map((snapshot) {
+      final patients = snapshot.docs
+          .map((doc) => PatientModel.fromMap(doc.data(), doc.id))
+          .toList();
+      patients.sort((a, b) => a.fullName.compareTo(b.fullName));
+      return patients;
+    });
+  }
+
+  Future<String> savePrescription(PrescriptionModel prescription) async {
+    final patientReference = prescription.patient.id.isEmpty
+        ? _db.collection(pathPatients).doc()
+        : _db.collection(pathPatients).doc(prescription.patient.id);
+    final prescriptionReference = prescription.id.isEmpty
+        ? _db.collection(pathPrescriptions).doc()
+        : _db.collection(pathPrescriptions).doc(prescription.id);
+    final batch = _db.batch();
+    batch.set(
+      patientReference,
+      prescription.patient.toMap(),
+      SetOptions(merge: true),
+    );
+    batch.set(
+      prescriptionReference,
+      prescription.toMap(patientReference.id),
+      SetOptions(merge: true),
+    );
+    await batch.commit();
+    return prescriptionReference.id;
+  }
+
+  Future<void> updatePrescriptionStatus(String id, String status) async {
+    await _db.collection(pathPrescriptions).doc(id).update({
+      'status': status,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> removePrescription(String id) =>
+      _db.collection(pathPrescriptions).doc(id).delete();
+
+  Stream<List<AppointmentModel>> streamAppointments() {
+    return _db.collection(pathAppointments).snapshots().map((snapshot) {
+      final items = snapshot.docs
+          .map((doc) => AppointmentModel.fromMap(doc.data(), doc.id))
+          .toList();
+      items.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+      return items;
+    });
+  }
+
+  Future<void> saveAppointment(AppointmentModel appointment) async {
+    final data = appointment.toMap();
+    if (appointment.id.isEmpty) {
+      await _db.collection(pathAppointments).add(data);
+      return;
+    }
+    await _db
+        .collection(pathAppointments)
+        .doc(appointment.id)
+        .set(data, SetOptions(merge: true));
+  }
+
+  Future<void> updateAppointmentStatus(String id, String status) async {
+    await _db.collection(pathAppointments).doc(id).update({
+      'status': status,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> removeAppointment(String id) =>
+      _db.collection(pathAppointments).doc(id).delete();
 
   //---------------------------
 

@@ -83,6 +83,16 @@ class LoginScreen extends StatelessWidget {
                         }
                       },
                     ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        context.go('/${Constants.navAppointment}');
+                      },
+                      icon: const Icon(Icons.calendar_month_outlined),
+                      label: Text(
+                        AppLocalizations.of(context)!.bookAppointment,
+                      ),
+                    ),
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () {
