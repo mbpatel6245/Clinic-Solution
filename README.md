@@ -24,7 +24,7 @@ documents are read through a compatibility mapper.
 
 ## Getting Started
 
-Use Flutter `3.44.7` (the version configured in GitHub Actions), then run:
+Use Flutter `3.47.0` (the version configured in GitHub Actions), then run:
 
 ```sh
 flutter pub get

@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_VERSION: 3.44.7
+  FLUTTER_VERSION: 3.47.0
   FIREBASE_APP_ID: 1:715512178126:android:cf70974901bb38d482779f
 
 jobs:
@@ -85,4 +85,3 @@ jobs:
           name: clinic-android-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
-
