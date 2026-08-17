@@ -7,10 +7,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/platform/firebase_runtime.dart';
+import 'core/design/app_theme.dart';
 import 'core/utils/locale_provider.dart';
 import 'firebase_options.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'ui/navigation/navigation.dart';
+import 'services/session_controller.dart';
+import 'services/sync_status_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,6 +89,8 @@ class _ClinicBootstrapState extends State<ClinicBootstrap> {
           providers: [
             ChangeNotifierProvider(create: (_) => LocaleProvider()),
             ChangeNotifierProvider(create: (_) => FirebaseFireStore()),
+            ChangeNotifierProvider(create: (_) => SessionController()),
+            ChangeNotifierProvider(create: (_) => SyncStatusService()),
           ],
           child: const MyApp(),
         );
@@ -181,28 +186,7 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF176B87),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-        cardTheme: const CardThemeData(
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(14)),
-          ),
-        ),
-        inputDecorationTheme: const InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-          ),
-        ),
-      ),
+      theme: AppTheme.light,
       routerConfig: router,
     );
   }

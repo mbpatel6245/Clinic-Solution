@@ -1,4 +1,5 @@
 import 'package:clinic_solution/data/datasources/clinical_models.dart';
+import 'package:clinic_solution/core/auth/app_role.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -61,5 +62,47 @@ void main() {
     expect(prescription.patient.id, 'patient-1');
     expect(prescription.medicines.single.name, 'Tablet A');
     expect(prescription.medicines.single.duration, '5 days');
+  });
+
+  test('AppointmentModel preserves the account that created it', () {
+    final appointment = AppointmentModel.fromMap({
+      'patient_name': 'Asha Patel',
+      'phone': '9876543210',
+      'scheduled_at': DateTime(2027, 1, 5),
+      'created_by': 'patient-user-1',
+    }, 'appointment-1');
+
+    expect(appointment.createdBy, 'patient-user-1');
+    expect(appointment.toMap()['created_by'], 'patient-user-1');
+  });
+
+  test('FinanceEntry reads income and expense records', () {
+    final entry = FinanceEntry.fromMap({
+      'type': 'expense',
+      'amount': '1250.50',
+      'category': 'Medicine purchase',
+      'occurred_at': DateTime(2027, 1, 5),
+    }, 'finance-1');
+
+    expect(entry.type, FinanceEntryType.expense);
+    expect(entry.amount, 1250.50);
+    expect(entry.toMap()['type'], 'expense');
+  });
+
+  group('role permissions', () {
+    test('admin can access every clinic feature', () {
+      expect(AppRole.admin.features, containsAll(AppFeature.values));
+    });
+
+    test('patient can book appointments without staff access', () {
+      expect(AppRole.patient.can(AppFeature.appointments), isTrue);
+      expect(AppRole.patient.can(AppFeature.finance), isFalse);
+      expect(AppRole.patient.can(AppFeature.inventory), isFalse);
+    });
+
+    test('normalizes legacy and pharmacy role names', () {
+      expect(AppRole.fromValue('User'), AppRole.patient);
+      expect(AppRole.fromValue('Pharmacy Operator'), AppRole.pharmacyOperator);
+    });
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -82,7 +83,9 @@ class _PatientAppointmentScreenState extends State<PatientAppointmentScreen> {
 }
 
 class TabAppointments extends StatefulWidget {
-  const TabAppointments({super.key});
+  const TabAppointments({super.key, this.patientOnly = false});
+
+  final bool patientOnly;
 
   @override
   State<TabAppointments> createState() => _TabAppointmentsState();
@@ -114,13 +117,15 @@ class _TabAppointmentsState extends State<TabAppointments> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 10,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
-                    strings.appointments,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
+                Text(
+                  strings.appointments,
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 FilledButton.icon(
                   onPressed: _openBooking,
@@ -156,7 +161,13 @@ class _TabAppointmentsState extends State<TabAppointments> {
             const SizedBox(height: 12),
             Expanded(
               child: StreamBuilder<List<AppointmentModel>>(
-                stream: context.read<FirebaseFireStore>().streamAppointments(),
+                stream: widget.patientOnly
+                    ? context
+                          .read<FirebaseFireStore>()
+                          .streamAppointmentsForUser(
+                            FirebaseAuth.instance.currentUser?.uid ?? '',
+                          )
+                    : context.read<FirebaseFireStore>().streamAppointments(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return _EmptyAppointments(
@@ -188,6 +199,7 @@ class _TabAppointmentsState extends State<TabAppointments> {
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) => _AppointmentCard(
                       appointment: appointments[index],
+                      patientOnly: widget.patientOnly,
                       onEdit: () => _openBooking(appointments[index]),
                     ),
                   );
@@ -225,10 +237,15 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({required this.appointment, required this.onEdit});
+  const _AppointmentCard({
+    required this.appointment,
+    required this.onEdit,
+    required this.patientOnly,
+  });
 
   final AppointmentModel appointment;
   final VoidCallback onEdit;
+  final bool patientOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -284,13 +301,16 @@ class _AppointmentCard extends StatelessWidget {
           onSelected: (action) => _handleAction(context, action),
           itemBuilder: (context) => [
             PopupMenuItem(value: 'edit', child: Text(strings.update)),
-            PopupMenuItem(value: 'confirmed', child: Text(strings.confirmed)),
-            PopupMenuItem(
-              value: 'completed',
-              child: Text(strings.markComplete),
-            ),
+            if (!patientOnly) ...[
+              PopupMenuItem(value: 'confirmed', child: Text(strings.confirmed)),
+              PopupMenuItem(
+                value: 'completed',
+                child: Text(strings.markComplete),
+              ),
+            ],
             PopupMenuItem(value: 'cancelled', child: Text(strings.cancelled)),
-            PopupMenuItem(value: 'delete', child: Text(strings.delete)),
+            if (!patientOnly)
+              PopupMenuItem(value: 'delete', child: Text(strings.delete)),
           ],
         ),
       ),
@@ -400,6 +420,10 @@ class _AppointmentFormState extends State<_AppointmentForm> {
           reason: _reason.text,
           notes: _notes.text,
           status: widget.appointment?.status ?? 'booked',
+          createdBy:
+              widget.appointment?.createdBy ??
+              FirebaseAuth.instance.currentUser?.uid ??
+              '',
           createdAt: widget.appointment?.createdAt,
         ),
       );
@@ -418,8 +442,8 @@ class _AppointmentFormState extends State<_AppointmentForm> {
     final strings = AppLocalizations.of(context)!;
     return AlertDialog(
       title: Text(strings.bookAppointment),
-      content: SizedBox(
-        width: 520,
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -462,8 +486,9 @@ class _AppointmentFormState extends State<_AppointmentForm> {
                               const Duration(days: 730),
                             ),
                           );
-                          if (value != null && mounted)
+                          if (value != null && mounted) {
                             setState(() => _date = value);
+                          }
                         },
                       ),
                     ),
@@ -477,8 +502,9 @@ class _AppointmentFormState extends State<_AppointmentForm> {
                             context: context,
                             initialTime: _time,
                           );
-                          if (value != null && mounted)
+                          if (value != null && mounted) {
                             setState(() => _time = value);
+                          }
                         },
                       ),
                     ),

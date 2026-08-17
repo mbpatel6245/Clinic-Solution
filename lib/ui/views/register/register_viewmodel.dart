@@ -1,9 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../../services/auth_services.dart';
 import '../../../services/firestore_services.dart';
+import '../../../core/auth/app_role.dart';
 
 class RegisterViewModel with ChangeNotifier {
   // Text Editing Controllers
@@ -19,7 +17,7 @@ class RegisterViewModel with ChangeNotifier {
   String? selectedRole;
 
   // List of roles for the dropdown
-  final List<String> roles = ['User', 'Admin', 'Guest'];
+  final List<String> roles = [AppRole.patient.displayName];
 
   void onRoleChanged(String? value) {
     selectedRole = value;
@@ -34,12 +32,13 @@ class RegisterViewModel with ChangeNotifier {
   // Save data to Firestore
   Future<void> registerUser() async {
     try {
-      _fireStoreService.registerUserData(
-          emailController.text.trim(),
-          passwordController.text.trim(),
-          nameController.text.trim(),
-          phoneController.text,
-          selectedRole ?? selectedRole![0]);
+      await _fireStoreService.registerUserData(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+        nameController.text.trim(),
+        phoneController.text,
+        AppRole.fromValue(selectedRole).storageValue,
+      );
     } catch (e) {
       print('Error saving data: $e');
     }
@@ -48,6 +47,7 @@ class RegisterViewModel with ChangeNotifier {
   // Dispose controllers
   @override
   void dispose() {
+    nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
     phoneController.dispose();

@@ -1,0 +1,96 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(roles) {
+      return signedIn() && profile().role in roles;
+    }
+
+    function isAdmin() {
+      return hasRole(['admin', 'Admin', 'administrator']);
+    }
+
+    function isDoctor() {
+      return hasRole(['doctor', 'Doctor', 'physician']);
+    }
+
+    function isPharmacy() {
+      return hasRole([
+        'pharmacy_operator',
+        'Pharmacy Operator',
+        'pharmacy',
+        'pharmacist'
+      ]);
+    }
+
+    function validAppointment() {
+      return request.resource.data.keys().hasAll([
+        'patient_name',
+        'phone',
+        'scheduled_at',
+        'status',
+        'created_by'
+      ]) &&
+        request.resource.data.patient_name is string &&
+        request.resource.data.phone is string &&
+        request.resource.data.scheduled_at is timestamp &&
+        request.resource.data.status in [
+          'booked',
+          'cancelled',
+          'confirmed',
+          'completed'
+        ];
+    }
+
+    match /users/{userId} {
+      allow get: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn() && request.auth.uid == userId &&
+        request.resource.data.role in ['patient', 'Patient'];
+      allow update: if isAdmin() ||
+        (signedIn() && request.auth.uid == userId &&
+          request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    match /patients/{patientId} {
+      allow read, write: if isAdmin() || isDoctor();
+    }
+
+    match /prescriptions/{prescriptionId} {
+      allow read: if isAdmin() || isDoctor() || isPharmacy();
+      allow write: if isAdmin() || isDoctor();
+    }
+
+    match /appointments/{appointmentId} {
+      allow create: if validAppointment() && (
+        (signedIn() && request.resource.data.created_by == request.auth.uid) ||
+        (!signedIn() && request.resource.data.created_by == '')
+      );
+      allow read: if isAdmin() || isDoctor() ||
+        (signedIn() && resource.data.created_by == request.auth.uid);
+      allow update: if isAdmin() || isDoctor() ||
+        (signedIn() && resource.data.created_by == request.auth.uid &&
+          request.resource.data.created_by == request.auth.uid &&
+          request.resource.data.status in ['booked', 'cancelled']);
+      allow delete: if isAdmin() || isDoctor() ||
+        (signedIn() && resource.data.created_by == request.auth.uid);
+    }
+
+    match /stocks/{stockId} {
+      allow read, write: if isAdmin() || isPharmacy();
+    }
+
+    match /finance_entries/{entryId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

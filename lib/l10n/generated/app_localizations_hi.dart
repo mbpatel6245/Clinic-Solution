@@ -444,4 +444,76 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get language => 'भाषा';
+
+  @override
+  String get overview => 'अवलोकन';
+
+  @override
+  String get finance => 'वित्त';
+
+  @override
+  String get team => 'टीम';
+
+  @override
+  String get clinicOverview => 'क्लिनिक अवलोकन';
+
+  @override
+  String get todaysAppointments => 'आज की अपॉइंटमेंट';
+
+  @override
+  String get monthlyVisits => 'इस महीने की विज़िट';
+
+  @override
+  String get totalPatients => 'कुल मरीज';
+
+  @override
+  String get financialPerformance => 'वित्तीय प्रदर्शन';
+
+  @override
+  String get income => 'आय';
+
+  @override
+  String get expense => 'खर्च';
+
+  @override
+  String get netBalance => 'शुद्ध शेष';
+
+  @override
+  String get incomeAndExpense => 'आय और खर्च';
+
+  @override
+  String get addTransaction => 'लेन-देन जोड़ें';
+
+  @override
+  String get noTransactions => 'कोई लेन-देन नहीं मिला';
+
+  @override
+  String get category => 'श्रेणी';
+
+  @override
+  String get description => 'विवरण';
+
+  @override
+  String get date => 'तारीख';
+
+  @override
+  String get teamAndRoles => 'टीम और भूमिकाएँ';
+
+  @override
+  String get roleHelp => 'हर सदस्य की जिम्मेदारी के अनुसार पहुँच दें।';
+
+  @override
+  String get noTeamMembers => 'कोई टीम सदस्य नहीं मिला';
+
+  @override
+  String get offlineMode => 'ऑफलाइन काम जारी है';
+
+  @override
+  String get changesWaitingToSync => 'बदलाव सिंक होने की प्रतीक्षा में हैं';
+
+  @override
+  String get allChangesSynced => 'सभी बदलाव सिंक हो गए';
+
+  @override
+  String get checkingConnection => 'कनेक्शन जाँचा जा रहा है';
 }

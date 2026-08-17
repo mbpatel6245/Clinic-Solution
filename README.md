@@ -16,11 +16,32 @@ details.
   date filters, editing, confirmation, completion, and cancellation.
 - **Stock inward:** invoice and batch tracking, supplier and expiry details,
   remaining-stock adjustments, and low/out-of-stock/expiry alerts.
+- **Clinic overview:** appointment, visit, patient, low-stock, income, expense,
+  and net-balance indicators with a compact performance visualization.
+- **Finance ledger:** income and expense entry, categorization, history, and
+  monthly totals for clinic administrators.
+- **Role workspaces:** Admin, Doctor, Patient, and Pharmacy Operator receive
+  only the navigation and workflows required for their work. Admins can assign
+  roles from the Team screen; public registration creates Patient accounts.
+- **Offline-aware operation:** cached records remain available and supported
+  Firestore writes queue locally, show connection state, and synchronize when
+  the connection returns.
 - **Localization:** English, Hindi, and Gujarati across the clinic workflows.
 
 The workflows use the Firestore collections `patients`, `prescriptions`,
 `appointments`, and the existing `stocks` collection. Existing legacy stock
-documents are read through a compatibility mapper.
+documents are read through a compatibility mapper. Deploy the included
+role-based rules before enabling the role workspaces in production:
+
+```sh
+firebase deploy --only firestore:rules
+```
+
+Persistent offline caching is enabled on Web, Android, iOS, and macOS. Windows
+uses the connected Firestore client without persistent cache. The official
+FlutterFire plugins used by this project do not currently provide a Linux
+desktop implementation, so Linux displays a supported-platform notice and the
+web build should be used there for the complete connected/offline experience.
 
 ## Getting Started
 

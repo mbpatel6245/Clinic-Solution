@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
@@ -17,11 +19,26 @@ class FirebaseFireStore with ChangeNotifier {
   static const String pathPatients = 'patients';
   static const String pathPrescriptions = 'prescriptions';
   static const String pathAppointments = 'appointments';
+  static const String pathFinance = 'finance_entries';
 
   bool get isLoading => _isLoading;
   List<UserModel> _users = [];
 
   List<UserModel> get users => _users;
+
+  Future<void> _queueWrite(Future<void> operation) async {
+    try {
+      await operation.timeout(const Duration(seconds: 3));
+    } on TimeoutException {
+      // Firestore keeps the original operation queued in its persistent cache.
+      // Observe late failures without keeping an offline form/dialog blocked.
+      unawaited(
+        operation.catchError((Object error, StackTrace stackTrace) {
+          debugPrint('Queued Firestore write failed: $error');
+        }),
+      );
+    }
+  }
 
   Future<void> registerUserData(
     String email,
@@ -116,37 +133,31 @@ class FirebaseFireStore with ChangeNotifier {
   Future<void> saveInventoryItem(InventoryItem item) async {
     final data = item.toMap();
     if (item.id.isEmpty) {
-      await _db.collection(pathStock).add(data);
+      final document = _db.collection(pathStock).doc();
+      await _queueWrite(document.set(data));
       return;
     }
-    await _db
-        .collection(pathStock)
-        .doc(item.id)
-        .set(data, SetOptions(merge: true));
+    await _queueWrite(
+      _db
+          .collection(pathStock)
+          .doc(item.id)
+          .set(data, SetOptions(merge: true)),
+    );
   }
 
   Future<void> adjustInventory(String id, double adjustment) async {
     final reference = _db.collection(pathStock).doc(id);
-    await _db.runTransaction((transaction) async {
-      final snapshot = await transaction.get(reference);
-      if (!snapshot.exists) {
-        throw StateError('Stock item no longer exists.');
-      }
-      final item = InventoryItem.fromMap(snapshot.data()!, snapshot.id);
-      final updated = item.remainingQuantity + adjustment;
-      if (updated < 0) {
-        throw StateError('The used quantity is greater than remaining stock.');
-      }
-      transaction.update(reference, {
-        if (adjustment > 0) 'quantity_in': item.quantityIn + adjustment,
-        'remaining_quantity': updated,
+    await _queueWrite(
+      reference.update({
+        if (adjustment > 0) 'quantity_in': FieldValue.increment(adjustment),
+        'remaining_quantity': FieldValue.increment(adjustment),
         'updated_at': FieldValue.serverTimestamp(),
-      });
-    });
+      }),
+    );
   }
 
   Future<void> removeInventoryItem(String id) =>
-      _db.collection(pathStock).doc(id).delete();
+      _queueWrite(_db.collection(pathStock).doc(id).delete());
 
   Stream<List<PrescriptionModel>> streamPrescriptions() {
     return _db.collection(pathPrescriptions).snapshots().map((snapshot) {
@@ -190,19 +201,21 @@ class FirebaseFireStore with ChangeNotifier {
       prescription.toMap(patientReference.id),
       SetOptions(merge: true),
     );
-    await batch.commit();
+    await _queueWrite(batch.commit());
     return prescriptionReference.id;
   }
 
   Future<void> updatePrescriptionStatus(String id, String status) async {
-    await _db.collection(pathPrescriptions).doc(id).update({
-      'status': status,
-      'updated_at': FieldValue.serverTimestamp(),
-    });
+    await _queueWrite(
+      _db.collection(pathPrescriptions).doc(id).update({
+        'status': status,
+        'updated_at': FieldValue.serverTimestamp(),
+      }),
+    );
   }
 
   Future<void> removePrescription(String id) =>
-      _db.collection(pathPrescriptions).doc(id).delete();
+      _queueWrite(_db.collection(pathPrescriptions).doc(id).delete());
 
   Stream<List<AppointmentModel>> streamAppointments() {
     return _db.collection(pathAppointments).snapshots().map((snapshot) {
@@ -214,27 +227,58 @@ class FirebaseFireStore with ChangeNotifier {
     });
   }
 
+  Stream<List<AppointmentModel>> streamAppointmentsForUser(String userId) {
+    return streamAppointments().map(
+      (items) => items.where((item) => item.createdBy == userId).toList(),
+    );
+  }
+
   Future<void> saveAppointment(AppointmentModel appointment) async {
     final data = appointment.toMap();
     if (appointment.id.isEmpty) {
-      await _db.collection(pathAppointments).add(data);
+      final document = _db.collection(pathAppointments).doc();
+      await _queueWrite(document.set(data));
       return;
     }
-    await _db
-        .collection(pathAppointments)
-        .doc(appointment.id)
-        .set(data, SetOptions(merge: true));
+    await _queueWrite(
+      _db
+          .collection(pathAppointments)
+          .doc(appointment.id)
+          .set(data, SetOptions(merge: true)),
+    );
   }
 
   Future<void> updateAppointmentStatus(String id, String status) async {
-    await _db.collection(pathAppointments).doc(id).update({
-      'status': status,
-      'updated_at': FieldValue.serverTimestamp(),
-    });
+    await _queueWrite(
+      _db.collection(pathAppointments).doc(id).update({
+        'status': status,
+        'updated_at': FieldValue.serverTimestamp(),
+      }),
+    );
   }
 
   Future<void> removeAppointment(String id) =>
-      _db.collection(pathAppointments).doc(id).delete();
+      _queueWrite(_db.collection(pathAppointments).doc(id).delete());
+
+  Stream<List<FinanceEntry>> streamFinanceEntries() {
+    return _db.collection(pathFinance).snapshots().map((snapshot) {
+      final entries = snapshot.docs
+          .map((doc) => FinanceEntry.fromMap(doc.data(), doc.id))
+          .toList();
+      entries.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      return entries;
+    });
+  }
+
+  Future<void> saveFinanceEntry(FinanceEntry entry) async {
+    final document = entry.id.isEmpty
+        ? _db.collection(pathFinance).doc()
+        : _db.collection(pathFinance).doc(entry.id);
+    await _queueWrite(document.set(entry.toMap(), SetOptions(merge: true)));
+  }
+
+  Future<void> removeFinanceEntry(String id) =>
+      _queueWrite(_db.collection(pathFinance).doc(id).delete());
 
   //---------------------------
 
@@ -300,6 +344,15 @@ class FirebaseFireStore with ChangeNotifier {
     } catch (e) {
       print('Error updating user: $e');
     }
+  }
+
+  Future<void> updateUserRole(String id, String role) async {
+    await _queueWrite(
+      _db.collection(pathUser).doc(id).set({
+        'role': role,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)),
+    );
   }
 
   // Delete a User

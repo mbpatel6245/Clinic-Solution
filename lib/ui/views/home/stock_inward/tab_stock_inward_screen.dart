@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../../../data/datasources/clinical_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
+import '../../../../core/design/app_theme.dart';
+import '../../../widgets/app_design.dart';
 
 class TabStockInward extends StatefulWidget {
   const TabStockInward({super.key});
@@ -61,13 +63,15 @@ class _TabStockInwardState extends State<TabStockInward> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
-                        strings.stockInward,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
+                    Text(
+                      strings.stockInward,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     FilledButton.icon(
                       onPressed: _openForm,
@@ -176,60 +180,35 @@ class _InventorySummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context)!;
     final cards = [
-      (strings.allStock, items.length, Icons.inventory_2_outlined, Colors.blue),
+      (strings.allStock, items.length, Icons.inventory_2_outlined),
       (
         strings.lowStock,
         items.where((item) => item.isLowStock).length,
         Icons.warning_amber_outlined,
-        Colors.orange,
       ),
       (
         strings.expiringSoon,
         items.where((item) => item.expiresSoon || item.isExpired).length,
         Icons.event_busy_outlined,
-        Colors.purple,
       ),
       (
         strings.outOfStock,
         items.where((item) => item.remainingQuantity <= 0).length,
         Icons.remove_shopping_cart_outlined,
-        Colors.red,
       ),
     ];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: cards
-            .map(
-              (data) => Container(
-                width: 190,
-                margin: const EdgeInsetsDirectional.only(end: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: data.$4.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: data.$4.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(data.$3, color: data.$4),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${data.$2}',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        Text(data.$1),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            )
-            .toList(),
-      ),
+    return ResponsiveGrid(
+      minimumItemWidth: 175,
+      spacing: 10,
+      children: cards
+          .map(
+            (data) => AppMetricCard(
+              label: data.$1,
+              value: '${data.$2}',
+              icon: data.$3,
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -244,11 +223,7 @@ class _InventoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).toString();
-    final color = item.remainingQuantity <= 0
-        ? Colors.red
-        : item.isLowStock
-        ? Colors.orange
-        : Colors.green;
+    const color = AppColors.ink;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -428,6 +403,12 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
     final value = double.tryParse(_amount.text);
     final strings = AppLocalizations.of(context)!;
     if (value == null || value <= 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(strings.invalidNumber)));
+      return;
+    }
+    if (!widget.add && value > widget.item.remainingQuantity) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(strings.invalidNumber)));
@@ -614,8 +595,8 @@ class _InventoryFormState extends State<_InventoryForm> {
       title: Text(
         widget.item == null ? strings.createStockEntry : strings.editStockEntry,
       ),
-      content: SizedBox(
-        width: 760,
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -727,8 +708,9 @@ class _InventoryFormState extends State<_InventoryForm> {
             : null,
         decoration: InputDecoration(labelText: label),
         validator: (value) {
-          if (required && (value == null || value.trim().isEmpty))
+          if (required && (value == null || value.trim().isEmpty)) {
             return strings.requiredField;
+          }
           if (number &&
               value != null &&
               value.isNotEmpty &&

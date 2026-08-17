@@ -444,4 +444,77 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get language => 'Language';
+
+  @override
+  String get overview => 'Overview';
+
+  @override
+  String get finance => 'Finance';
+
+  @override
+  String get team => 'Team';
+
+  @override
+  String get clinicOverview => 'Clinic overview';
+
+  @override
+  String get todaysAppointments => 'Today\'s appointments';
+
+  @override
+  String get monthlyVisits => 'Visits this month';
+
+  @override
+  String get totalPatients => 'Total patients';
+
+  @override
+  String get financialPerformance => 'Financial performance';
+
+  @override
+  String get income => 'Income';
+
+  @override
+  String get expense => 'Expense';
+
+  @override
+  String get netBalance => 'Net balance';
+
+  @override
+  String get incomeAndExpense => 'Income & expense';
+
+  @override
+  String get addTransaction => 'Add transaction';
+
+  @override
+  String get noTransactions => 'No transactions found';
+
+  @override
+  String get category => 'Category';
+
+  @override
+  String get description => 'Description';
+
+  @override
+  String get date => 'Date';
+
+  @override
+  String get teamAndRoles => 'Team & roles';
+
+  @override
+  String get roleHelp =>
+      'Assign access based on each team member\'s responsibility.';
+
+  @override
+  String get noTeamMembers => 'No team members found';
+
+  @override
+  String get offlineMode => 'Working offline';
+
+  @override
+  String get changesWaitingToSync => 'Changes are waiting to sync';
+
+  @override
+  String get allChangesSynced => 'All changes synced';
+
+  @override
+  String get checkingConnection => 'Checking connection';
 }

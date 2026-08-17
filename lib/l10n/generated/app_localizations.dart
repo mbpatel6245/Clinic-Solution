@@ -969,6 +969,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Language'**
   String get language;
+
+  /// No description provided for @overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get overview;
+
+  /// No description provided for @finance.
+  ///
+  /// In en, this message translates to:
+  /// **'Finance'**
+  String get finance;
+
+  /// No description provided for @team.
+  ///
+  /// In en, this message translates to:
+  /// **'Team'**
+  String get team;
+
+  /// No description provided for @clinicOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Clinic overview'**
+  String get clinicOverview;
+
+  /// No description provided for @todaysAppointments.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s appointments'**
+  String get todaysAppointments;
+
+  /// No description provided for @monthlyVisits.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits this month'**
+  String get monthlyVisits;
+
+  /// No description provided for @totalPatients.
+  ///
+  /// In en, this message translates to:
+  /// **'Total patients'**
+  String get totalPatients;
+
+  /// No description provided for @financialPerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial performance'**
+  String get financialPerformance;
+
+  /// No description provided for @income.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get income;
+
+  /// No description provided for @expense.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get expense;
+
+  /// No description provided for @netBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Net balance'**
+  String get netBalance;
+
+  /// No description provided for @incomeAndExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'Income & expense'**
+  String get incomeAndExpense;
+
+  /// No description provided for @addTransaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add transaction'**
+  String get addTransaction;
+
+  /// No description provided for @noTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions found'**
+  String get noTransactions;
+
+  /// No description provided for @category.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get category;
+
+  /// No description provided for @description.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get description;
+
+  /// No description provided for @date.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get date;
+
+  /// No description provided for @teamAndRoles.
+  ///
+  /// In en, this message translates to:
+  /// **'Team & roles'**
+  String get teamAndRoles;
+
+  /// No description provided for @roleHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign access based on each team member\'s responsibility.'**
+  String get roleHelp;
+
+  /// No description provided for @noTeamMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'No team members found'**
+  String get noTeamMembers;
+
+  /// No description provided for @offlineMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Working offline'**
+  String get offlineMode;
+
+  /// No description provided for @changesWaitingToSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes are waiting to sync'**
+  String get changesWaitingToSync;
+
+  /// No description provided for @allChangesSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'All changes synced'**
+  String get allChangesSynced;
+
+  /// No description provided for @checkingConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking connection'**
+  String get checkingConnection;
 }
 
 class _AppLocalizationsDelegate

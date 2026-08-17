@@ -3,15 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/auth/app_role.dart';
 import '../../../core/constants/locale_key.dart';
+import '../../../core/design/app_theme.dart';
 import '../../../core/utils/locale_provider.dart';
 import '../../../data/datasources/clinical_models.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../services/local/secure_data_viewmodel.dart';
+import '../../../services/session_controller.dart';
+import '../../../services/sync_status_service.dart';
 import 'appointment/tab_appointments.dart';
+import 'dashboard/clinic_overview.dart';
 import 'new_prescription/tab_new_prescription.dart';
 import 'prescription_list/tab_prescription_list.dart';
 import 'stock_inward/tab_stock_inward_screen.dart';
+import 'team/team_roles_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,18 +38,16 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _startNewVisit(PatientModel patient) {
-    setState(() {
-      _prescriptionPatient = patient;
-      _prescriptionFormVersion++;
-      _selectedIndex = 0;
-    });
-  }
-
-  void _selectDestination(int index) {
+  void _selectFeature(
+    List<_WorkspaceDestination> destinations,
+    AppFeature feature,
+  ) {
+    final index = destinations.indexWhere((item) => item.feature == feature);
+    if (index < 0) return;
     setState(() {
       _selectedIndex = index;
-      if (index == 0 && _prescriptionPatient != null) {
+      if (feature == AppFeature.createPrescription &&
+          _prescriptionPatient != null) {
         _prescriptionPatient = null;
         _prescriptionFormVersion++;
       }
@@ -53,54 +57,135 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context)!;
-    final destinations = [
-      NavigationDestination(
-        icon: const Icon(Icons.note_add_outlined),
-        selectedIcon: const Icon(Icons.note_add),
-        label: strings.newPrescription,
-      ),
-      NavigationDestination(
-        icon: const Icon(Icons.manage_search_outlined),
-        selectedIcon: const Icon(Icons.manage_search),
-        label: strings.prescriptionList,
-      ),
-      NavigationDestination(
-        icon: const Icon(Icons.calendar_month_outlined),
-        selectedIcon: const Icon(Icons.calendar_month),
-        label: strings.appointments,
-      ),
-      NavigationDestination(
-        icon: const Icon(Icons.inventory_2_outlined),
-        selectedIcon: const Icon(Icons.inventory_2),
-        label: strings.stockInward,
-      ),
-    ];
+    final session = context.watch<SessionController>();
+    if (session.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-    final pages = <Widget>[
-      TabNewPrescription(
-        key: ValueKey(_prescriptionFormVersion),
-        initialPatient: _prescriptionPatient,
-        onSaved: () => setState(() => _selectedIndex = 1),
-      ),
-      TabPrescriptionList(onNewVisit: _startNewVisit),
-      const TabAppointments(),
-      const TabStockInward(),
+    late List<_WorkspaceDestination> destinations;
+    void startNewVisit(PatientModel patient) {
+      final index = destinations.indexWhere(
+        (item) => item.feature == AppFeature.createPrescription,
+      );
+      if (index < 0) return;
+      setState(() {
+        _prescriptionPatient = patient;
+        _prescriptionFormVersion++;
+        _selectedIndex = index;
+      });
+    }
+
+    destinations = [
+      if (session.can(AppFeature.dashboard))
+        _WorkspaceDestination(
+          feature: AppFeature.dashboard,
+          label: strings.overview,
+          icon: Icons.space_dashboard_outlined,
+          selectedIcon: Icons.space_dashboard,
+          page: ClinicOverview(showFinance: session.can(AppFeature.finance)),
+        ),
+      if (session.can(AppFeature.createPrescription))
+        _WorkspaceDestination(
+          feature: AppFeature.createPrescription,
+          label: strings.newPrescription,
+          icon: Icons.note_add_outlined,
+          selectedIcon: Icons.note_add,
+          page: TabNewPrescription(
+            key: ValueKey(_prescriptionFormVersion),
+            initialPatient: _prescriptionPatient,
+            onSaved: () =>
+                _selectFeature(destinations, AppFeature.prescriptionList),
+          ),
+        ),
+      if (session.can(AppFeature.prescriptionList))
+        _WorkspaceDestination(
+          feature: AppFeature.prescriptionList,
+          label: strings.prescriptionList,
+          icon: Icons.manage_search_outlined,
+          selectedIcon: Icons.manage_search,
+          page: TabPrescriptionList(onNewVisit: startNewVisit),
+        ),
+      if (session.can(AppFeature.appointments))
+        _WorkspaceDestination(
+          feature: AppFeature.appointments,
+          label: strings.appointments,
+          icon: Icons.calendar_month_outlined,
+          selectedIcon: Icons.calendar_month,
+          page: TabAppointments(patientOnly: session.role == AppRole.patient),
+        ),
+      if (session.can(AppFeature.inventory))
+        _WorkspaceDestination(
+          feature: AppFeature.inventory,
+          label: strings.stockInward,
+          icon: Icons.inventory_2_outlined,
+          selectedIcon: Icons.inventory_2,
+          page: const TabStockInward(),
+        ),
+      if (session.can(AppFeature.finance))
+        _WorkspaceDestination(
+          feature: AppFeature.finance,
+          label: strings.finance,
+          icon: Icons.account_balance_wallet_outlined,
+          selectedIcon: Icons.account_balance_wallet,
+          page: const FinanceLedgerScreen(),
+        ),
+      if (session.can(AppFeature.team))
+        _WorkspaceDestination(
+          feature: AppFeature.team,
+          label: strings.team,
+          icon: Icons.admin_panel_settings_outlined,
+          selectedIcon: Icons.admin_panel_settings,
+          page: const TeamRolesScreen(),
+        ),
     ];
+    final selectedIndex = _selectedIndex.clamp(0, destinations.length - 1);
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
 
     return Scaffold(
+      drawer: compact
+          ? NavigationDrawer(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: (index) {
+                Navigator.pop(context);
+                setState(() => _selectedIndex = index);
+              },
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 24, 16, 12),
+                  child: Text(
+                    session.role.displayName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                ...destinations.map(
+                  (item) => NavigationDrawerDestination(
+                    icon: Icon(item.icon),
+                    selectedIcon: Icon(
+                      item.selectedIcon,
+                      color: AppColors.inverse,
+                    ),
+                    label: Text(item.label),
+                  ),
+                ),
+              ],
+            )
+          : null,
       appBar: AppBar(
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.local_hospital,
-              color: Theme.of(context).colorScheme.primary,
+            const Icon(Icons.local_hospital),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+              child: Text(strings.dashboard, overflow: TextOverflow.ellipsis),
             ),
-            const SizedBox(width: 10),
-            Text(strings.dashboard),
           ],
         ),
         actions: [
+          if (!compact)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Chip(label: Text(session.role.displayName)),
+            ),
           PopupMenuButton<String>(
             tooltip: strings.language,
             icon: const Icon(Icons.translate),
@@ -115,56 +200,138 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             tooltip: strings.logout,
             onPressed: () async {
+              await context.read<SessionController>().clear();
               await _secureData.clearData();
               await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                context.go('/${Constants.navLogin}');
-              }
+              if (context.mounted) context.go('/${Constants.navLogin}');
             },
             icon: const Icon(Icons.logout),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 900) {
-            return IndexedStack(index: _selectedIndex, children: pages);
-          }
-          return Row(
-            children: [
-              NavigationRail(
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: _selectDestination,
-                extended: constraints.maxWidth >= 1180,
-                labelType: constraints.maxWidth >= 1180
-                    ? NavigationRailLabelType.none
-                    : NavigationRailLabelType.all,
-                destinations: destinations
-                    .map(
-                      (item) => NavigationRailDestination(
-                        icon: item.icon,
-                        selectedIcon: item.selectedIcon,
-                        label: Text(item.label),
+      body: Column(
+        children: [
+          const _SyncBanner(),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < AppBreakpoints.compact) {
+                  return IndexedStack(
+                    index: selectedIndex,
+                    children: destinations.map((item) => item.page).toList(),
+                  );
+                }
+                return Row(
+                  children: [
+                    NavigationRail(
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: (index) =>
+                          setState(() => _selectedIndex = index),
+                      extended: constraints.maxWidth >= AppBreakpoints.expanded,
+                      labelType: constraints.maxWidth >= AppBreakpoints.expanded
+                          ? NavigationRailLabelType.none
+                          : NavigationRailLabelType.all,
+                      destinations: destinations
+                          .map(
+                            (item) => NavigationRailDestination(
+                              icon: Icon(item.icon),
+                              selectedIcon: Icon(item.selectedIcon),
+                              label: Text(item.label),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const VerticalDivider(width: 1),
+                    Expanded(
+                      child: IndexedStack(
+                        index: selectedIndex,
+                        children: destinations
+                            .map((item) => item.page)
+                            .toList(),
                       ),
-                    )
-                    .toList(),
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: IndexedStack(index: _selectedIndex, children: pages),
-              ),
-            ],
-          );
-        },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      bottomNavigationBar: MediaQuery.sizeOf(context).width < 900
-          ? NavigationBar(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: _selectDestination,
-              destinations: destinations,
-            )
-          : null,
     );
   }
+}
+
+class _SyncBanner extends StatelessWidget {
+  const _SyncBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final sync = context.watch<SyncStatusService>();
+    final strings = AppLocalizations.of(context)!;
+    final message = switch (sync.state) {
+      ClinicSyncState.offline => strings.offlineMode,
+      ClinicSyncState.pending => strings.changesWaitingToSync,
+      ClinicSyncState.synced => strings.allChangesSynced,
+      ClinicSyncState.checking => strings.checkingConnection,
+    };
+    final icon = switch (sync.state) {
+      ClinicSyncState.offline => Icons.cloud_off_outlined,
+      ClinicSyncState.pending => Icons.cloud_upload_outlined,
+      ClinicSyncState.synced => Icons.cloud_done_outlined,
+      ClinicSyncState.checking => Icons.sync,
+    };
+    return Material(
+      color: sync.state == ClinicSyncState.synced
+          ? AppColors.surface
+          : AppColors.ink,
+      child: InkWell(
+        onTap: sync.state == ClinicSyncState.pending ? sync.syncNow : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: sync.state == ClinicSyncState.synced
+                    ? AppColors.inkMuted
+                    : AppColors.inverse,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Text(
+                  message,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: sync.state == ClinicSyncState.synced
+                        ? AppColors.inkMuted
+                        : AppColors.inverse,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceDestination {
+  const _WorkspaceDestination({
+    required this.feature,
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+    required this.page,
+  });
+
+  final AppFeature feature;
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final Widget page;
 }

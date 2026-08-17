@@ -233,6 +233,7 @@ class AppointmentModel {
     this.reason = '',
     this.notes = '',
     this.status = 'booked',
+    this.createdBy = '',
     this.createdAt,
   });
 
@@ -244,6 +245,7 @@ class AppointmentModel {
   final String reason;
   final String notes;
   final String status;
+  final String createdBy;
   final DateTime? createdAt;
 
   factory AppointmentModel.fromMap(Map<String, dynamic> data, String id) {
@@ -256,6 +258,7 @@ class AppointmentModel {
       reason: data['reason']?.toString() ?? '',
       notes: data['notes']?.toString() ?? '',
       status: data['status']?.toString() ?? 'booked',
+      createdBy: data['created_by']?.toString() ?? '',
       createdAt: _dateTimeFrom(data['created_at']),
     );
   }
@@ -269,6 +272,7 @@ class AppointmentModel {
     'reason': reason.trim(),
     'notes': notes.trim(),
     'status': status,
+    'created_by': createdBy,
     'created_at': createdAt == null
         ? FieldValue.serverTimestamp()
         : Timestamp.fromDate(createdAt!),
@@ -284,6 +288,7 @@ class AppointmentModel {
     reason: reason,
     notes: notes,
     status: status ?? this.status,
+    createdBy: createdBy,
     createdAt: createdAt,
   );
 }
@@ -426,4 +431,65 @@ class InventoryItem {
     createdAt: createdAt,
     updatedAt: updatedAt,
   );
+}
+
+enum FinanceEntryType {
+  income,
+  expense;
+
+  static FinanceEntryType fromValue(dynamic value) =>
+      value?.toString().toLowerCase() == 'expense'
+      ? FinanceEntryType.expense
+      : FinanceEntryType.income;
+}
+
+class FinanceEntry {
+  const FinanceEntry({
+    this.id = '',
+    required this.type,
+    required this.amount,
+    required this.category,
+    required this.occurredAt,
+    this.description = '',
+    this.paymentMethod = 'cash',
+    this.createdBy = '',
+    this.createdAt,
+  });
+
+  final String id;
+  final FinanceEntryType type;
+  final double amount;
+  final String category;
+  final DateTime occurredAt;
+  final String description;
+  final String paymentMethod;
+  final String createdBy;
+  final DateTime? createdAt;
+
+  factory FinanceEntry.fromMap(Map<String, dynamic> data, String id) =>
+      FinanceEntry(
+        id: id,
+        type: FinanceEntryType.fromValue(data['type']),
+        amount: _doubleFrom(data['amount']),
+        category: data['category']?.toString() ?? '',
+        occurredAt: _dateTimeFrom(data['occurred_at']) ?? DateTime.now(),
+        description: data['description']?.toString() ?? '',
+        paymentMethod: data['payment_method']?.toString() ?? 'cash',
+        createdBy: data['created_by']?.toString() ?? '',
+        createdAt: _dateTimeFrom(data['created_at']),
+      );
+
+  Map<String, dynamic> toMap() => {
+    'type': type.name,
+    'amount': amount,
+    'category': category.trim(),
+    'occurred_at': Timestamp.fromDate(occurredAt),
+    'description': description.trim(),
+    'payment_method': paymentMethod,
+    'created_by': createdBy,
+    'created_at': createdAt == null
+        ? FieldValue.serverTimestamp()
+        : Timestamp.fromDate(createdAt!),
+    'updated_at': FieldValue.serverTimestamp(),
+  };
 }

@@ -443,4 +443,76 @@ class AppLocalizationsGu extends AppLocalizations {
 
   @override
   String get language => 'ભાષા';
+
+  @override
+  String get overview => 'ઝાંખી';
+
+  @override
+  String get finance => 'નાણાં';
+
+  @override
+  String get team => 'ટીમ';
+
+  @override
+  String get clinicOverview => 'ક્લિનિક ઝાંખી';
+
+  @override
+  String get todaysAppointments => 'આજની એપોઇન્ટમેન્ટ';
+
+  @override
+  String get monthlyVisits => 'આ મહિનાની મુલાકાતો';
+
+  @override
+  String get totalPatients => 'કુલ દર્દીઓ';
+
+  @override
+  String get financialPerformance => 'નાણાકીય કામગીરી';
+
+  @override
+  String get income => 'આવક';
+
+  @override
+  String get expense => 'ખર્ચ';
+
+  @override
+  String get netBalance => 'ચોખ્ખી બાકી';
+
+  @override
+  String get incomeAndExpense => 'આવક અને ખર્ચ';
+
+  @override
+  String get addTransaction => 'વ્યવહાર ઉમેરો';
+
+  @override
+  String get noTransactions => 'કોઈ વ્યવહાર મળ્યો નથી';
+
+  @override
+  String get category => 'શ્રેણી';
+
+  @override
+  String get description => 'વર્ણન';
+
+  @override
+  String get date => 'તારીખ';
+
+  @override
+  String get teamAndRoles => 'ટીમ અને ભૂમિકાઓ';
+
+  @override
+  String get roleHelp => 'દરેક સભ્યની જવાબદારી પ્રમાણે પ્રવેશ આપો.';
+
+  @override
+  String get noTeamMembers => 'કોઈ ટીમ સભ્ય મળ્યો નથી';
+
+  @override
+  String get offlineMode => 'ઓફલાઇન કામ ચાલુ છે';
+
+  @override
+  String get changesWaitingToSync => 'ફેરફારો સિંક થવાની રાહમાં છે';
+
+  @override
+  String get allChangesSynced => 'બધા ફેરફારો સિંક થયા';
+
+  @override
+  String get checkingConnection => 'કનેક્શન તપાસી રહ્યાં છીએ';
 }
