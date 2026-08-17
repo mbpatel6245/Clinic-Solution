@@ -40,8 +40,8 @@ private key to this repository.
 - SSH port: `22`
 - User: `mobituvx`
 - Domain: `clinic.mobitab.co.in`
-- Server directory: resolved at deployment time from cPanel's `DomainInfo`
-  API, then restricted to the account home directory.
+- Server directory: resolved at deployment time from cPanel's domain metadata,
+  then restricted to the account home directory.
 
 The deploy step synchronizes the generated site and removes obsolete generated
 files. It preserves the server's `.well-known` directory and `.ftpquota` file.

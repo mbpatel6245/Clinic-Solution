@@ -73,7 +73,7 @@ jobs:
       - name: Resolve cPanel document root
         shell: bash
         run: |
-          domain_data="$(
+          document_root="$(
             ssh \
               -p "$CPANEL_PORT" \
               -o IdentityAgent="$SSH_AUTH_SOCK" \
@@ -82,27 +82,19 @@ jobs:
               -o KbdInteractiveAuthentication=no \
               -o StrictHostKeyChecking=yes \
               "$CPANEL_USER@$CPANEL_HOST" \
-              "/usr/local/cpanel/bin/uapi --output=json DomainInfo single_domain_data domain='$CPANEL_DOMAIN'"
+              "set -eu
+               userdata='/var/cpanel/userdata/$CPANEL_USER/$CPANEL_DOMAIN'
+               if [ -r \"\$userdata\" ]; then
+                 awk '\$1 == \"documentroot:\" { print \$2; exit }' \"\$userdata\"
+               elif [ -r /etc/userdatadomains ]; then
+                 awk -F'==' -v prefix='$CPANEL_DOMAIN: ' 'index(\$1, prefix) == 1 { print \$5; exit }' /etc/userdatadomains
+               fi"
           )"
-          document_root="$(
-            printf '%s' "$domain_data" | python3 -c '
-          import json
-          import sys
-
-          raw_response = sys.stdin.read()
-          json_start = raw_response.find("{")
-          if json_start < 0:
-              raise SystemExit("cPanel did not return JSON domain data")
-          payload = json.loads(raw_response[json_start:])
-          result = payload.get("result", {})
-          data = result.get("data") or {}
-          document_root = data.get("documentroot")
-          if result.get("status") != 1 or not document_root:
-              errors = result.get("errors") or ["cPanel did not return a document root"]
-              raise SystemExit("; ".join(str(error) for error in errors))
-          print(document_root.rstrip("/"))
-          '
-          )"
+          document_root="${document_root%/}"
+          test -n "$document_root" || {
+            echo "cPanel metadata did not return a document root for $CPANEL_DOMAIN" >&2
+            exit 1
+          }
           case "$document_root" in
             "/home2/$CPANEL_USER/"*) ;;
             *) echo "Refusing unexpected document root: $document_root" >&2; exit 1 ;;
