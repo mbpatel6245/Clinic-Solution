@@ -91,7 +91,7 @@ void main() {
 
   group('role permissions', () {
     test('admin can access every clinic feature', () {
-      expect(AppRole.admin.features, containsAll(AppFeature.values));
+      expect(AppRole.clinicAdmin.features, containsAll(AppFeature.values));
     });
 
     test('patient can book appointments without staff access', () {
@@ -103,6 +103,15 @@ void main() {
     test('normalizes legacy and pharmacy role names', () {
       expect(AppRole.fromValue('User'), AppRole.patient);
       expect(AppRole.fromValue('Pharmacy Operator'), AppRole.pharmacyOperator);
+      expect(AppRole.fromValue('Admin'), AppRole.clinicAdmin);
+      expect(AppRole.fromValue('vaccination'), AppRole.vaccinator);
+    });
+
+    test('reception and pharmacy permissions stay separated', () {
+      expect(AppRole.receptionist.can(AppFeature.reception), isTrue);
+      expect(AppRole.receptionist.can(AppFeature.inventory), isFalse);
+      expect(AppRole.pharmacyOperator.can(AppFeature.inventory), isTrue);
+      expect(AppRole.pharmacyOperator.can(AppFeature.finance), isFalse);
     });
   });
 }

@@ -6,6 +6,9 @@ class UserModel {
   final String email;
   final String phone;
   final String role;
+  final String activeClinicId;
+  final List<String> clinicIds;
+  final Map<String, String> clinicRoles;
   final Timestamp createdAt;
 
   UserModel({
@@ -14,6 +17,9 @@ class UserModel {
     required this.email,
     required this.phone,
     required this.role,
+    this.activeClinicId = '',
+    this.clinicIds = const [],
+    this.clinicRoles = const {},
     required this.createdAt,
   });
 
@@ -25,6 +31,17 @@ class UserModel {
       email: data['email'] ?? '',
       phone: data['phone'] ?? '',
       role: data['role'] ?? '',
+      activeClinicId: data['active_clinic_id']?.toString() ?? '',
+      clinicIds: (data['clinic_ids'] as Iterable? ?? const [])
+          .map((item) => item.toString())
+          .toList(),
+      clinicRoles: data['clinic_roles'] is Map
+          ? Map<String, String>.from(
+              (data['clinic_roles'] as Map).map(
+                (key, value) => MapEntry(key.toString(), value.toString()),
+              ),
+            )
+          : const {},
       createdAt: data['createdAt'] ?? Timestamp.now(),
     );
   }
@@ -36,6 +53,9 @@ class UserModel {
       'email': email,
       'phone': phone,
       'role': role,
+      'active_clinic_id': activeClinicId,
+      'clinic_ids': clinicIds,
+      'clinic_roles': clinicRoles,
       'createdAt': createdAt,
     };
   }

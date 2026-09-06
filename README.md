@@ -8,6 +8,21 @@ details.
 
 ## Clinic workflows
 
+- **Enterprise clinic tenancy:** operational data is isolated below each clinic,
+  users can hold clinic-specific roles, and multi-clinic accounts can switch
+  their active clinic.
+- **Configurable modules:** clinic administrators can enable Reception,
+  Pharmacy, Vaccination, Reminders, Billing, Expenses, Reports, Data Exchange,
+  and Laboratory independently.
+- **Extended roles:** Platform Owner, Clinic Admin, Branch Manager, Doctor,
+  Receptionist, Pharmacy Operator, Nurse/Vaccinator, Accountant, and Patient.
+- **Billing:** split doctor, clinic/case, and pharmacy line items with paid,
+  partial, outstanding, waived, refunded, and cancelled states.
+- **Vaccination and reminders:** dose/batch tracking plus consent-aware reminder
+  scheduling.
+- **Reporting and data exchange:** custom date financial KPIs and clinic-scoped
+  patient CSV import/export.
+
 - **New prescription:** patient demographics, diagnoses, complaints, vitals,
   investigations, advice, follow-up date, and structured medicine lines.
 - **Prescription list:** live patient search, status filtering, clinical-detail
@@ -29,9 +44,10 @@ details.
 - **Localization:** English, Hindi, and Gujarati across the clinic workflows.
 
 The workflows use the Firestore collections `patients`, `prescriptions`,
-`appointments`, and the existing `stocks` collection. Existing legacy stock
-documents are read through a compatibility mapper. Deploy the included
-role-based rules before enabling the role workspaces in production:
+`appointments`, and `stocks` below `clinics/{clinicId}`. Existing legacy stock
+documents are read through a compatibility mapper. Follow
+[ENTERPRISE_MIGRATION.md](ENTERPRISE_MIGRATION.md) before deploying the included
+role-based rules:
 
 ```sh
 firebase deploy --only firestore:rules
