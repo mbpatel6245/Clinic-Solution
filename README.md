@@ -53,6 +53,10 @@ role-based rules:
 firebase deploy --only firestore:rules
 ```
 
+Notification providers are configured server-side. See
+[NOTIFICATION_SETUP.md](NOTIFICATION_SETUP.md) for the email, SMS, and WhatsApp
+setup and security model.
+
 Persistent offline caching is enabled on Web, Android, iOS, and macOS. Windows
 uses the connected Firestore client without persistent cache. The official
 FlutterFire plugins used by this project do not currently provide a Linux

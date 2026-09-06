@@ -141,6 +141,31 @@ class ClinicMembership {
       );
 }
 
+class TeamInvitation {
+  const TeamInvitation({
+    required this.id,
+    required this.email,
+    required this.role,
+    this.status = 'pending',
+    this.createdAt,
+  });
+
+  final String id;
+  final String email;
+  final AppRole role;
+  final String status;
+  final DateTime? createdAt;
+
+  factory TeamInvitation.fromMap(Map<String, dynamic> data, String id) =>
+      TeamInvitation(
+        id: id,
+        email: data['email']?.toString() ?? '',
+        role: AppRole.fromValue(data['role']?.toString()),
+        status: data['status']?.toString() ?? 'pending',
+        createdAt: _date(data['created_at']),
+      );
+}
+
 enum InvoiceStatus {
   draft,
   unpaid,

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/auth/app_role.dart';
 import '../../../../core/design/app_theme.dart';
 import '../../../../data/datasources/user_model.dart';
+import '../../../../data/datasources/enterprise_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
 import '../../../widgets/app_design.dart';
@@ -44,6 +45,38 @@ class TeamRolesScreen extends StatelessWidget {
               ).textTheme.bodyMedium?.copyWith(color: AppColors.inkMuted),
             ),
             const SizedBox(height: AppSpacing.lg),
+            StreamBuilder<List<TeamInvitation>>(
+              stream: context.read<FirebaseFireStore>().streamTeamInvitations(),
+              builder: (context, inviteSnapshot) {
+                final invitations =
+                    inviteSnapshot.data ?? const <TeamInvitation>[];
+                final pending = invitations
+                    .where((invite) => invite.status == 'pending')
+                    .toList();
+                if (pending.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                  child: AppSection(
+                    title: 'Pending invitations (${pending.length})',
+                    child: Column(
+                      children: pending
+                          .map(
+                            (invite) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.mail_outline),
+                              ),
+                              title: Text(invite.email),
+                              subtitle: Text(invite.role.displayName),
+                              trailing: const Chip(label: Text('Pending')),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
             if (snapshot.connectionState == ConnectionState.waiting &&
                 !snapshot.hasData)
               const Center(child: CircularProgressIndicator())

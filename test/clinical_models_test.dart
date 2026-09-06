@@ -91,7 +91,13 @@ void main() {
 
   group('role permissions', () {
     test('admin can access every clinic feature', () {
-      expect(AppRole.clinicAdmin.features, containsAll(AppFeature.values));
+      expect(AppRole.platformOwner.features, containsAll(AppFeature.values));
+      expect(AppRole.clinicAdmin.can(AppFeature.dashboard), isTrue);
+      expect(AppRole.clinicAdmin.can(AppFeature.clinicSetup), isFalse);
+      expect(
+        AppRole.clinicAdmin.isAllowed(AppPermission.configureClinic),
+        isFalse,
+      );
     });
 
     test('patient can book appointments without staff access', () {

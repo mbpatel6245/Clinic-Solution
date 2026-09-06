@@ -317,6 +317,28 @@ class FirebaseFireStore with ChangeNotifier {
         );
   }
 
+  Stream<List<ClinicProfile>> streamAllClinics() =>
+      _db.collection('clinics').snapshots().map((snapshot) {
+        final clinics = snapshot.docs
+            .map((doc) => ClinicProfile.fromMap(doc.data(), doc.id))
+            .toList();
+        clinics.sort((a, b) => a.name.compareTo(b.name));
+        return clinics;
+      });
+
+  Stream<List<TeamInvitation>> streamTeamInvitations() =>
+      _collection(pathTeamInvites).snapshots().map((snapshot) {
+        final invitations = snapshot.docs
+            .map((doc) => TeamInvitation.fromMap(doc.data(), doc.id))
+            .toList();
+        invitations.sort(
+          (a, b) => (b.createdAt ?? DateTime(1970)).compareTo(
+            a.createdAt ?? DateTime(1970),
+          ),
+        );
+        return invitations;
+      });
+
   Future<String> createClinic(String name) async {
     final document = _db.collection('clinics').doc();
     await saveClinic(
@@ -359,7 +381,7 @@ class FirebaseFireStore with ChangeNotifier {
         }, SetOptions(merge: true)),
       );
     }
-    await logAudit('clinic.updated', clinic.id);
+    await _writeAuditToClinic(clinic.id, 'clinic.updated', clinic.id);
   }
 
   Stream<List<ClinicInvoice>> streamInvoices() =>
@@ -414,7 +436,19 @@ class FirebaseFireStore with ChangeNotifier {
   }
 
   Future<void> logAudit(String action, String recordId) async {
-    final document = _collection(pathAuditLogs).doc();
+    await _writeAuditToClinic(_activeClinicId, action, recordId);
+  }
+
+  Future<void> _writeAuditToClinic(
+    String clinicId,
+    String action,
+    String recordId,
+  ) async {
+    final document = _db
+        .collection('clinics')
+        .doc(clinicId)
+        .collection(pathAuditLogs)
+        .doc();
     await _queueWrite(
       document.set({
         'action': action,
