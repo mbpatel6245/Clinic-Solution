@@ -107,11 +107,7 @@ service cloud.firestore {
 
     match /clinics/{clinicId} {
       allow read: if belongsTo(clinicId);
-      allow create: if isPlatformOwner() ||
-        (belongsTo(clinicId) && clinicRole(clinicId) in [
-          'admin', 'administrator', 'clinic_admin'
-        ]);
-      allow update: if isClinicAdmin(clinicId);
+      allow create, update: if isPlatformOwner();
       allow delete: if isPlatformOwner();
 
       match /patients/{patientId} {

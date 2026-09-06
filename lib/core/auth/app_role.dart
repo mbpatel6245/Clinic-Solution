@@ -90,7 +90,10 @@ enum AppRole {
       '',
     );
     return switch (normalized) {
-      'owner' || 'superadmin' || 'platformowner' => AppRole.platformOwner,
+      'owner' ||
+      'superadmin' ||
+      'platformowner' ||
+      'productowner' => AppRole.platformOwner,
       'admin' || 'administrator' || 'clinicadmin' => AppRole.clinicAdmin,
       'manager' || 'branchmanager' => AppRole.branchManager,
       'patient' || 'user' || 'guest' => AppRole.patient,
@@ -126,7 +129,8 @@ enum AppRole {
   };
 
   Set<AppFeature> get features => switch (this) {
-    platformOwner || clinicAdmin => AppFeature.values.toSet(),
+    platformOwner => AppFeature.values.toSet(),
+    clinicAdmin => AppFeature.values.toSet()..remove(AppFeature.clinicSetup),
     branchManager => AppFeature.values.toSet()..remove(AppFeature.clinicSetup),
     doctor => {
       AppFeature.dashboard,
@@ -166,7 +170,9 @@ enum AppRole {
   };
 
   Set<AppPermission> get permissions => switch (this) {
-    platformOwner || clinicAdmin => AppPermission.values.toSet(),
+    platformOwner => AppPermission.values.toSet(),
+    clinicAdmin =>
+      AppPermission.values.toSet()..remove(AppPermission.configureClinic),
     branchManager =>
       AppPermission.values.toSet()..remove(AppPermission.configureClinic),
     doctor => {

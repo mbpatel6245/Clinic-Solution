@@ -12,7 +12,6 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../services/local/secure_data_viewmodel.dart';
 import '../../../services/firestore_services.dart';
 import '../../../services/session_controller.dart';
-import '../../../services/sync_status_service.dart';
 import 'appointment/tab_appointments.dart';
 import 'dashboard/clinic_overview.dart';
 import 'new_prescription/tab_new_prescription.dart';
@@ -85,7 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
           label: strings.overview,
           icon: Icons.space_dashboard_outlined,
           selectedIcon: Icons.space_dashboard,
-          page: ClinicOverview(showFinance: session.can(AppFeature.finance)),
+          page: session.isAllClinics
+              ? const PlatformOverviewScreen()
+              : ClinicOverview(showFinance: session.can(AppFeature.finance)),
         ),
       if (session.can(AppFeature.createPrescription))
         _WorkspaceDestination(
@@ -240,27 +241,42 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          if (session.clinicIds.length > 1)
+          if (session.role == AppRole.platformOwner ||
+              session.clinicIds.length > 1)
             PopupMenuButton<String>(
               tooltip: 'Switch clinic',
               icon: const Icon(Icons.domain_outlined),
-              onSelected: session.selectClinic,
-              itemBuilder: (_) => session.clinicIds
-                  .map(
-                    (id) => PopupMenuItem(
-                      value: id,
-                      child: Row(
-                        children: [
-                          if (id == session.activeClinicId)
-                            const Icon(Icons.check, size: 18),
-                          if (id == session.activeClinicId)
-                            const SizedBox(width: 8),
-                          Flexible(child: Text(id)),
-                        ],
-                      ),
+              onSelected: (value) => value == SessionController.allClinicsId
+                  ? session.showAllClinics()
+                  : session.selectClinic(value),
+              itemBuilder: (_) => [
+                if (session.role == AppRole.platformOwner)
+                  PopupMenuItem(
+                    value: SessionController.allClinicsId,
+                    child: Row(
+                      children: [
+                        if (session.isAllClinics)
+                          const Icon(Icons.check, size: 18),
+                        if (session.isAllClinics) const SizedBox(width: 8),
+                        const Text('All clinics'),
+                      ],
                     ),
-                  )
-                  .toList(),
+                  ),
+                ...session.clinicIds.map(
+                  (id) => PopupMenuItem(
+                    value: id,
+                    child: Row(
+                      children: [
+                        if (id == session.activeClinicId)
+                          const Icon(Icons.check, size: 18),
+                        if (id == session.activeClinicId)
+                          const SizedBox(width: 8),
+                        Flexible(child: Text(id)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           if (!compact)
             Padding(
@@ -293,7 +309,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          const _SyncBanner(),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -338,64 +353,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SyncBanner extends StatelessWidget {
-  const _SyncBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final sync = context.watch<SyncStatusService>();
-    final strings = AppLocalizations.of(context)!;
-    final message = switch (sync.state) {
-      ClinicSyncState.offline => strings.offlineMode,
-      ClinicSyncState.pending => strings.changesWaitingToSync,
-      ClinicSyncState.synced => strings.allChangesSynced,
-      ClinicSyncState.checking => strings.checkingConnection,
-    };
-    final icon = switch (sync.state) {
-      ClinicSyncState.offline => Icons.cloud_off_outlined,
-      ClinicSyncState.pending => Icons.cloud_upload_outlined,
-      ClinicSyncState.synced => Icons.cloud_done_outlined,
-      ClinicSyncState.checking => Icons.sync,
-    };
-    return Material(
-      color: sync.state == ClinicSyncState.synced
-          ? AppColors.surface
-          : AppColors.ink,
-      child: InkWell(
-        onTap: sync.state == ClinicSyncState.pending ? sync.syncNow : null,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: sync.state == ClinicSyncState.synced
-                    ? AppColors.inkMuted
-                    : AppColors.inverse,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: Text(
-                  message,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: sync.state == ClinicSyncState.synced
-                        ? AppColors.inkMuted
-                        : AppColors.inverse,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

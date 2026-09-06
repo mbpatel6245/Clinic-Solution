@@ -32,4 +32,16 @@ void main() {
     expect(moduleForFeature(AppFeature.inventory), ClinicModule.pharmacy);
     expect(moduleForFeature(AppFeature.team), isNull);
   });
+
+  test('team invitation preserves its pending clinic role', () {
+    final invitation = TeamInvitation.fromMap({
+      'email': 'doctor@example.com',
+      'role': 'doctor',
+      'status': 'pending',
+    }, 'invite-1');
+
+    expect(invitation.email, 'doctor@example.com');
+    expect(invitation.role, AppRole.doctor);
+    expect(invitation.status, 'pending');
+  });
 }

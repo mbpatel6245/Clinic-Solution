@@ -10,6 +10,7 @@ import '../../../../data/datasources/enterprise_models.dart';
 import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
+import '../sync_status_banner.dart';
 
 String _money(BuildContext context, double value) =>
     NumberFormat.simpleCurrency(name: 'INR').format(value);
@@ -25,16 +26,14 @@ class ClinicSetupScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = context.read<FirebaseFireStore>();
     final session = context.watch<SessionController>();
-    return StreamBuilder<ClinicProfile>(
-      stream: service.streamActiveClinic(),
+    return StreamBuilder<List<ClinicProfile>>(
+      stream: service.streamAllClinics(),
       builder: (context, snapshot) {
-        final clinic =
-            snapshot.data ??
-            ClinicProfile(
-              id: service.activeClinicId,
-              name: context.read<SessionController>().clinicName,
-              enabledModules: ClinicProfile.defaultModules,
-            );
+        final clinics = snapshot.data ?? const <ClinicProfile>[];
+        ClinicProfile? selectedClinic;
+        for (final clinic in clinics) {
+          if (clinic.id == session.activeClinicId) selectedClinic = clinic;
+        }
         return AppPage(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -48,65 +47,148 @@ class ClinicSetupScreen extends StatelessWidget {
                       'Configure this clinic and enable only the modules it needs.',
                     ),
                   ),
-                  if (session.role == AppRole.platformOwner)
-                    FilledButton.icon(
-                      onPressed: () => _createClinic(context),
-                      icon: const Icon(Icons.add_business_outlined),
-                      label: const Text('New clinic'),
-                    ),
+                  FilledButton.icon(
+                    onPressed: () => _createClinic(context),
+                    icon: const Icon(Icons.add_business_outlined),
+                    label: const Text('New clinic'),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
               AppSection(
-                title: clinic.name,
-                trailing: FilledButton.icon(
-                  onPressed: () => _editClinic(context, clinic),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit profile'),
-                ),
-                child: Wrap(
-                  spacing: 24,
-                  runSpacing: 8,
-                  children: [
-                    Text('Code: ${clinic.code.isEmpty ? '—' : clinic.code}'),
-                    Text('Phone: ${clinic.phone.isEmpty ? '—' : clinic.phone}'),
-                    Text('Currency: ${clinic.currency}'),
-                    Text('Timezone: ${clinic.timezone}'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              AppSection(
-                title: 'Modules',
-                child: Column(
-                  children: ClinicModule.values.map((module) {
-                    final core =
-                        module == ClinicModule.patients ||
-                        module == ClinicModule.clinical;
-                    return SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(module.displayName),
-                      subtitle: Text(
-                        core
-                            ? 'Core clinical module'
-                            : 'Optional — enable when this clinic uses it',
+                title: 'Clinics (${clinics.length})',
+                trailing: session.isAllClinics
+                    ? null
+                    : TextButton.icon(
+                        onPressed: session.showAllClinics,
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text('Back to all clinics'),
                       ),
-                      value: core || clinic.enabledModules.contains(module),
-                      onChanged: core
-                          ? null
-                          : (enabled) async {
-                              final modules = {...clinic.enabledModules};
-                              enabled
-                                  ? modules.add(module)
-                                  : modules.remove(module);
-                              await service.saveClinic(
-                                clinic.copyWith(enabledModules: modules),
-                              );
-                            },
-                    );
-                  }).toList(),
+                child: SizedBox(
+                  height: clinics.isEmpty ? 90 : 260,
+                  child: clinics.isEmpty
+                      ? const Center(child: Text('No clinics created yet.'))
+                      : ListView.separated(
+                          itemCount: clinics.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final clinic = clinics[index];
+                            final selected =
+                                clinic.id == session.activeClinicId;
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: selected
+                                    ? AppColors.ink
+                                    : AppColors.soft,
+                                foregroundColor: selected
+                                    ? AppColors.inverse
+                                    : AppColors.ink,
+                                child: const Icon(
+                                  Icons.local_hospital_outlined,
+                                ),
+                              ),
+                              title: Text(clinic.name),
+                              subtitle: Text(
+                                '${clinic.code.isEmpty ? clinic.id : clinic.code} • ${clinic.enabledModules.length} modules',
+                              ),
+                              trailing: selected
+                                  ? const Chip(label: Text('Selected'))
+                                  : OutlinedButton(
+                                      onPressed: () =>
+                                          session.selectClinic(clinic.id),
+                                      child: const Text('Manage'),
+                                    ),
+                              onTap: () => session.selectClinic(clinic.id),
+                            );
+                          },
+                        ),
                 ),
               ),
+              if (selectedClinic == null) ...[
+                const SizedBox(height: AppSpacing.lg),
+                const AppSection(
+                  child: Text(
+                    'Select a clinic to edit its profile and modules.',
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: AppSpacing.lg),
+                AppSection(
+                  title: selectedClinic.name,
+                  trailing: FilledButton.icon(
+                    onPressed: () => _editClinic(context, selectedClinic!),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Edit profile'),
+                  ),
+                  child: Wrap(
+                    spacing: 24,
+                    runSpacing: 8,
+                    children: [
+                      Text(
+                        'Code: ${selectedClinic.code.isEmpty ? '—' : selectedClinic.code}',
+                      ),
+                      Text(
+                        'Phone: ${selectedClinic.phone.isEmpty ? '—' : selectedClinic.phone}',
+                      ),
+                      Text('Currency: ${selectedClinic.currency}'),
+                      Text('Timezone: ${selectedClinic.timezone}'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const SyncStatusBanner(),
+                const SizedBox(height: AppSpacing.sm),
+                AppSection(
+                  title: 'Modules',
+                  child: SizedBox(
+                    height: 470,
+                    child: ListView.separated(
+                      itemCount: ClinicModule.values.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final module = ClinicModule.values[index];
+                        final core =
+                            module == ClinicModule.patients ||
+                            module == ClinicModule.clinical;
+                        return SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          secondary: CircleAvatar(
+                            backgroundColor: AppColors.soft,
+                            child: Icon(
+                              _moduleIcon(module),
+                              color: AppColors.ink,
+                            ),
+                          ),
+                          title: Text(module.displayName),
+                          subtitle: Text(
+                            core
+                                ? 'Core clinical module'
+                                : 'Optional — enable when this clinic uses it',
+                          ),
+                          value:
+                              core ||
+                              selectedClinic!.enabledModules.contains(module),
+                          onChanged: core
+                              ? null
+                              : (enabled) async {
+                                  final modules = {
+                                    ...selectedClinic!.enabledModules,
+                                  };
+                                  enabled
+                                      ? modules.add(module)
+                                      : modules.remove(module);
+                                  await service.saveClinic(
+                                    selectedClinic.copyWith(
+                                      enabledModules: modules,
+                                    ),
+                                  );
+                                },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -187,6 +269,93 @@ class ClinicSetupScreen extends StatelessWidget {
     }
   }
 }
+
+class PlatformOverviewScreen extends StatelessWidget {
+  const PlatformOverviewScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<List<ClinicProfile>>(
+    stream: context.read<FirebaseFireStore>().streamAllClinics(),
+    builder: (context, snapshot) {
+      final clinics = snapshot.data ?? const <ClinicProfile>[];
+      final active = clinics.where((clinic) => clinic.active).length;
+      return AppPage(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _heading(
+              context,
+              'All clinics',
+              'Platform-wide workspace. Select a clinic to manage its data and modules.',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ResponsiveGrid(
+              children: [
+                AppMetricCard(
+                  label: 'Total clinics',
+                  value: '${clinics.length}',
+                  icon: Icons.apartment_outlined,
+                ),
+                AppMetricCard(
+                  label: 'Active clinics',
+                  value: '$active',
+                  icon: Icons.verified_outlined,
+                ),
+                AppMetricCard(
+                  label: 'Inactive clinics',
+                  value: '${clinics.length - active}',
+                  icon: Icons.pause_circle_outline,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppSection(
+              title: 'Clinic directory',
+              child: clinics.isEmpty
+                  ? const Text(
+                      'No clinics created yet. Open Clinic setup to create one.',
+                    )
+                  : Column(
+                      children: clinics
+                          .map(
+                            (clinic) => ListTile(
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.local_hospital_outlined),
+                              ),
+                              title: Text(clinic.name),
+                              subtitle: Text(
+                                '${clinic.enabledModules.length} enabled modules',
+                              ),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () => context
+                                  .read<SessionController>()
+                                  .selectClinic(clinic.id),
+                            ),
+                          )
+                          .toList(),
+                    ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+IconData _moduleIcon(ClinicModule module) => switch (module) {
+  ClinicModule.patients => Icons.people_alt_outlined,
+  ClinicModule.reception => Icons.how_to_reg_outlined,
+  ClinicModule.appointments => Icons.calendar_month_outlined,
+  ClinicModule.clinical => Icons.medical_information_outlined,
+  ClinicModule.pharmacy => Icons.local_pharmacy_outlined,
+  ClinicModule.vaccination => Icons.vaccines_outlined,
+  ClinicModule.reminders => Icons.notifications_active_outlined,
+  ClinicModule.billing => Icons.receipt_long_outlined,
+  ClinicModule.expenses => Icons.account_balance_wallet_outlined,
+  ClinicModule.reports => Icons.query_stats_outlined,
+  ClinicModule.dataExchange => Icons.import_export_outlined,
+  ClinicModule.laboratory => Icons.science_outlined,
+};
 
 class ReceptionScreen extends StatelessWidget {
   const ReceptionScreen({super.key});
@@ -544,11 +713,13 @@ class RemindersScreen extends StatelessWidget {
     final patient = TextEditingController();
     final type = TextEditingController(text: 'appointment');
     final message = TextEditingController();
+    final channel = TextEditingController(text: 'sms');
     final days = TextEditingController(text: '1');
     final saved = await _formDialog(context, 'Schedule reminder', [
       _field(patient, 'Patient name'),
       _field(type, 'Type'),
       _field(message, 'Message'),
+      _field(channel, 'Channel (sms, whatsapp or email)'),
       _field(days, 'Send after number of days', number: true),
     ]);
     if (saved && context.mounted && patient.text.trim().isNotEmpty) {
@@ -557,6 +728,7 @@ class RemindersScreen extends StatelessWidget {
           patientName: patient.text,
           type: type.text,
           message: message.text,
+          channel: channel.text.trim().toLowerCase(),
           scheduledAt: DateTime.now().add(
             Duration(days: int.tryParse(days.text) ?? 1),
           ),
@@ -788,7 +960,7 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
     if (mounted) {
       setState(() => _busy = false);
-      _notice(this.context, '${patients.length} patients copied as CSV.');
+      _notice(context, '${patients.length} patients copied as CSV.');
     }
   }
 
@@ -824,10 +996,7 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
     await service.logAudit('patients.imported', '$imported');
     if (mounted) {
       setState(() => _busy = false);
-      _notice(
-        this.context,
-        'Imported $imported patients; $errors rows rejected.',
-      );
+      _notice(context, 'Imported $imported patients; $errors rows rejected.');
     }
   }
 }

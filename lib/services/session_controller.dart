@@ -18,6 +18,7 @@ class SessionController extends ChangeNotifier {
   static const _roleKey = 'SESSION_ROLE';
   static const _nameKey = 'SESSION_NAME';
   static const _clinicKey = 'SESSION_CLINIC';
+  static const allClinicsId = '__all__';
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -41,9 +42,16 @@ class SessionController extends ChangeNotifier {
   String get clinicName => _clinicName;
   Set<ClinicModule> get enabledModules => Set.unmodifiable(_enabledModules);
   List<String> get clinicIds => List.unmodifiable(_clinicIds);
+  bool get isAllClinics =>
+      _role == AppRole.platformOwner && _activeClinicId == allClinicsId;
   bool get isLoading => _loading;
   bool can(AppFeature feature) {
+    if (isAllClinics) {
+      return feature == AppFeature.dashboard ||
+          feature == AppFeature.clinicSetup;
+    }
     if (!_role.can(feature)) return false;
+    if (_role == AppRole.platformOwner) return true;
     final module = moduleForFeature(feature);
     return module == null || _enabledModules.contains(module);
   }
@@ -98,6 +106,9 @@ class SessionController extends ChangeNotifier {
                   ? clinicRoles[_activeClinicId]?.toString()
                   : null;
               _role = AppRole.fromValue(clinicRole ?? data['role']?.toString());
+              if (_role == AppRole.platformOwner && clinicId.isEmpty) {
+                _activeClinicId = allClinicsId;
+              }
               await preferences.setString(_roleKey, _role.storageValue);
               await preferences.setString(_nameKey, _displayName);
               await preferences.setString(_clinicKey, _activeClinicId);
@@ -116,6 +127,12 @@ class SessionController extends ChangeNotifier {
 
   void _listenToClinic() {
     _clinicSubscription?.cancel();
+    if (_activeClinicId == allClinicsId) {
+      _clinicName = 'All clinics';
+      _enabledModules = ClinicModule.values.toSet();
+      notifyListeners();
+      return;
+    }
     _clinicSubscription = _firestore
         .collection('clinics')
         .doc(_activeClinicId)
@@ -138,6 +155,14 @@ class SessionController extends ChangeNotifier {
     if (clinicId.trim().isEmpty || _auth.currentUser == null) return;
     await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
       'active_clinic_id': clinicId,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> showAllClinics() async {
+    if (_role != AppRole.platformOwner || _auth.currentUser == null) return;
+    await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
+      'active_clinic_id': allClinicsId,
       'updated_at': FieldValue.serverTimestamp(),
     });
   }
