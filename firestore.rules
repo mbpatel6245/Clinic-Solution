@@ -10,87 +10,196 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function hasRole(roles) {
-      return signedIn() && profile().role in roles;
+    function globalRole() {
+      return signedIn() ? profile().get('role', '') : '';
     }
 
-    function isAdmin() {
-      return hasRole(['admin', 'Admin', 'administrator']);
+    function clinicRole(clinicId) {
+      return signedIn()
+        ? profile().get('clinic_roles', {}).get(clinicId, globalRole())
+        : '';
     }
 
-    function isDoctor() {
-      return hasRole(['doctor', 'Doctor', 'physician']);
+    function isPlatformOwner() {
+      return globalRole() in ['platform_owner', 'super_admin', 'owner'];
     }
 
-    function isPharmacy() {
-      return hasRole([
-        'pharmacy_operator',
-        'Pharmacy Operator',
-        'pharmacy',
-        'pharmacist'
+    function belongsTo(clinicId) {
+      return signedIn() && (
+        isPlatformOwner() ||
+        clinicId in profile().get('clinic_ids', []) ||
+        (clinicId == 'default-clinic' && profile().get('clinic_ids', []).size() == 0)
+      );
+    }
+
+    function hasClinicRole(clinicId, roles) {
+      return belongsTo(clinicId) && clinicRole(clinicId) in roles;
+    }
+
+    function isClinicAdmin(clinicId) {
+      return isPlatformOwner() || hasClinicRole(clinicId, [
+        'admin', 'Admin', 'administrator', 'clinic_admin',
+        'branch_manager'
       ]);
+    }
+
+    function isClinical(clinicId) {
+      return hasClinicRole(clinicId, [
+        'doctor', 'Doctor', 'physician', 'vaccinator', 'nurse'
+      ]);
+    }
+
+    function isReception(clinicId) {
+      return hasClinicRole(clinicId, ['reception', 'receptionist']);
+    }
+
+    function isPharmacy(clinicId) {
+      return hasClinicRole(clinicId, [
+        'pharmacy_operator', 'Pharmacy Operator', 'pharmacy', 'pharmacist'
+      ]);
+    }
+
+    function isAccounts(clinicId) {
+      return hasClinicRole(clinicId, ['accountant', 'accounts']);
     }
 
     function validAppointment() {
       return request.resource.data.keys().hasAll([
-        'patient_name',
-        'phone',
-        'scheduled_at',
-        'status',
-        'created_by'
+        'patient_name', 'phone', 'scheduled_at', 'status', 'created_by'
       ]) &&
         request.resource.data.patient_name is string &&
         request.resource.data.phone is string &&
         request.resource.data.scheduled_at is timestamp &&
         request.resource.data.status in [
-          'booked',
-          'cancelled',
-          'confirmed',
-          'completed'
+          'booked', 'cancelled', 'confirmed', 'completed'
         ];
     }
 
     match /users/{userId} {
-      allow get: if signedIn() && (request.auth.uid == userId || isAdmin());
-      allow list: if isAdmin();
-      allow create: if signedIn() && request.auth.uid == userId &&
-        request.resource.data.role in ['patient', 'Patient'];
-      allow update: if isAdmin() ||
-        (signedIn() && request.auth.uid == userId &&
-          request.resource.data.role == resource.data.role);
-      allow delete: if isAdmin();
-    }
-
-    match /patients/{patientId} {
-      allow read, write: if isAdmin() || isDoctor();
-    }
-
-    match /prescriptions/{prescriptionId} {
-      allow read: if isAdmin() || isDoctor() || isPharmacy();
-      allow write: if isAdmin() || isDoctor();
-    }
-
-    match /appointments/{appointmentId} {
-      allow create: if validAppointment() && (
-        (signedIn() && request.resource.data.created_by == request.auth.uid) ||
-        (!signedIn() && request.resource.data.created_by == '')
+      allow get: if signedIn() && (
+        request.auth.uid == userId || isPlatformOwner() ||
+        (globalRole() in ['admin', 'administrator', 'clinic_admin'] &&
+          resource.data.get('clinic_ids', []).hasAny(profile().get('clinic_ids', [])))
       );
-      allow read: if isAdmin() || isDoctor() ||
-        (signedIn() && resource.data.created_by == request.auth.uid);
-      allow update: if isAdmin() || isDoctor() ||
-        (signedIn() && resource.data.created_by == request.auth.uid &&
-          request.resource.data.created_by == request.auth.uid &&
-          request.resource.data.status in ['booked', 'cancelled']);
-      allow delete: if isAdmin() || isDoctor() ||
-        (signedIn() && resource.data.created_by == request.auth.uid);
+      allow list: if signedIn() && (isPlatformOwner() ||
+        (globalRole() in ['admin', 'administrator', 'clinic_admin'] &&
+          resource.data.get('clinic_ids', []).hasAny(profile().get('clinic_ids', []))));
+      allow create: if signedIn() && request.auth.uid == userId &&
+        request.resource.data.role in ['patient', 'Patient'] &&
+        request.resource.data.get('clinic_ids', []).hasAll(['default-clinic']) &&
+        request.resource.data.get('clinic_ids', []).hasOnly(['default-clinic']);
+      allow update: if signedIn() && (
+        isPlatformOwner() ||
+        (request.auth.uid == userId &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.get('clinic_ids', []) == resource.data.get('clinic_ids', []) &&
+          request.resource.data.get('clinic_roles', {}) == resource.data.get('clinic_roles', {})) ||
+        (globalRole() in ['admin', 'administrator', 'clinic_admin'] &&
+          resource.data.get('clinic_ids', []).hasAny(profile().get('clinic_ids', [])) &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.get('clinic_ids', []) == resource.data.get('clinic_ids', []) &&
+          request.resource.data.get('clinic_roles', {}).diff(
+            resource.data.get('clinic_roles', {})
+          ).affectedKeys().hasOnly(profile().get('clinic_ids', [])))
+      );
+      allow delete: if isPlatformOwner();
     }
 
-    match /stocks/{stockId} {
-      allow read, write: if isAdmin() || isPharmacy();
+    match /clinics/{clinicId} {
+      allow read: if belongsTo(clinicId);
+      allow create: if isPlatformOwner() ||
+        (belongsTo(clinicId) && clinicRole(clinicId) in [
+          'admin', 'administrator', 'clinic_admin'
+        ]);
+      allow update: if isClinicAdmin(clinicId);
+      allow delete: if isPlatformOwner();
+
+      match /patients/{patientId} {
+        allow read: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
+          isReception(clinicId);
+        allow create, update: if isClinicAdmin(clinicId) ||
+          isClinical(clinicId) || isReception(clinicId);
+        allow delete: if isClinicAdmin(clinicId);
+      }
+
+      match /prescriptions/{prescriptionId} {
+        allow read: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
+          isPharmacy(clinicId);
+        allow create, update: if isClinicAdmin(clinicId) || isClinical(clinicId);
+        allow delete: if isClinicAdmin(clinicId);
+      }
+
+      match /appointments/{appointmentId} {
+        allow create: if validAppointment() && (
+          (signedIn() && request.resource.data.created_by == request.auth.uid) ||
+          (!signedIn() && clinicId == 'default-clinic' &&
+            request.resource.data.created_by == '')
+        );
+        allow read: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
+          isReception(clinicId) ||
+          (signedIn() && resource.data.created_by == request.auth.uid);
+        allow update: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
+          isReception(clinicId) ||
+          (signedIn() && resource.data.created_by == request.auth.uid &&
+            request.resource.data.created_by == request.auth.uid &&
+            request.resource.data.status in ['booked', 'cancelled']);
+        allow delete: if isClinicAdmin(clinicId);
+      }
+
+      match /stocks/{stockId} {
+        allow read, create, update: if isClinicAdmin(clinicId) || isPharmacy(clinicId);
+        allow delete: if isClinicAdmin(clinicId);
+      }
+
+      match /invoices/{invoiceId} {
+        allow read: if isClinicAdmin(clinicId) || isReception(clinicId) ||
+          isPharmacy(clinicId) || isAccounts(clinicId);
+        allow create, update: if isClinicAdmin(clinicId) || isReception(clinicId) ||
+          isPharmacy(clinicId) || isAccounts(clinicId);
+        allow delete: if isClinicAdmin(clinicId);
+      }
+
+      match /finance_entries/{entryId} {
+        allow read, create, update: if isClinicAdmin(clinicId) || isAccounts(clinicId);
+        allow delete: if isClinicAdmin(clinicId);
+      }
+
+      match /vaccinations/{recordId} {
+        allow read, create, update: if isClinicAdmin(clinicId) || isClinical(clinicId);
+        allow delete: if isClinicAdmin(clinicId);
+      }
+
+      match /reminders/{reminderId} {
+        allow read, create, update: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
+          isReception(clinicId);
+        allow delete: if isClinicAdmin(clinicId);
+      }
+
+      match /audit_logs/{logId} {
+        allow read: if isClinicAdmin(clinicId);
+        allow create: if belongsTo(clinicId);
+        allow update, delete: if false;
+      }
+
+      match /team_invites/{inviteId} {
+        allow read, create, update: if isClinicAdmin(clinicId);
+        allow delete: if isPlatformOwner();
+      }
+
+      match /laboratory/{recordId} {
+        allow read, create, update: if isClinicAdmin(clinicId) ||
+          isClinical(clinicId);
+        allow delete: if isClinicAdmin(clinicId);
+      }
     }
 
-    match /finance_entries/{entryId} {
-      allow read, write: if isAdmin();
+    // Legacy top-level clinical collections are intentionally read-only for
+    // platform owners while data is migrated into /clinics/{clinicId}/....
+    match /{legacyCollection}/{documentId} {
+      allow read: if isPlatformOwner() && legacyCollection in [
+        'patients', 'prescriptions', 'appointments', 'stocks', 'finance_entries'
+      ];
+      allow write: if false;
     }
   }
 }
