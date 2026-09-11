@@ -7,9 +7,15 @@ import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
 
 class TabNewPrescription extends StatefulWidget {
-  const TabNewPrescription({super.key, this.initialPatient, this.onSaved});
+  const TabNewPrescription({
+    super.key,
+    this.initialPatient,
+    this.initialPrescription,
+    this.onSaved,
+  });
 
   final PatientModel? initialPatient;
+  final PrescriptionModel? initialPrescription;
   final VoidCallback? onSaved;
 
   @override
@@ -34,19 +40,40 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
   DateTime _visitDate = DateTime.now();
   DateTime? _followUpDate;
   bool _saving = false;
+  String? _draftPrescriptionId;
 
   @override
   void initState() {
     super.initState();
     final patient = widget.initialPatient;
-    if (patient != null) {
-      _firstName.text = patient.firstName;
-      _middleName.text = patient.middleName;
-      _lastName.text = patient.lastName;
-      _phone.text = patient.phone;
-      _address.text = patient.address;
-      _age.text = patient.age?.toString() ?? '';
-      _gender = patient.gender;
+    final existing = widget.initialPrescription;
+    final sourcePatient = existing?.patient ?? patient;
+    if (sourcePatient != null) {
+      _firstName.text = sourcePatient.firstName;
+      _middleName.text = sourcePatient.middleName;
+      _lastName.text = sourcePatient.lastName;
+      _phone.text = sourcePatient.phone;
+      _address.text = sourcePatient.address;
+      _age.text = sourcePatient.age?.toString() ?? '';
+      _gender = sourcePatient.gender;
+    }
+    if (existing != null) {
+      _draftPrescriptionId = existing.id;
+      _diagnosis.text = existing.diagnoses.join(', ');
+      _complaints.text = existing.complaints;
+      _vitals.text = existing.vitals;
+      _investigation.text = existing.investigation;
+      _advice.text = existing.advice;
+      _visitDate = existing.visitDate ?? DateTime.now();
+      _followUpDate = existing.followUpDate;
+      _medicines.first.dispose();
+      _medicines
+        ..clear()
+        ..addAll(
+          existing.medicines.isEmpty
+              ? [_MedicineControllers()]
+              : existing.medicines.map(_MedicineControllers.fromModel),
+        );
     }
   }
 
@@ -86,18 +113,30 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
       if (followUp) {
         _followUpDate = selected;
       } else {
-        _visitDate = selected;
+        _visitDate = DateTime(
+          selected.year,
+          selected.month,
+          selected.day,
+          _visitDate.hour,
+          _visitDate.minute,
+        );
       }
     });
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final strings = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
+      final service = context.read<FirebaseFireStore>();
+      _draftPrescriptionId ??= service.createPrescriptionId();
       final patient = PatientModel(
-        id: widget.initialPatient?.id ?? '',
+        id:
+            widget.initialPrescription?.patient.id ??
+            widget.initialPatient?.id ??
+            '',
         firstName: _firstName.text,
         middleName: _middleName.text,
         lastName: _lastName.text,
@@ -107,8 +146,9 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
         gender: _gender,
         createdAt: widget.initialPatient?.createdAt,
       );
-      await context.read<FirebaseFireStore>().savePrescription(
+      await service.savePrescription(
         PrescriptionModel(
+          id: _draftPrescriptionId!,
           patient: patient,
           diagnoses: _diagnosis.text
               .split(',')
@@ -128,6 +168,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(strings.prescriptionSaved)));
+      _clearForm();
       widget.onSaved?.call();
     } catch (error) {
       if (!mounted) return;
@@ -179,7 +220,6 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
                         _field(
                           controller: _phone,
                           label: strings.phone,
-                          requiredText: strings.requiredField,
                           keyboardType: TextInputType.phone,
                         ),
                         _field(
@@ -327,6 +367,35 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
     );
   }
 
+  void _clearForm() {
+    for (final controller in [
+      _firstName,
+      _middleName,
+      _lastName,
+      _phone,
+      _address,
+      _age,
+      _diagnosis,
+      _complaints,
+      _vitals,
+      _investigation,
+      _advice,
+    ]) {
+      controller.clear();
+    }
+    for (final medicine in _medicines) {
+      medicine.dispose();
+    }
+    _medicines
+      ..clear()
+      ..add(_MedicineControllers());
+    _gender = '';
+    _visitDate = DateTime.now();
+    _followUpDate = null;
+    _draftPrescriptionId = null;
+    _formKey.currentState?.reset();
+  }
+
   Widget _field({
     required TextEditingController controller,
     required String label,
@@ -378,6 +447,18 @@ class _MedicineControllers {
   final frequency = TextEditingController();
   final duration = TextEditingController();
   final instructions = TextEditingController();
+
+  _MedicineControllers();
+
+  factory _MedicineControllers.fromModel(MedicineLine medicine) {
+    final value = _MedicineControllers();
+    value.name.text = medicine.name;
+    value.dosage.text = medicine.dosage;
+    value.frequency.text = medicine.frequency;
+    value.duration.text = medicine.duration;
+    value.instructions.text = medicine.instructions;
+    return value;
+  }
 
   MedicineLine toModel() => MedicineLine(
     name: name.text,

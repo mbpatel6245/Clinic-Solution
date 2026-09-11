@@ -90,18 +90,24 @@ class TeamRolesScreen extends StatelessWidget {
                               .map(
                                 (invite) => ListTile(
                                   contentPadding: EdgeInsets.zero,
-                                  leading: const CircleAvatar(
-                                    child: Icon(
-                                      Icons.mark_email_unread_outlined,
+                                  leading: CircleAvatar(
+                                    child: Text(
+                                      invite.email.isEmpty
+                                          ? '?'
+                                          : invite.email[0].toUpperCase(),
                                     ),
                                   ),
                                   title: Text(invite.email),
                                   subtitle: Text(
                                     [
-                                      '${invite.role.displayName} • ${clinicNames[invite.clinicId] ?? invite.clinicId}',
+                                      '${(invite.roles.isEmpty ? [invite.role] : invite.roles).map((role) => role.displayName).join(', ')} • ${clinicNames[invite.clinicId] ?? invite.clinicId}',
                                       'Email: ${invite.notificationStatus}',
+                                      if (invite.approvalStatus != 'pending')
+                                        'Approval: ${invite.approvalStatus}',
                                       if (invite.notificationError.isNotEmpty)
                                         invite.notificationError,
+                                      if (invite.approvalError.isNotEmpty)
+                                        invite.approvalError,
                                     ].join('\n'),
                                   ),
                                   trailing: isOwner
@@ -177,7 +183,7 @@ class TeamRolesScreen extends StatelessWidget {
     String activeClinicId,
   ) async {
     final email = TextEditingController();
-    var role = AppRole.doctor;
+    final roles = <AppRole>{AppRole.doctor};
     var clinicId = clinics.any((clinic) => clinic.id == activeClinicId)
         ? activeClinicId
         : clinics.first.id;
@@ -214,19 +220,33 @@ class TeamRolesScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<AppRole>(
-                  initialValue: role,
-                  decoration: const InputDecoration(labelText: 'Clinic role'),
-                  items: AppRole.values
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Clinic roles',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: AppRole.values
                       .where((item) => item != AppRole.platformOwner)
                       .map(
-                        (item) => DropdownMenuItem(
-                          value: item,
-                          child: Text(item.displayName),
+                        (item) => FilterChip(
+                          label: Text(item.displayName),
+                          selected: roles.contains(item),
+                          onSelected: (selected) => setState(() {
+                            if (selected) {
+                              roles.add(item);
+                            } else if (roles.length > 1) {
+                              roles.remove(item);
+                            }
+                          }),
                         ),
                       )
                       .toList(),
-                  onChanged: (value) => setState(() => role = value ?? role),
                 ),
               ],
             ),
@@ -247,8 +267,9 @@ class TeamRolesScreen extends StatelessWidget {
     if (saved == true && email.text.trim().contains('@') && context.mounted) {
       await context.read<FirebaseFireStore>().inviteTeamMember(
         email.text,
-        role,
+        roles.first,
         clinicId: clinicId,
+        roles: roles.toList(),
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -270,7 +291,11 @@ class TeamRolesScreen extends StatelessWidget {
       await context.read<FirebaseFireStore>().approveTeamInvitation(invite);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Member approved and assigned.')),
+          const SnackBar(
+            content: Text(
+              'Approval started. The account will be created and assigned automatically.',
+            ),
+          ),
         );
       }
     } catch (error) {
@@ -331,12 +356,12 @@ class _TeamMemberCard extends StatelessWidget {
         ? const ['No clinic allocated']
         : user.clinicIds.map(
             (id) =>
-                '${clinicNames[id] ?? id} (${AppRole.fromValue(user.clinicRoles[id] ?? user.role).displayName})',
+                '${clinicNames[id] ?? id} (${(user.clinicRoleLists[id] ?? [user.clinicRoles[id] ?? user.role]).map((role) => AppRole.fromValue(role).displayName).join(', ')})',
           );
     final currentUser = user.id == FirebaseAuth.instance.currentUser?.uid;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Row(
           children: [
             CircleAvatar(
@@ -386,39 +411,39 @@ class _TeamMemberCard extends StatelessWidget {
               ),
             ],
             if (!(isOwner && user.status == 'pending'))
-              IconButton(
-                tooltip: 'Edit member details',
-                onPressed: currentUser
-                    ? null
-                    : () => _editMember(context, user),
-                icon: const Icon(Icons.manage_accounts_outlined),
-              ),
-            if (!(isOwner && user.status == 'pending'))
-              IconButton(
-                tooltip: 'Edit clinic role',
-                onPressed: currentUser
-                    ? null
-                    : () => _editRole(
-                        context,
-                        user,
-                        clinics,
-                        isOwner,
-                        activeClinicId,
-                      ),
-                icon: const Icon(Icons.edit_outlined),
-              ),
-            if (!(isOwner && user.status == 'pending'))
-              IconButton(
-                tooltip: isOwner ? 'Delete member' : 'Remove from this clinic',
-                onPressed: currentUser
-                    ? null
-                    : () => _deleteMember(
-                        context,
-                        user,
-                        isOwner: isOwner,
-                        clinicId: activeClinicId,
-                      ),
-                icon: const Icon(Icons.delete_outline),
+              PopupMenuButton<String>(
+                tooltip: 'Manage member',
+                enabled: !currentUser,
+                onSelected: (action) {
+                  if (action == 'details') {
+                    _editMember(context, user);
+                  } else if (action == 'roles') {
+                    _editRole(context, user, clinics, isOwner, activeClinicId);
+                  } else if (action == 'delete') {
+                    _deleteMember(
+                      context,
+                      user,
+                      isOwner: isOwner,
+                      clinicId: activeClinicId,
+                    );
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'details',
+                    child: Text('Edit member details'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'roles',
+                    child: Text('Manage clinic roles'),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      isOwner ? 'Delete member' : 'Remove from this clinic',
+                    ),
+                  ),
+                ],
               ),
           ],
         ),
@@ -441,7 +466,13 @@ Future<void> _editRole(
   if (!clinics.any((clinic) => clinic.id == clinicId)) {
     clinicId = clinics.first.id;
   }
-  var role = AppRole.fromValue(user.clinicRoles[clinicId] ?? user.role);
+  var roles =
+      (user.clinicRoleLists[clinicId] ??
+              [user.clinicRoles[clinicId] ?? user.role])
+          .map(AppRole.fromValue)
+          .where((role) => role != AppRole.platformOwner)
+          .toSet();
+  if (roles.isEmpty) roles = {AppRole.doctor};
   final saved = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
@@ -466,25 +497,43 @@ Future<void> _editRole(
                       .toList(),
                   onChanged: (value) => setState(() {
                     clinicId = value ?? clinicId;
-                    role = AppRole.fromValue(
-                      user.clinicRoles[clinicId] ?? user.role,
-                    );
+                    roles =
+                        (user.clinicRoleLists[clinicId] ??
+                                [user.clinicRoles[clinicId] ?? user.role])
+                            .map(AppRole.fromValue)
+                            .where((role) => role != AppRole.platformOwner)
+                            .toSet();
+                    if (roles.isEmpty) roles = {AppRole.doctor};
                   }),
                 ),
               if (isOwner) const SizedBox(height: AppSpacing.md),
-              DropdownButtonFormField<AppRole>(
-                initialValue: role,
-                decoration: const InputDecoration(labelText: 'Role'),
-                items: AppRole.values
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Roles (select one or more)',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: AppRole.values
                     .where((item) => item != AppRole.platformOwner)
                     .map(
-                      (item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(item.displayName),
+                      (item) => FilterChip(
+                        label: Text(item.displayName),
+                        selected: roles.contains(item),
+                        onSelected: (selected) => setState(() {
+                          if (selected) {
+                            roles.add(item);
+                          } else if (roles.length > 1) {
+                            roles.remove(item);
+                          }
+                        }),
                       ),
                     )
                     .toList(),
-                onChanged: (value) => setState(() => role = value ?? role),
               ),
             ],
           ),
@@ -503,10 +552,10 @@ Future<void> _editRole(
     ),
   );
   if (saved == true && context.mounted) {
-    await context.read<FirebaseFireStore>().updateUserClinicRole(
+    await context.read<FirebaseFireStore>().updateUserClinicRoles(
       user.id,
       clinicId,
-      role.storageValue,
+      roles.toList(),
     );
   }
 }

@@ -64,6 +64,7 @@ class ClinicProfile {
 
   Map<String, dynamic> toMap() => {
     'name': name.trim(),
+    'name_normalized': name.trim().toLowerCase(),
     'code': code.trim(),
     'phone': phone.trim(),
     'address': address.trim(),
@@ -146,21 +147,27 @@ class TeamInvitation {
     required this.id,
     required this.email,
     required this.role,
+    this.roles = const [],
     this.status = 'pending',
     this.createdAt,
     this.clinicId = '',
     this.notificationStatus = 'queued',
     this.notificationError = '',
+    this.approvalStatus = 'pending',
+    this.approvalError = '',
   });
 
   final String id;
   final String email;
   final AppRole role;
+  final List<AppRole> roles;
   final String status;
   final DateTime? createdAt;
   final String clinicId;
   final String notificationStatus;
   final String notificationError;
+  final String approvalStatus;
+  final String approvalError;
 
   factory TeamInvitation.fromMap(
     Map<String, dynamic> data,
@@ -170,11 +177,20 @@ class TeamInvitation {
     id: id,
     email: data['email']?.toString() ?? '',
     role: AppRole.fromValue(data['role']?.toString()),
+    roles:
+        (data['roles'] is Iterable
+                ? data['roles'] as Iterable
+                : const <dynamic>[])
+            .map((value) => AppRole.fromValue(value.toString()))
+            .toSet()
+            .toList(),
     status: data['status']?.toString() ?? 'pending',
     createdAt: _date(data['created_at']),
     clinicId: clinicId,
     notificationStatus: data['notification_status']?.toString() ?? 'queued',
     notificationError: data['notification_error']?.toString() ?? '',
+    approvalStatus: data['approval_status']?.toString() ?? 'pending',
+    approvalError: data['approval_error']?.toString() ?? '',
   );
 }
 

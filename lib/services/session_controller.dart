@@ -29,6 +29,7 @@ class SessionController extends ChangeNotifier {
   _clinicSubscription;
 
   AppRole _role = AppRole.doctor;
+  Set<AppRole> _roles = {AppRole.doctor};
   String _displayName = '';
   String _activeClinicId = 'default-clinic';
   String _clinicName = 'Clinic';
@@ -38,6 +39,7 @@ class SessionController extends ChangeNotifier {
   bool _mustChangePassword = false;
 
   AppRole get role => _role;
+  Set<AppRole> get roles => Set.unmodifiable(_roles);
   String get displayName => _displayName;
   String get activeClinicId => _activeClinicId;
   String get clinicName => _clinicName;
@@ -53,13 +55,14 @@ class SessionController extends ChangeNotifier {
           feature == AppFeature.team ||
           feature == AppFeature.clinicSetup;
     }
-    if (!_role.can(feature)) return false;
+    if (!_roles.any((role) => role.can(feature))) return false;
     if (_role == AppRole.platformOwner) return true;
     final module = moduleForFeature(feature);
     return module == null || _enabledModules.contains(module);
   }
 
-  bool isAllowed(AppPermission permission) => _role.isAllowed(permission);
+  bool isAllowed(AppPermission permission) =>
+      _roles.any((role) => role.isAllowed(permission));
 
   Future<void> refresh() => _loadUser(_auth.currentUser);
 
@@ -70,6 +73,7 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
     final preferences = await SharedPreferences.getInstance();
     _role = AppRole.fromValue(preferences.getString(_roleKey));
+    _roles = {_role};
     _displayName = preferences.getString(_nameKey) ?? user?.displayName ?? '';
     _activeClinicId = preferences.getString(_clinicKey) ?? 'default-clinic';
 
@@ -115,11 +119,25 @@ class SessionController extends ChangeNotifier {
               final clinicRole = clinicRoles is Map
                   ? clinicRoles[_activeClinicId]?.toString()
                   : null;
+              final clinicRoleLists = data['clinic_role_lists'];
+              final storedRoles = clinicRoleLists is Map
+                  ? clinicRoleLists[_activeClinicId]
+                  : null;
               final globalRole = AppRole.fromValue(data['role']?.toString());
               _mustChangePassword = data['must_change_password'] == true;
               _role = globalRole == AppRole.platformOwner
                   ? globalRole
                   : AppRole.fromValue(clinicRole ?? data['role']?.toString());
+              _roles = globalRole == AppRole.platformOwner
+                  ? {AppRole.platformOwner}
+                  : (storedRoles is Iterable
+                        ? storedRoles
+                              .map(
+                                (value) => AppRole.fromValue(value.toString()),
+                              )
+                              .toSet()
+                        : <AppRole>{_role});
+              if (_roles.isEmpty) _roles = {_role};
               if (_role == AppRole.platformOwner && clinicId.isEmpty) {
                 _activeClinicId = allClinicsId;
               }

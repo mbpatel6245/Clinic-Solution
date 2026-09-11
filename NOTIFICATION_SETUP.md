@@ -339,6 +339,8 @@ provides **Approve member**, **Resend invitation email**, and **Reject &
 remove** actions. Resend also processes invitations created before the latest
 notification functions were deployed. Both `provisionInvitedMember` and
 `resendInvitedMemberEmail` must be deployed for automatic and manual delivery.
+Deploy `approveInvitedMember` as well so approval can create the account without
+requiring the invited person to register first.
 
 - Use separate MSG91 and Twilio accounts/keys or subaccounts for development and
   production, and rotate keys at least annually or after staff changes.

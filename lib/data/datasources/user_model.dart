@@ -9,6 +9,7 @@ class UserModel {
   final String activeClinicId;
   final List<String> clinicIds;
   final Map<String, String> clinicRoles;
+  final Map<String, List<String>> clinicRoleLists;
   final String status;
   final bool mustChangePassword;
   final String requestedClinicName;
@@ -23,6 +24,7 @@ class UserModel {
     this.activeClinicId = '',
     this.clinicIds = const [],
     this.clinicRoles = const {},
+    this.clinicRoleLists = const {},
     this.status = 'approved',
     this.mustChangePassword = false,
     this.requestedClinicName = '',
@@ -48,6 +50,16 @@ class UserModel {
               ),
             )
           : const {},
+      clinicRoleLists: data['clinic_role_lists'] is Map
+          ? (data['clinic_role_lists'] as Map).map(
+              (key, value) => MapEntry(
+                key.toString(),
+                (value is Iterable ? value : [value])
+                    .map((role) => role.toString())
+                    .toList(),
+              ),
+            )
+          : const {},
       status: data['status']?.toString() ?? 'approved',
       mustChangePassword: data['must_change_password'] == true,
       requestedClinicName: data['requested_clinic_name']?.toString() ?? '',
@@ -66,6 +78,7 @@ class UserModel {
       'active_clinic_id': activeClinicId,
       'clinic_ids': clinicIds,
       'clinic_roles': clinicRoles,
+      'clinic_role_lists': clinicRoleLists,
       'status': status,
       'must_change_password': mustChangePassword,
       if (requestedClinicName.isNotEmpty)

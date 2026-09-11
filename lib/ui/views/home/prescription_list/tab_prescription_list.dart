@@ -7,9 +7,14 @@ import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
 
 class TabPrescriptionList extends StatefulWidget {
-  const TabPrescriptionList({super.key, required this.onNewVisit});
+  const TabPrescriptionList({
+    super.key,
+    required this.onNewVisit,
+    required this.onEditPrescription,
+  });
 
   final ValueChanged<PatientModel> onNewVisit;
+  final ValueChanged<PrescriptionModel> onEditPrescription;
 
   @override
   State<TabPrescriptionList> createState() => _TabPrescriptionListState();
@@ -17,7 +22,6 @@ class TabPrescriptionList extends StatefulWidget {
 
 class _TabPrescriptionListState extends State<TabPrescriptionList> {
   final _search = TextEditingController();
-  String _status = 'all';
 
   @override
   void dispose() {
@@ -39,61 +43,23 @@ class _TabPrescriptionListState extends State<TabPrescriptionList> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final search = TextField(
-                  controller: _search,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: strings.searchPatient,
-                    suffixIcon: _search.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: strings.clearFilters,
-                            onPressed: () {
-                              _search.clear();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.clear),
-                          ),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                );
-                final status = DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.filter_list),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'all',
-                      child: Text(strings.allStatuses),
-                    ),
-                    DropdownMenuItem(
-                      value: 'pending',
-                      child: Text(strings.pending),
-                    ),
-                    DropdownMenuItem(
-                      value: 'completed',
-                      child: Text(strings.completed),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _status = value ?? 'all'),
-                );
-                if (constraints.maxWidth < 650) {
-                  return Column(
-                    children: [search, const SizedBox(height: 12), status],
-                  );
-                }
-                return Row(
-                  children: [
-                    Expanded(flex: 3, child: search),
-                    const SizedBox(width: 12),
-                    Expanded(child: status),
-                  ],
-                );
-              },
+            TextField(
+              controller: _search,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: strings.searchPatient,
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: strings.clearFilters,
+                        onPressed: () {
+                          _search.clear();
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.clear),
+                      ),
+              ),
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -116,25 +82,58 @@ class _TabPrescriptionListState extends State<TabPrescriptionList> {
                       record.patient.phone,
                       record.patient.address,
                       record.diagnoses.join(' '),
+                      record.medicines.map((item) => item.name).join(' '),
                     ].join(' ').toLowerCase();
-                    return (query.isEmpty || searchable.contains(query)) &&
-                        (_status == 'all' || record.status == _status);
+                    return query.isEmpty || searchable.contains(query);
                   }).toList();
                   if (records.isEmpty) {
                     return _MessageState(
                       icon: Icons.person_search_outlined,
-                      message: query.isEmpty && _status == 'all'
+                      message: query.isEmpty
                           ? strings.noPrescriptions
                           : strings.noResults,
                     );
                   }
                   return ListView.separated(
                     itemCount: records.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) => _PrescriptionCard(
-                      record: records[index],
-                      onNewVisit: widget.onNewVisit,
-                    ),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final record = records[index];
+                      final date =
+                          record.visitDate ??
+                          record.createdAt ??
+                          DateTime.now();
+                      final previousDate = index == 0
+                          ? null
+                          : records[index - 1].visitDate ??
+                                records[index - 1].createdAt;
+                      final showHeader =
+                          previousDate == null ||
+                          previousDate.year != date.year ||
+                          previousDate.month != date.month ||
+                          previousDate.day != date.day;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (showHeader) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                DateFormat.yMMMMd(
+                                  Localizations.localeOf(context).toString(),
+                                ).format(date),
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                          ],
+                          _PrescriptionCard(
+                            record: record,
+                            onNewVisit: widget.onNewVisit,
+                            onEditPrescription: widget.onEditPrescription,
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               ),
@@ -147,10 +146,15 @@ class _TabPrescriptionListState extends State<TabPrescriptionList> {
 }
 
 class _PrescriptionCard extends StatelessWidget {
-  const _PrescriptionCard({required this.record, required this.onNewVisit});
+  const _PrescriptionCard({
+    required this.record,
+    required this.onNewVisit,
+    required this.onEditPrescription,
+  });
 
   final PrescriptionModel record;
   final ValueChanged<PatientModel> onNewVisit;
+  final ValueChanged<PrescriptionModel> onEditPrescription;
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +162,7 @@ class _PrescriptionCard extends StatelessWidget {
     final date = DateFormat.yMMMd(
       Localizations.localeOf(context).toString(),
     ).format(record.visitDate ?? record.createdAt ?? DateTime.now());
-    final completed = record.status == 'completed';
+    final canStartNewVisit = record.canStartNewVisitAt(DateTime.now());
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -200,13 +204,11 @@ class _PrescriptionCard extends StatelessWidget {
                       child: Text(strings.viewDetails),
                     ),
                     PopupMenuItem(
-                      value: 'visit',
-                      child: Text(strings.newVisit),
-                    ),
-                    PopupMenuItem(
-                      value: completed ? 'pending' : 'completed',
+                      value: canStartNewVisit ? 'visit' : 'edit',
                       child: Text(
-                        completed ? strings.pending : strings.markComplete,
+                        canStartNewVisit
+                            ? strings.newVisit
+                            : 'Edit prescription',
                       ),
                     ),
                     PopupMenuItem(value: 'delete', child: Text(strings.delete)),
@@ -219,13 +221,6 @@ class _PrescriptionCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                Chip(
-                  avatar: Icon(
-                    completed ? Icons.check_circle_outline : Icons.schedule,
-                    size: 18,
-                  ),
-                  label: Text(completed ? strings.completed : strings.pending),
-                ),
                 ...record.diagnoses.map((item) => Chip(label: Text(item))),
               ],
             ),
@@ -234,6 +229,14 @@ class _PrescriptionCard extends StatelessWidget {
               Text(
                 '${strings.chiefComplaints}: ${record.complaints}',
                 maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (record.medicines.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Medicines: ${record.medicines.take(3).map((item) => item.name).where((name) => name.isNotEmpty).join(', ')}',
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -256,8 +259,8 @@ class _PrescriptionCard extends StatelessWidget {
       onNewVisit(record.patient);
       return;
     }
-    if (action == 'pending' || action == 'completed') {
-      await service.updatePrescriptionStatus(record.id, action);
+    if (action == 'edit') {
+      onEditPrescription(record);
       return;
     }
     if (action == 'delete') {

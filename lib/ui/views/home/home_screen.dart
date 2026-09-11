@@ -32,6 +32,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   PatientModel? _prescriptionPatient;
+  PrescriptionModel? _prescriptionToEdit;
   int _prescriptionFormVersion = 0;
   final _secureData = SecureDataViewModel();
   bool _passwordDialogShown = false;
@@ -51,8 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
       if (feature == AppFeature.createPrescription &&
-          _prescriptionPatient != null) {
+          (_prescriptionPatient != null || _prescriptionToEdit != null)) {
         _prescriptionPatient = null;
+        _prescriptionToEdit = null;
         _prescriptionFormVersion++;
       }
     });
@@ -81,6 +83,20 @@ class _HomeScreenState extends State<HomeScreen> {
       if (index < 0) return;
       setState(() {
         _prescriptionPatient = patient;
+        _prescriptionToEdit = null;
+        _prescriptionFormVersion++;
+        _selectedIndex = index;
+      });
+    }
+
+    void editPrescription(PrescriptionModel prescription) {
+      final index = destinations.indexWhere(
+        (item) => item.feature == AppFeature.createPrescription,
+      );
+      if (index < 0) return;
+      setState(() {
+        _prescriptionPatient = null;
+        _prescriptionToEdit = prescription;
         _prescriptionFormVersion++;
         _selectedIndex = index;
       });
@@ -106,8 +122,13 @@ class _HomeScreenState extends State<HomeScreen> {
           page: TabNewPrescription(
             key: ValueKey(_prescriptionFormVersion),
             initialPatient: _prescriptionPatient,
-            onSaved: () =>
-                _selectFeature(destinations, AppFeature.prescriptionList),
+            initialPrescription: _prescriptionToEdit,
+            onSaved: () {
+              _prescriptionPatient = null;
+              _prescriptionToEdit = null;
+              _prescriptionFormVersion++;
+              _selectFeature(destinations, AppFeature.prescriptionList);
+            },
           ),
         ),
       if (session.can(AppFeature.prescriptionList))
@@ -116,7 +137,10 @@ class _HomeScreenState extends State<HomeScreen> {
           label: strings.prescriptionList,
           icon: Icons.manage_search_outlined,
           selectedIcon: Icons.manage_search,
-          page: TabPrescriptionList(onNewVisit: startNewVisit),
+          page: TabPrescriptionList(
+            onNewVisit: startNewVisit,
+            onEditPrescription: editPrescription,
+          ),
         ),
       if (session.can(AppFeature.appointments))
         _WorkspaceDestination(

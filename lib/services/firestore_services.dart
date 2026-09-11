@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -40,6 +41,24 @@ class FirebaseFireStore with ChangeNotifier {
   CollectionReference<Map<String, dynamic>> _collection(String path) {
     if (path == pathUser || path == 'clinics') return _db.collection(path);
     return _db.collection('clinics').doc(_activeClinicId).collection(path);
+  }
+
+  Future<List<Map<String, dynamic>>> exportModuleRecords(String path) async {
+    final snapshot = await _collection(path).get();
+    return snapshot.docs
+        .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
+        .toList();
+  }
+
+  Future<void> importModuleRecord(
+    String path,
+    Map<String, dynamic> data,
+  ) async {
+    final id = data.remove('id')?.toString() ?? '';
+    final document = id.isEmpty
+        ? _collection(path).doc()
+        : _collection(path).doc(id);
+    await _queueWrite(document.set(data, SetOptions(merge: true)));
   }
 
   bool get isLoading => _isLoading;
@@ -238,6 +257,8 @@ class FirebaseFireStore with ChangeNotifier {
     return prescriptionReference.id;
   }
 
+  String createPrescriptionId() => _collection(pathPrescriptions).doc().id;
+
   Future<void> updatePrescriptionStatus(String id, String status) async {
     await _queueWrite(
       _collection(pathPrescriptions).doc(id).update({
@@ -389,43 +410,20 @@ class FirebaseFireStore with ChangeNotifier {
     final clinicId = invitation.clinicId.isEmpty
         ? _activeClinicId
         : invitation.clinicId;
-    var users = await _db
-        .collection(pathUser)
-        .where('email_normalized', isEqualTo: invitation.email.toLowerCase())
-        .limit(1)
-        .get();
-    if (users.docs.isEmpty) {
-      users = await _db
-          .collection(pathUser)
-          .where('email', isEqualTo: invitation.email)
-          .limit(1)
-          .get();
-    }
-    if (users.docs.isEmpty) {
-      throw StateError(
-        'The invited person must register with ${invitation.email} before approval.',
-      );
-    }
-    final batch = _db.batch();
-    batch.set(users.docs.first.reference, {
-      'clinic_ids': FieldValue.arrayUnion([clinicId]),
-      'clinic_roles.$clinicId': invitation.role.storageValue,
-      'status': 'approved',
-      'updated_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-    batch.update(
+    await _queueWrite(
       _db
           .collection('clinics')
           .doc(clinicId)
           .collection(pathTeamInvites)
-          .doc(invitation.id),
-      {
-        'status': 'approved',
-        'approved_at': FieldValue.serverTimestamp(),
-        'approved_by': FirebaseAuth.instance.currentUser?.uid ?? '',
-      },
+          .doc(invitation.id)
+          .update({
+            'approval_status': 'processing',
+            'approval_error': FieldValue.delete(),
+            'approval_requested_at': FieldValue.serverTimestamp(),
+            'approval_requested_by':
+                FirebaseAuth.instance.currentUser?.uid ?? '',
+          }),
     );
-    await _queueWrite(batch.commit());
   }
 
   Future<void> deleteTeamInvitation(TeamInvitation invitation) {
@@ -462,6 +460,7 @@ class FirebaseFireStore with ChangeNotifier {
   }
 
   Future<String> createClinic(String name) async {
+    await _ensureUniqueClinicName(name);
     final document = _db.collection('clinics').doc();
     await saveClinic(
       ClinicProfile(
@@ -474,13 +473,14 @@ class FirebaseFireStore with ChangeNotifier {
   }
 
   Future<String> createClinicForApproval(String name) async {
+    await _ensureUniqueClinicName(name);
     final document = _db.collection('clinics').doc();
     final clinic = ClinicProfile(
       id: document.id,
       name: name,
       enabledModules: ClinicProfile.defaultModules,
     );
-    await _queueWrite(document.set(clinic.toMap()));
+    await _saveClinicWithUniqueName(clinic);
     return document.id;
   }
 
@@ -488,17 +488,40 @@ class FirebaseFireStore with ChangeNotifier {
     String email,
     AppRole role, {
     String? clinicId,
+    List<AppRole>? roles,
   }) async {
     final targetClinicId = clinicId ?? _activeClinicId;
+    final normalizedEmail = email.trim().toLowerCase();
+    final selectedRoles = (roles ?? [role]).toSet().toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    final existingUsers = await _db
+        .collection(pathUser)
+        .where('email_normalized', isEqualTo: normalizedEmail)
+        .limit(1)
+        .get();
+    if (existingUsers.docs.isNotEmpty &&
+        (existingUsers.docs.first.data()['clinic_ids'] as Iterable? ?? const [])
+            .map((value) => value.toString())
+            .contains(targetClinicId)) {
+      throw StateError('This member already belongs to the selected clinic.');
+    }
     final document = _db
         .collection('clinics')
         .doc(targetClinicId)
         .collection(pathTeamInvites)
-        .doc();
+        .doc(
+          base64Url.encode(utf8.encode(normalizedEmail)).replaceAll('=', ''),
+        );
+    final existingInvitation = await document.get();
+    if (existingInvitation.exists &&
+        existingInvitation.data()?['status'] == 'pending') {
+      throw StateError('A pending invitation already exists for this clinic.');
+    }
     await _queueWrite(
       document.set({
-        'email': email.trim().toLowerCase(),
-        'role': role.storageValue,
+        'email': normalizedEmail,
+        'role': selectedRoles.first.storageValue,
+        'roles': selectedRoles.map((item) => item.storageValue).toList(),
         'status': 'pending',
         'notification_status': 'queued',
         'invited_by': FirebaseAuth.instance.currentUser?.uid ?? '',
@@ -508,13 +531,33 @@ class FirebaseFireStore with ChangeNotifier {
     await _writeAuditToClinic(targetClinicId, 'team.invited', document.id);
   }
 
+  Future<void> _ensureUniqueClinicName(
+    String name, {
+    String excludeClinicId = '',
+  }) async {
+    final normalized = name.trim().toLowerCase();
+    final matches = await _db
+        .collection('clinics')
+        .where('name_normalized', isEqualTo: normalized)
+        .limit(1)
+        .get();
+    final duplicate =
+        matches.docs.any((doc) => doc.id != excludeClinicId) ||
+        (matches.docs.isEmpty &&
+            (await _db.collection('clinics').get()).docs.any(
+              (doc) =>
+                  doc.id != excludeClinicId &&
+                  doc.data()['name']?.toString().trim().toLowerCase() ==
+                      normalized,
+            ));
+    if (duplicate) {
+      throw StateError('A clinic with this name already exists.');
+    }
+  }
+
   Future<void> saveClinic(ClinicProfile clinic) async {
-    await _queueWrite(
-      _db
-          .collection('clinics')
-          .doc(clinic.id)
-          .set(clinic.toMap(), SetOptions(merge: true)),
-    );
+    await _ensureUniqueClinicName(clinic.name, excludeClinicId: clinic.id);
+    await _saveClinicWithUniqueName(clinic);
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       await _queueWrite(
@@ -527,8 +570,49 @@ class FirebaseFireStore with ChangeNotifier {
     await _writeAuditToClinic(clinic.id, 'clinic.updated', clinic.id);
   }
 
+  String _clinicNameKey(String name) => base64Url
+      .encode(utf8.encode(name.trim().toLowerCase()))
+      .replaceAll('=', '');
+
+  Future<void> _saveClinicWithUniqueName(ClinicProfile clinic) async {
+    final clinicReference = _db.collection('clinics').doc(clinic.id);
+    final newKey = _clinicNameKey(clinic.name);
+    final keyReference = _db.collection('clinic_name_keys').doc(newKey);
+    await _db.runTransaction((transaction) async {
+      final existingClinic = await transaction.get(clinicReference);
+      final existingKey = await transaction.get(keyReference);
+      if (existingKey.exists &&
+          existingKey.data()?['clinic_id']?.toString() != clinic.id) {
+        throw StateError('A clinic with this name already exists.');
+      }
+      final previousName = existingClinic.data()?['name']?.toString() ?? '';
+      final previousKey = previousName.isEmpty
+          ? ''
+          : _clinicNameKey(previousName);
+      if (previousKey.isNotEmpty && previousKey != newKey) {
+        transaction.delete(_db.collection('clinic_name_keys').doc(previousKey));
+      }
+      transaction.set(clinicReference, clinic.toMap(), SetOptions(merge: true));
+      transaction.set(keyReference, {
+        'clinic_id': clinic.id,
+        'name_normalized': clinic.name.trim().toLowerCase(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   Future<void> deleteClinic(String clinicId) async {
-    await _queueWrite(_db.collection('clinics').doc(clinicId).delete());
+    final reference = _db.collection('clinics').doc(clinicId);
+    await _db.runTransaction((transaction) async {
+      final clinic = await transaction.get(reference);
+      final name = clinic.data()?['name']?.toString() ?? '';
+      if (name.isNotEmpty) {
+        transaction.delete(
+          _db.collection('clinic_name_keys').doc(_clinicNameKey(name)),
+        );
+      }
+      transaction.delete(reference);
+    });
   }
 
   Stream<List<ClinicInvoice>> streamInvoices() =>
@@ -681,13 +765,26 @@ class FirebaseFireStore with ChangeNotifier {
     String clinicId,
     String role,
   ) async {
+    return updateUserClinicRoles(id, clinicId, [AppRole.fromValue(role)]);
+  }
+
+  Future<void> updateUserClinicRoles(
+    String id,
+    String clinicId,
+    List<AppRole> roles,
+  ) async {
+    if (roles.isEmpty) throw StateError('Select at least one role.');
+    final orderedRoles = roles.toSet().toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    final values = orderedRoles.map((role) => role.storageValue).toList();
     await _queueWrite(
-      _db.collection(pathUser).doc(id).set({
-        'clinic_roles.$clinicId': role,
+      _db.collection(pathUser).doc(id).update({
+        'clinic_roles.$clinicId': values.first,
+        'clinic_role_lists.$clinicId': values,
         'clinic_ids': FieldValue.arrayUnion([clinicId]),
         'status': 'approved',
         'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)),
+      }),
     );
   }
 
@@ -704,11 +801,20 @@ class FirebaseFireStore with ChangeNotifier {
   );
 
   Future<void> removeUserFromClinic(String id, String clinicId) async {
+    final snapshot = await _db.collection(pathUser).doc(id).get();
+    final remainingClinics =
+        (snapshot.data()?['clinic_ids'] as Iterable? ?? const [])
+            .map((value) => value.toString())
+            .where((value) => value != clinicId)
+            .toList();
     await _queueWrite(
       _db.collection(pathUser).doc(id).update({
         'clinic_ids': FieldValue.arrayRemove([clinicId]),
         'clinic_roles.$clinicId': FieldValue.delete(),
-        'active_clinic_id': '',
+        'clinic_role_lists.$clinicId': FieldValue.delete(),
+        'active_clinic_id': remainingClinics.isEmpty
+            ? ''
+            : remainingClinics.first,
         'updated_at': FieldValue.serverTimestamp(),
       }),
     );
@@ -727,6 +833,7 @@ class FirebaseFireStore with ChangeNotifier {
           'role': role.storageValue,
           'clinic_ids': FieldValue.arrayUnion([clinicId]),
           'clinic_roles.$clinicId': role.storageValue,
+          'clinic_role_lists.$clinicId': [role.storageValue],
           'active_clinic_id': clinicId,
           'status': 'approved',
           'approved_by': FirebaseAuth.instance.currentUser?.uid ?? '',

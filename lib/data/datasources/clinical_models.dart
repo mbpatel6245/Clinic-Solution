@@ -151,6 +151,11 @@ class PrescriptionModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  DateTime get visitTimestamp => createdAt ?? visitDate ?? DateTime.now();
+
+  bool canStartNewVisitAt(DateTime now) =>
+      now.difference(visitTimestamp) >= const Duration(hours: 4);
+
   factory PrescriptionModel.fromMap(Map<String, dynamic> data, String id) {
     final patientData = data['patient'] is Map
         ? Map<String, dynamic>.from(data['patient'] as Map)

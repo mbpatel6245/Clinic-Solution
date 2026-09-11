@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -200,61 +203,97 @@ class ClinicSetupScreen extends StatelessWidget {
   }
 
   Future<void> _editClinic(BuildContext context, ClinicProfile clinic) async {
+    final isOwner =
+        context.read<SessionController>().role == AppRole.platformOwner;
     final name = TextEditingController(text: clinic.name);
     final code = TextEditingController(text: clinic.code);
     final phone = TextEditingController(text: clinic.phone);
     final address = TextEditingController(text: clinic.address);
+    var active = clinic.active;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clinic profile'),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Clinic name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: code,
-                decoration: const InputDecoration(labelText: 'Clinic code'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phone,
-                decoration: const InputDecoration(labelText: 'Phone'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: address,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Address'),
-              ),
-            ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Clinic profile'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Clinic name'),
+                ),
+                if (isOwner)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Clinic active'),
+                    subtitle: const Text(
+                      'Disabled clinics cannot be used by clinic members.',
+                    ),
+                    value: active,
+                    onChanged: (value) => setState(() => active = value),
+                  ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: code,
+                  decoration: const InputDecoration(labelText: 'Clinic code'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phone,
+                  decoration: const InputDecoration(labelText: 'Phone'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: address,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Address'),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
     if (saved == true && context.mounted) {
+      if (clinic.active && !active) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Disable clinic?'),
+            content: Text('Disable ${clinic.name} for all assigned members?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Disable'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !context.mounted) return;
+      }
       await context.read<FirebaseFireStore>().saveClinic(
         clinic.copyWith(
           name: name.text,
           code: code.text,
           phone: phone.text,
           address: address.text,
+          active: active,
         ),
       );
     }
@@ -788,10 +827,13 @@ class BillingScreen extends StatelessWidget {
     stream: context.read<FirebaseFireStore>().streamInvoices(),
     builder: (context, snapshot) {
       final invoices = snapshot.data ?? const <ClinicInvoice>[];
-      final billed = invoices.fold<double>(0, (sum, item) => sum + item.total);
+      final billed = invoices.fold<double>(
+        0,
+        (total, item) => total + item.total,
+      );
       final collected = invoices.fold<double>(
         0,
-        (sum, item) => sum + item.amountPaid,
+        (total, item) => total + item.amountPaid,
       );
       return AppPage(
         child: Column(
@@ -895,7 +937,7 @@ class BillingScreen extends StatelessWidget {
         ),
       ].where((line) => line.amount > 0).toList();
       final amountPaid = double.tryParse(paid.text) ?? 0;
-      final total = lines.fold<double>(0, (sum, line) => sum + line.amount);
+      final total = lines.fold<double>(0, (total, line) => total + line.amount);
       await context.read<FirebaseFireStore>().saveInvoice(
         ClinicInvoice(
           patientName: patient.text,
@@ -1126,12 +1168,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
         final expenses = (financeSnapshot.data ?? const <FinanceEntry>[]).where(
           (e) => e.type == FinanceEntryType.expense && inside(e.occurredAt),
         );
-        final sales = invoices.fold<double>(0, (sum, e) => sum + e.total);
+        final sales = invoices.fold<double>(
+          0,
+          (total, item) => total + item.total,
+        );
         final collected = invoices.fold<double>(
           0,
-          (sum, e) => sum + e.amountPaid,
+          (total, item) => total + item.amountPaid,
         );
-        final expense = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+        final expense = expenses.fold<double>(
+          0,
+          (total, item) => total + item.amount,
+        );
         return AppPage(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1242,15 +1290,16 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
   Widget build(BuildContext context) {
     final session = context.watch<SessionController>();
     final modules = <ClinicModule>[
-      if (session.role == AppRole.platformOwner ||
-          session.enabledModules.contains(ClinicModule.patients))
-        ClinicModule.patients,
-      if (session.role == AppRole.platformOwner ||
-          session.enabledModules.contains(ClinicModule.pharmacy))
-        ClinicModule.pharmacy,
+      for (final module in ClinicModule.values)
+        if (module != ClinicModule.reports &&
+            module != ClinicModule.dataExchange &&
+            (session.role == AppRole.platformOwner ||
+                session.enabledModules.contains(module)))
+          module,
     ];
     if (!modules.contains(_module)) _module = modules.first;
     final medicines = _module == ClinicModule.pharmacy;
+    final generic = _module != ClinicModule.patients && !medicines;
     final columns = medicines
         ? 'name,invoice_number,batch_number,supplier,manufacturer,quantity,unit,purchase_rate,mrp,minimum_level,expiry_date'
         : 'first_name,middle_name,last_name,gender,phone,address,age';
@@ -1274,7 +1323,7 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
                     child: Text(
                       module == ClinicModule.pharmacy
                           ? 'Pharmacy medicines & stock'
-                          : 'Patients',
+                          : module.displayName,
                     ),
                   ),
                 )
@@ -1286,18 +1335,28 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           AppSection(
-            title: medicines ? 'Pharmacy medicines CSV' : 'Patients CSV',
+            title: generic
+                ? '${_module.displayName} JSON'
+                : medicines
+                ? 'Pharmacy medicines CSV'
+                : 'Patients CSV',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Columns: $columns'),
+                Text(
+                  generic
+                      ? 'Structured module records. Export first to use as an import template.'
+                      : 'Columns: $columns',
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _csv,
                   minLines: 8,
                   maxLines: 16,
-                  decoration: const InputDecoration(
-                    hintText: 'Paste CSV here…',
+                  decoration: InputDecoration(
+                    hintText: generic
+                        ? 'Paste ${_module.displayName} JSON here…'
+                        : 'Paste ${_module.displayName} CSV here…',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1331,6 +1390,11 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
   }
 
   Future<void> _copyTemplate() async {
+    if (_module != ClinicModule.patients && _module != ClinicModule.pharmacy) {
+      _csv.text = '[]';
+      await Clipboard.setData(const ClipboardData(text: '[]'));
+      return;
+    }
     final value = _module == ClinicModule.pharmacy
         ? 'name,invoice_number,batch_number,supplier,manufacturer,quantity,unit,purchase_rate,mrp,minimum_level,expiry_date\n'
         : 'first_name,middle_name,last_name,gender,phone,address,age\n';
@@ -1341,6 +1405,23 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
   Future<void> _export() async {
     setState(() => _busy = true);
     final service = context.read<FirebaseFireStore>();
+    if (_module != ClinicModule.patients && _module != ClinicModule.pharmacy) {
+      final records = await service.exportModuleRecords(
+        _collectionForModule(_module),
+      );
+      final value = const JsonEncoder.withIndent(
+        '  ',
+      ).convert(records.map(_jsonSafe).toList());
+      await Clipboard.setData(ClipboardData(text: value));
+      if (mounted) {
+        setState(() => _busy = false);
+        _notice(
+          context,
+          '${records.length} ${_module.displayName} records copied.',
+        );
+      }
+      return;
+    }
     if (_module == ClinicModule.pharmacy) {
       final items = await service.streamInventory().first;
       final buffer = StringBuffer(
@@ -1401,6 +1482,36 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
   Future<void> _import() async {
     setState(() => _busy = true);
     final service = context.read<FirebaseFireStore>();
+    if (_module != ClinicModule.patients && _module != ClinicModule.pharmacy) {
+      try {
+        final decoded = jsonDecode(_csv.text);
+        if (decoded is! List) {
+          throw const FormatException('Expected a JSON list.');
+        }
+        var imported = 0;
+        for (final value in decoded.whereType<Map>()) {
+          await service.importModuleRecord(
+            _collectionForModule(_module),
+            _restoreDates(Map<String, dynamic>.from(value)),
+          );
+          imported++;
+        }
+        await service.logAudit('${_module.storageValue}.imported', '$imported');
+        if (mounted) {
+          _notice(
+            context,
+            'Imported $imported ${_module.displayName} records.',
+          );
+        }
+      } catch (error) {
+        if (mounted) {
+          _notice(context, 'Import failed: $error');
+        }
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+      return;
+    }
     final lines = _csv.text.trim().split(RegExp(r'\r?\n'));
     var imported = 0;
     var errors = 0;
@@ -1455,6 +1566,56 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
     }
   }
 }
+
+String _collectionForModule(ClinicModule module) => switch (module) {
+  ClinicModule.reception ||
+  ClinicModule.appointments => FirebaseFireStore.pathAppointments,
+  ClinicModule.clinical => FirebaseFireStore.pathPrescriptions,
+  ClinicModule.vaccination => FirebaseFireStore.pathVaccinations,
+  ClinicModule.reminders => FirebaseFireStore.pathReminders,
+  ClinicModule.billing => FirebaseFireStore.pathInvoices,
+  ClinicModule.expenses => FirebaseFireStore.pathFinance,
+  ClinicModule.laboratory => 'laboratory',
+  ClinicModule.patients => FirebaseFireStore.pathPatients,
+  ClinicModule.pharmacy => FirebaseFireStore.pathStock,
+  ClinicModule.reports ||
+  ClinicModule.dataExchange => throw StateError('No record collection'),
+};
+
+dynamic _jsonSafe(dynamic value) {
+  if (value is Timestamp) return value.toDate().toIso8601String();
+  if (value is Map) {
+    return value.map((key, item) => MapEntry('$key', _jsonSafe(item)));
+  }
+  if (value is Iterable) return value.map(_jsonSafe).toList();
+  return value;
+}
+
+Map<String, dynamic> _restoreDates(Map<String, dynamic> data) => data.map((
+  key,
+  value,
+) {
+  if (value is Map) {
+    return MapEntry(key, _restoreDates(Map<String, dynamic>.from(value)));
+  }
+  if (value is List) {
+    return MapEntry(
+      key,
+      value
+          .map(
+            (item) => item is Map
+                ? _restoreDates(Map<String, dynamic>.from(item))
+                : item,
+          )
+          .toList(),
+    );
+  }
+  final parsed =
+      value is String && (key.endsWith('_at') || key.endsWith('_date'))
+      ? DateTime.tryParse(value)
+      : null;
+  return MapEntry(key, parsed == null ? value : Timestamp.fromDate(parsed));
+});
 
 Widget _heading(BuildContext context, String title, String subtitle) => Column(
   crossAxisAlignment: CrossAxisAlignment.start,
