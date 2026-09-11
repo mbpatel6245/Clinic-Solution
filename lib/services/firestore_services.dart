@@ -442,6 +442,25 @@ class FirebaseFireStore with ChangeNotifier {
     );
   }
 
+  Future<void> resendTeamInvitation(TeamInvitation invitation) {
+    final clinicId = invitation.clinicId.isEmpty
+        ? _activeClinicId
+        : invitation.clinicId;
+    return _queueWrite(
+      _db
+          .collection('clinics')
+          .doc(clinicId)
+          .collection(pathTeamInvites)
+          .doc(invitation.id)
+          .update({
+            'notification_status': 'queued',
+            'notification_error': FieldValue.delete(),
+            'resend_requested_at': FieldValue.serverTimestamp(),
+            'resend_requested_by': FirebaseAuth.instance.currentUser?.uid ?? '',
+          }),
+    );
+  }
+
   Future<String> createClinic(String name) async {
     final document = _db.collection('clinics').doc();
     await saveClinic(
@@ -481,6 +500,7 @@ class FirebaseFireStore with ChangeNotifier {
         'email': email.trim().toLowerCase(),
         'role': role.storageValue,
         'status': 'pending',
+        'notification_status': 'queued',
         'invited_by': FirebaseAuth.instance.currentUser?.uid ?? '',
         'created_at': FieldValue.serverTimestamp(),
       }),

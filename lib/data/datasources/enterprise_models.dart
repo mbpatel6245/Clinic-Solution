@@ -149,6 +149,8 @@ class TeamInvitation {
     this.status = 'pending',
     this.createdAt,
     this.clinicId = '',
+    this.notificationStatus = 'queued',
+    this.notificationError = '',
   });
 
   final String id;
@@ -157,6 +159,8 @@ class TeamInvitation {
   final String status;
   final DateTime? createdAt;
   final String clinicId;
+  final String notificationStatus;
+  final String notificationError;
 
   factory TeamInvitation.fromMap(
     Map<String, dynamic> data,
@@ -169,6 +173,8 @@ class TeamInvitation {
     status: data['status']?.toString() ?? 'pending',
     createdAt: _date(data['created_at']),
     clinicId: clinicId,
+    notificationStatus: data['notification_status']?.toString() ?? 'queued',
+    notificationError: data['notification_error']?.toString() ?? '',
   );
 }
 
