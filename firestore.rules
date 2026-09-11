@@ -75,6 +75,33 @@ service cloud.firestore {
         ];
     }
 
+    function validReminderCreate() {
+      return request.resource.data.keys().hasAll([
+        'patient_name', 'message', 'scheduled_at', 'recipient', 'channel',
+        'status', 'consent'
+      ]) &&
+        request.resource.data.patient_name is string &&
+        request.resource.data.message is string &&
+        request.resource.data.recipient is string &&
+        request.resource.data.scheduled_at is timestamp &&
+        request.resource.data.channel in ['sms', 'whatsapp', 'email'] &&
+        request.resource.data.status == 'scheduled' &&
+        request.resource.data.consent == true &&
+        !request.resource.data.keys().hasAny([
+          'attempts', 'provider', 'provider_message_id', 'provider_status',
+          'sent_at', 'failure_reason', 'lease_expires_at', 'next_attempt_at'
+        ]);
+    }
+
+    function validReminderUpdate() {
+      return resource.data.status == 'scheduled' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'patient_id', 'patient_name', 'type', 'message', 'scheduled_at',
+        'recipient', 'channel', 'consent', 'template_id',
+        'template_language', 'status', 'updated_at'
+      ]) && request.resource.data.status in ['scheduled', 'cancelled'];
+    }
+
     match /users/{userId} {
       allow get: if signedIn() && (
         request.auth.uid == userId || isPlatformOwner() ||
@@ -102,7 +129,7 @@ service cloud.firestore {
             resource.data.get('clinic_roles', {})
           ).affectedKeys().hasOnly(profile().get('clinic_ids', [])))
       );
-      allow delete: if isPlatformOwner();
+      allow delete: if isPlatformOwner() && request.auth.uid != userId;
     }
 
     match /clinics/{clinicId} {
@@ -166,8 +193,12 @@ service cloud.firestore {
       }
 
       match /reminders/{reminderId} {
-        allow read, create, update: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
+        allow read: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
           isReception(clinicId);
+        allow create: if (isClinicAdmin(clinicId) || isClinical(clinicId) ||
+          isReception(clinicId)) && validReminderCreate();
+        allow update: if (isClinicAdmin(clinicId) || isClinical(clinicId) ||
+          isReception(clinicId)) && validReminderUpdate();
         allow delete: if isClinicAdmin(clinicId);
       }
 
@@ -179,7 +210,7 @@ service cloud.firestore {
 
       match /team_invites/{inviteId} {
         allow read, create, update: if isClinicAdmin(clinicId);
-        allow delete: if isPlatformOwner();
+        allow delete: if isClinicAdmin(clinicId);
       }
 
       match /laboratory/{recordId} {

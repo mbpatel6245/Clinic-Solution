@@ -148,6 +148,7 @@ class TeamInvitation {
     required this.role,
     this.status = 'pending',
     this.createdAt,
+    this.clinicId = '',
   });
 
   final String id;
@@ -155,15 +156,20 @@ class TeamInvitation {
   final AppRole role;
   final String status;
   final DateTime? createdAt;
+  final String clinicId;
 
-  factory TeamInvitation.fromMap(Map<String, dynamic> data, String id) =>
-      TeamInvitation(
-        id: id,
-        email: data['email']?.toString() ?? '',
-        role: AppRole.fromValue(data['role']?.toString()),
-        status: data['status']?.toString() ?? 'pending',
-        createdAt: _date(data['created_at']),
-      );
+  factory TeamInvitation.fromMap(
+    Map<String, dynamic> data,
+    String id, {
+    String clinicId = '',
+  }) => TeamInvitation(
+    id: id,
+    email: data['email']?.toString() ?? '',
+    role: AppRole.fromValue(data['role']?.toString()),
+    status: data['status']?.toString() ?? 'pending',
+    createdAt: _date(data['created_at']),
+    clinicId: clinicId,
+  );
 }
 
 enum InvoiceStatus {
@@ -333,10 +339,16 @@ class ClinicReminder {
     required this.type,
     required this.message,
     required this.scheduledAt,
+    required this.recipient,
     this.patientId = '',
     this.channel = 'sms',
     this.status = 'scheduled',
     this.consent = true,
+    this.templateId = '',
+    this.templateLanguage = 'en',
+    this.providerMessageId = '',
+    this.failureReason = '',
+    this.attempts = 0,
   });
 
   final String id;
@@ -345,9 +357,15 @@ class ClinicReminder {
   final String type;
   final String message;
   final DateTime scheduledAt;
+  final String recipient;
   final String channel;
   final String status;
   final bool consent;
+  final String templateId;
+  final String templateLanguage;
+  final String providerMessageId;
+  final String failureReason;
+  final int attempts;
 
   factory ClinicReminder.fromMap(Map<String, dynamic> data, String id) =>
       ClinicReminder(
@@ -357,9 +375,15 @@ class ClinicReminder {
         type: data['type']?.toString() ?? 'appointment',
         message: data['message']?.toString() ?? '',
         scheduledAt: _date(data['scheduled_at']) ?? DateTime.now(),
+        recipient: data['recipient']?.toString() ?? '',
         channel: data['channel']?.toString() ?? 'sms',
         status: data['status']?.toString() ?? 'scheduled',
         consent: data['consent'] != false,
+        templateId: data['template_id']?.toString() ?? '',
+        templateLanguage: data['template_language']?.toString() ?? 'en',
+        providerMessageId: data['provider_message_id']?.toString() ?? '',
+        failureReason: data['failure_reason']?.toString() ?? '',
+        attempts: int.tryParse('${data['attempts'] ?? 0}') ?? 0,
       );
 
   Map<String, dynamic> toMap() => {
@@ -368,9 +392,14 @@ class ClinicReminder {
     'type': type,
     'message': message.trim(),
     'scheduled_at': Timestamp.fromDate(scheduledAt),
+    'recipient': recipient.trim(),
     'channel': channel,
     'status': status,
     'consent': consent,
+    if (templateId.trim().isNotEmpty) 'template_id': templateId.trim(),
+    'template_language': templateLanguage.trim().isEmpty
+        ? 'en'
+        : templateLanguage.trim(),
     'updated_at': FieldValue.serverTimestamp(),
   };
 }

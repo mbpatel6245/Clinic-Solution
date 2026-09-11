@@ -10,7 +10,6 @@ import '../../../../data/datasources/enterprise_models.dart';
 import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
-import '../sync_status_banner.dart';
 
 String _money(BuildContext context, double value) =>
     NumberFormat.simpleCurrency(name: 'INR').format(value);
@@ -64,44 +63,10 @@ class ClinicSetupScreen extends StatelessWidget {
                         icon: const Icon(Icons.arrow_back),
                         label: const Text('Back to all clinics'),
                       ),
-                child: SizedBox(
-                  height: clinics.isEmpty ? 90 : 260,
-                  child: clinics.isEmpty
-                      ? const Center(child: Text('No clinics created yet.'))
-                      : ListView.separated(
-                          itemCount: clinics.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final clinic = clinics[index];
-                            final selected =
-                                clinic.id == session.activeClinicId;
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: selected
-                                    ? AppColors.ink
-                                    : AppColors.soft,
-                                foregroundColor: selected
-                                    ? AppColors.inverse
-                                    : AppColors.ink,
-                                child: const Icon(
-                                  Icons.local_hospital_outlined,
-                                ),
-                              ),
-                              title: Text(clinic.name),
-                              subtitle: Text(
-                                '${clinic.code.isEmpty ? clinic.id : clinic.code} • ${clinic.enabledModules.length} modules',
-                              ),
-                              trailing: selected
-                                  ? const Chip(label: Text('Selected'))
-                                  : OutlinedButton(
-                                      onPressed: () =>
-                                          session.selectClinic(clinic.id),
-                                      child: const Text('Manage'),
-                                    ),
-                              onTap: () => session.selectClinic(clinic.id),
-                            );
-                          },
-                        ),
+                child: _ClinicDirectory(
+                  clinics: clinics,
+                  activeClinicId: session.activeClinicId,
+                  onSelected: session.selectClinic,
                 ),
               ),
               if (selectedClinic == null) ...[
@@ -136,8 +101,6 @@ class ClinicSetupScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                const SyncStatusBanner(),
-                const SizedBox(height: AppSpacing.sm),
                 AppSection(
                   title: 'Modules',
                   child: SizedBox(
@@ -311,35 +274,100 @@ class PlatformOverviewScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             AppSection(
               title: 'Clinic directory',
-              child: clinics.isEmpty
-                  ? const Text(
-                      'No clinics created yet. Open Clinic setup to create one.',
-                    )
-                  : Column(
-                      children: clinics
-                          .map(
-                            (clinic) => ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.local_hospital_outlined),
-                              ),
-                              title: Text(clinic.name),
-                              subtitle: Text(
-                                '${clinic.enabledModules.length} enabled modules',
-                              ),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () => context
-                                  .read<SessionController>()
-                                  .selectClinic(clinic.id),
-                            ),
-                          )
-                          .toList(),
-                    ),
+              child: _ClinicDirectory(
+                clinics: clinics,
+                activeClinicId: SessionController.allClinicsId,
+                onSelected: context.read<SessionController>().selectClinic,
+              ),
             ),
           ],
         ),
       );
     },
   );
+}
+
+class _ClinicDirectory extends StatefulWidget {
+  const _ClinicDirectory({
+    required this.clinics,
+    required this.activeClinicId,
+    required this.onSelected,
+  });
+
+  final List<ClinicProfile> clinics;
+  final String activeClinicId;
+  final ValueChanged<String> onSelected;
+
+  @override
+  State<_ClinicDirectory> createState() => _ClinicDirectoryState();
+}
+
+class _ClinicDirectoryState extends State<_ClinicDirectory> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _query.trim().toLowerCase();
+    final filtered = widget.clinics.where((clinic) {
+      if (query.isEmpty) return true;
+      return clinic.name.toLowerCase().contains(query) ||
+          clinic.code.toLowerCase().contains(query) ||
+          clinic.id.toLowerCase().contains(query) ||
+          clinic.phone.toLowerCase().contains(query);
+    }).toList();
+    return Column(
+      children: [
+        TextField(
+          onChanged: (value) => setState(() => _query = value),
+          decoration: const InputDecoration(
+            labelText: 'Search clinics',
+            hintText: 'Name, code, phone or clinic ID',
+            prefixIcon: Icon(Icons.search),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: widget.clinics.isEmpty ? 70 : 280,
+          child: widget.clinics.isEmpty
+              ? const Center(child: Text('No clinics created yet.'))
+              : filtered.isEmpty
+              ? const Center(child: Text('No clinic matches your search.'))
+              : ListView.separated(
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final clinic = filtered[index];
+                    final selected = clinic.id == widget.activeClinicId;
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: selected
+                            ? AppColors.ink
+                            : AppColors.soft,
+                        foregroundColor: selected
+                            ? AppColors.inverse
+                            : AppColors.ink,
+                        child: const Icon(Icons.local_hospital_outlined),
+                      ),
+                      title: Text(clinic.name),
+                      subtitle: Text(
+                        '${clinic.code.isEmpty ? clinic.id : clinic.code} • ${clinic.enabledModules.length} modules'
+                        '${clinic.phone.isEmpty ? '' : ' • ${clinic.phone}'}',
+                      ),
+                      trailing: selected
+                          ? const Chip(label: Text('Selected'))
+                          : OutlinedButton.icon(
+                              onPressed: () => widget.onSelected(clinic.id),
+                              icon: const Icon(Icons.settings_outlined),
+                              label: const Text('Manage'),
+                            ),
+                      onTap: () => widget.onSelected(clinic.id),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 IconData _moduleIcon(ClinicModule module) => switch (module) {
@@ -696,7 +724,8 @@ class RemindersScreen extends StatelessWidget {
                       ),
                       title: Text('${item.patientName} — ${item.type}'),
                       subtitle: Text(
-                        '${DateFormat.yMMMd().add_jm().format(item.scheduledAt)} • ${item.channel} • ${item.status}\n${item.message}',
+                        '${DateFormat.yMMMd().add_jm().format(item.scheduledAt)} • ${item.channel} • ${item.status}\n${item.message}'
+                        '${item.failureReason.isEmpty ? '' : '\n${item.failureReason}'}',
                       ),
                       isThreeLine: true,
                     ),
@@ -714,21 +743,32 @@ class RemindersScreen extends StatelessWidget {
     final type = TextEditingController(text: 'appointment');
     final message = TextEditingController();
     final channel = TextEditingController(text: 'sms');
+    final recipient = TextEditingController();
+    final templateId = TextEditingController();
     final days = TextEditingController(text: '1');
     final saved = await _formDialog(context, 'Schedule reminder', [
       _field(patient, 'Patient name'),
       _field(type, 'Type'),
       _field(message, 'Message'),
       _field(channel, 'Channel (sms, whatsapp or email)'),
+      _field(recipient, 'Recipient email or phone with country code'),
+      _field(templateId, 'Template ID/name (optional; uses default)'),
       _field(days, 'Send after number of days', number: true),
     ]);
-    if (saved && context.mounted && patient.text.trim().isNotEmpty) {
+    final selectedChannel = channel.text.trim().toLowerCase();
+    if (saved &&
+        context.mounted &&
+        patient.text.trim().isNotEmpty &&
+        recipient.text.trim().isNotEmpty &&
+        const {'sms', 'whatsapp', 'email'}.contains(selectedChannel)) {
       await context.read<FirebaseFireStore>().saveReminder(
         ClinicReminder(
           patientName: patient.text,
+          recipient: recipient.text,
           type: type.text,
           message: message.text,
-          channel: channel.text.trim().toLowerCase(),
+          channel: selectedChannel,
+          templateId: templateId.text,
           scheduledAt: DateTime.now().add(
             Duration(days: int.tryParse(days.text) ?? 1),
           ),
