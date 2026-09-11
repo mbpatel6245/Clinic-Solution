@@ -332,6 +332,123 @@ class VaccinationRecord {
   };
 }
 
+class PlatformNotificationSettings {
+  const PlatformNotificationSettings({
+    this.primaryProvider = 'msg91',
+    this.fallbackProvider = 'twilio',
+    this.fallbackEnabled = false,
+    this.defaultCountryCode = '91',
+    this.msg91SmsTemplateId = '',
+    this.msg91WhatsappTemplateName = '',
+    this.msg91WhatsappNamespace = '',
+    this.msg91WhatsappIntegratedNumber = '',
+    this.msg91EmailTemplateId = '',
+    this.msg91EmailDomain = '',
+    this.msg91EmailFrom = '',
+    this.msg91EmailFromName = 'Clinic',
+    this.twilioMessagingServiceSid = '',
+    this.twilioSmsFrom = '',
+    this.twilioSmsContentSid = '',
+    this.twilioWhatsappFrom = '',
+    this.twilioWhatsappContentSid = '',
+    this.sendGridFromEmail = '',
+    this.sendGridFromName = 'Clinic',
+    this.sendGridTemplateId = '',
+    this.twilioStatusCallbackUrl = '',
+  });
+
+  final String primaryProvider;
+  final String fallbackProvider;
+  final bool fallbackEnabled;
+  final String defaultCountryCode;
+  final String msg91SmsTemplateId;
+  final String msg91WhatsappTemplateName;
+  final String msg91WhatsappNamespace;
+  final String msg91WhatsappIntegratedNumber;
+  final String msg91EmailTemplateId;
+  final String msg91EmailDomain;
+  final String msg91EmailFrom;
+  final String msg91EmailFromName;
+  final String twilioMessagingServiceSid;
+  final String twilioSmsFrom;
+  final String twilioSmsContentSid;
+  final String twilioWhatsappFrom;
+  final String twilioWhatsappContentSid;
+  final String sendGridFromEmail;
+  final String sendGridFromName;
+  final String sendGridTemplateId;
+  final String twilioStatusCallbackUrl;
+
+  factory PlatformNotificationSettings.fromMap(Map<String, dynamic> data) {
+    final msg91 = data['msg91'] is Map
+        ? Map<String, dynamic>.from(data['msg91'] as Map)
+        : const <String, dynamic>{};
+    final twilio = data['twilio'] is Map
+        ? Map<String, dynamic>.from(data['twilio'] as Map)
+        : const <String, dynamic>{};
+    return PlatformNotificationSettings(
+      primaryProvider: data['primary_provider']?.toString() == 'twilio'
+          ? 'twilio'
+          : 'msg91',
+      fallbackProvider: data['fallback_provider']?.toString() == 'msg91'
+          ? 'msg91'
+          : 'twilio',
+      fallbackEnabled: data['fallback_enabled'] == true,
+      defaultCountryCode: data['default_country_code']?.toString() ?? '91',
+      msg91SmsTemplateId: msg91['sms_template_id']?.toString() ?? '',
+      msg91WhatsappTemplateName:
+          msg91['whatsapp_template_name']?.toString() ?? '',
+      msg91WhatsappNamespace: msg91['whatsapp_namespace']?.toString() ?? '',
+      msg91WhatsappIntegratedNumber:
+          msg91['whatsapp_integrated_number']?.toString() ?? '',
+      msg91EmailTemplateId: msg91['email_template_id']?.toString() ?? '',
+      msg91EmailDomain: msg91['email_domain']?.toString() ?? '',
+      msg91EmailFrom: msg91['email_from']?.toString() ?? '',
+      msg91EmailFromName: msg91['email_from_name']?.toString() ?? 'Clinic',
+      twilioMessagingServiceSid:
+          twilio['messaging_service_sid']?.toString() ?? '',
+      twilioSmsFrom: twilio['sms_from']?.toString() ?? '',
+      twilioSmsContentSid: twilio['sms_content_sid']?.toString() ?? '',
+      twilioWhatsappFrom: twilio['whatsapp_from']?.toString() ?? '',
+      twilioWhatsappContentSid:
+          twilio['whatsapp_content_sid']?.toString() ?? '',
+      sendGridFromEmail: twilio['sendgrid_from_email']?.toString() ?? '',
+      sendGridFromName: twilio['sendgrid_from_name']?.toString() ?? 'Clinic',
+      sendGridTemplateId: twilio['sendgrid_template_id']?.toString() ?? '',
+      twilioStatusCallbackUrl: twilio['status_callback_url']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'primary_provider': primaryProvider,
+    'fallback_provider': fallbackProvider,
+    'fallback_enabled': fallbackEnabled,
+    'default_country_code': defaultCountryCode.trim(),
+    'msg91': {
+      'sms_template_id': msg91SmsTemplateId.trim(),
+      'whatsapp_template_name': msg91WhatsappTemplateName.trim(),
+      'whatsapp_namespace': msg91WhatsappNamespace.trim(),
+      'whatsapp_integrated_number': msg91WhatsappIntegratedNumber.trim(),
+      'email_template_id': msg91EmailTemplateId.trim(),
+      'email_domain': msg91EmailDomain.trim(),
+      'email_from': msg91EmailFrom.trim(),
+      'email_from_name': msg91EmailFromName.trim(),
+    },
+    'twilio': {
+      'messaging_service_sid': twilioMessagingServiceSid.trim(),
+      'sms_from': twilioSmsFrom.trim(),
+      'sms_content_sid': twilioSmsContentSid.trim(),
+      'whatsapp_from': twilioWhatsappFrom.trim(),
+      'whatsapp_content_sid': twilioWhatsappContentSid.trim(),
+      'sendgrid_from_email': sendGridFromEmail.trim(),
+      'sendgrid_from_name': sendGridFromName.trim(),
+      'sendgrid_template_id': sendGridTemplateId.trim(),
+      'status_callback_url': twilioStatusCallbackUrl.trim(),
+    },
+    'updated_at': FieldValue.serverTimestamp(),
+  };
+}
+
 class ClinicReminder {
   const ClinicReminder({
     this.id = '',

@@ -1,15 +1,12 @@
-export type NotificationChannel = "email" | "sms" | "whatsapp";
-
-export interface NotificationJob {
-  channel: NotificationChannel;
-  recipient: string;
-  patientName: string;
-  clinicName: string;
-  message: string;
-  templateId?: string;
-  templateLanguage?: string;
-  templateVariables?: Record<string, string>;
-}
+import {
+  ProviderError,
+  normalizePhone,
+  notificationVariables,
+  required,
+  validateEmail,
+  type NotificationJob,
+  type SendResult,
+} from "./notification_provider.js";
 
 export interface Msg91Config {
   authKey: string;
@@ -24,52 +21,12 @@ export interface Msg91Config {
   emailFromName: string;
 }
 
-export interface SendResult {
-  provider: "msg91";
-  messageId: string;
-  acceptedStatus: string;
-}
-
-export class ProviderError extends Error {
-  constructor(
-    message: string,
-    readonly retryable: boolean,
-    readonly statusCode?: number,
-  ) {
-    super(message);
-    this.name = "ProviderError";
-  }
-}
-
 type FetchLike = typeof fetch;
 
 const SMS_URL = "https://control.msg91.com/api/v5/flow";
 const EMAIL_URL = "https://control.msg91.com/api/v5/email/send";
 const WHATSAPP_URL =
   "https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/";
-
-function required(value: string, name: string): string {
-  const cleaned = value.trim();
-  if (!cleaned) throw new ProviderError(`${name} is not configured`, false);
-  return cleaned;
-}
-
-export function normalizePhone(value: string, countryCode = "91"): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length === 10) return `${countryCode.replace(/\D/g, "")}${digits}`;
-  if (digits.length < 11 || digits.length > 15) {
-    throw new ProviderError("Recipient phone number must include a valid country code", false);
-  }
-  return digits;
-}
-
-function validateEmail(value: string): string {
-  const email = value.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new ProviderError("Recipient email address is invalid", false);
-  }
-  return email;
-}
 
 function responseMessage(body: unknown): string {
   if (typeof body === "string") return body.slice(0, 500);
@@ -89,15 +46,6 @@ function findMessageId(body: unknown): string {
   }
   const nested = record.data;
   return nested && typeof nested === "object" ? findMessageId(nested) : "";
-}
-
-function variables(job: NotificationJob): Record<string, string> {
-  return {
-    patient_name: job.patientName,
-    clinic_name: job.clinicName,
-    message: job.message,
-    ...job.templateVariables,
-  };
 }
 
 async function post(
@@ -151,7 +99,7 @@ export async function sendWithMsg91(
   config: Msg91Config,
   fetcher: FetchLike = fetch,
 ): Promise<SendResult> {
-  const vars = variables(job);
+  const vars = notificationVariables(job);
   if (job.channel === "sms") {
     return post(
       SMS_URL,

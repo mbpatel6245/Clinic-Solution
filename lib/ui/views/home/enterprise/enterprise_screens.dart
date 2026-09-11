@@ -54,6 +54,16 @@ class ClinicSetupScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
+              StreamBuilder<PlatformNotificationSettings>(
+                stream: service.streamPlatformNotificationSettings(),
+                builder: (context, notificationSnapshot) =>
+                    _GlobalNotificationSettingsCard(
+                      settings:
+                          notificationSnapshot.data ??
+                          const PlatformNotificationSettings(),
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
               AppSection(
                 title: 'Clinics (${clinics.length})',
                 trailing: session.isAllClinics
@@ -231,6 +241,276 @@ class ClinicSetupScreen extends StatelessWidget {
       );
     }
   }
+}
+
+class _GlobalNotificationSettingsCard extends StatelessWidget {
+  const _GlobalNotificationSettingsCard({required this.settings});
+
+  final PlatformNotificationSettings settings;
+
+  @override
+  Widget build(BuildContext context) => AppSection(
+    title: 'Global notifications',
+    trailing: FilledButton.icon(
+      onPressed: () => _configure(context),
+      icon: const Icon(Icons.notifications_active_outlined),
+      label: const Text('Configure providers'),
+    ),
+    child: Wrap(
+      spacing: AppSpacing.lg,
+      runSpacing: AppSpacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Chip(
+          avatar: const Icon(Icons.send_outlined, size: 18),
+          label: Text('Primary: ${_providerLabel(settings.primaryProvider)}'),
+        ),
+        Chip(
+          avatar: Icon(
+            settings.fallbackEnabled
+                ? Icons.alt_route_outlined
+                : Icons.block_outlined,
+            size: 18,
+          ),
+          label: Text(
+            settings.fallbackEnabled
+                ? 'Fallback: ${_providerLabel(settings.fallbackProvider)}'
+                : 'Fallback disabled',
+          ),
+        ),
+        const Text(
+          'Applies to every clinic. Credentials stay in Secret Manager.',
+        ),
+      ],
+    ),
+  );
+
+  String _providerLabel(String value) => value == 'twilio' ? 'Twilio' : 'MSG91';
+
+  Future<void> _configure(BuildContext context) async {
+    var primary = settings.primaryProvider;
+    var fallback = settings.fallbackProvider;
+    var fallbackEnabled = settings.fallbackEnabled;
+    final country = TextEditingController(text: settings.defaultCountryCode);
+    final msg91Sms = TextEditingController(text: settings.msg91SmsTemplateId);
+    final msg91WaTemplate = TextEditingController(
+      text: settings.msg91WhatsappTemplateName,
+    );
+    final msg91WaNamespace = TextEditingController(
+      text: settings.msg91WhatsappNamespace,
+    );
+    final msg91WaNumber = TextEditingController(
+      text: settings.msg91WhatsappIntegratedNumber,
+    );
+    final msg91EmailTemplate = TextEditingController(
+      text: settings.msg91EmailTemplateId,
+    );
+    final msg91EmailDomain = TextEditingController(
+      text: settings.msg91EmailDomain,
+    );
+    final msg91EmailFrom = TextEditingController(text: settings.msg91EmailFrom);
+    final msg91EmailName = TextEditingController(
+      text: settings.msg91EmailFromName,
+    );
+    final twilioService = TextEditingController(
+      text: settings.twilioMessagingServiceSid,
+    );
+    final twilioSmsFrom = TextEditingController(text: settings.twilioSmsFrom);
+    final twilioSmsContent = TextEditingController(
+      text: settings.twilioSmsContentSid,
+    );
+    final twilioWaFrom = TextEditingController(
+      text: settings.twilioWhatsappFrom,
+    );
+    final twilioWaContent = TextEditingController(
+      text: settings.twilioWhatsappContentSid,
+    );
+    final sendGridFrom = TextEditingController(
+      text: settings.sendGridFromEmail,
+    );
+    final sendGridName = TextEditingController(text: settings.sendGridFromName);
+    final sendGridTemplate = TextEditingController(
+      text: settings.sendGridTemplateId,
+    );
+    final callbackUrl = TextEditingController(
+      text: settings.twilioStatusCallbackUrl,
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Global notification providers'),
+          content: SizedBox(
+            width: 720,
+            height: MediaQuery.sizeOf(context).height * .72,
+            child: ListView(
+              children: [
+                const Text(
+                  'Choose the platform-wide routing policy. API keys are intentionally configured through Firebase Secret Manager, not this screen.',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<String>(
+                  initialValue: primary,
+                  decoration: const InputDecoration(
+                    labelText: 'Primary provider',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'msg91', child: Text('MSG91')),
+                    DropdownMenuItem(value: 'twilio', child: Text('Twilio')),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => primary = value ?? primary),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Use automatic fallback'),
+                  subtitle: const Text(
+                    'If the primary provider rejects or cannot deliver the API request, try the other provider once.',
+                  ),
+                  value: fallbackEnabled,
+                  onChanged: (value) => setState(() => fallbackEnabled = value),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: fallback,
+                  decoration: const InputDecoration(
+                    labelText: 'Fallback provider',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'msg91', child: Text('MSG91')),
+                    DropdownMenuItem(value: 'twilio', child: Text('Twilio')),
+                  ],
+                  onChanged: fallbackEnabled
+                      ? (value) => setState(() => fallback = value ?? fallback)
+                      : null,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _field(country, 'Default phone country code'),
+                const SizedBox(height: AppSpacing.md),
+                _providerFields(
+                  context,
+                  title: 'MSG91 identifiers',
+                  children: [
+                    _field(msg91Sms, 'SMS Flow/template ID'),
+                    _field(msg91WaTemplate, 'WhatsApp template name'),
+                    _field(msg91WaNamespace, 'WhatsApp namespace'),
+                    _field(msg91WaNumber, 'WhatsApp integrated number'),
+                    _field(msg91EmailTemplate, 'Email template ID'),
+                    _field(msg91EmailDomain, 'Verified email domain'),
+                    _field(msg91EmailFrom, 'Email sender address'),
+                    _field(msg91EmailName, 'Email sender name'),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _providerFields(
+                  context,
+                  title: 'Twilio and SendGrid identifiers',
+                  children: [
+                    _field(
+                      twilioService,
+                      'Messaging Service SID (recommended)',
+                    ),
+                    _field(
+                      twilioSmsFrom,
+                      'SMS From number/sender (if no service)',
+                    ),
+                    _field(twilioSmsContent, 'SMS Content SID (optional)'),
+                    _field(twilioWaFrom, 'WhatsApp sender number'),
+                    _field(twilioWaContent, 'WhatsApp Content SID'),
+                    _field(sendGridFrom, 'SendGrid verified sender email'),
+                    _field(sendGridName, 'SendGrid sender name'),
+                    _field(sendGridTemplate, 'SendGrid dynamic template ID'),
+                    _field(callbackUrl, 'Twilio status callback URL'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: primary == fallback && fallbackEnabled
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              child: const Text('Apply to all clinics'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == true && context.mounted) {
+      await context.read<FirebaseFireStore>().savePlatformNotificationSettings(
+        PlatformNotificationSettings(
+          primaryProvider: primary,
+          fallbackProvider: fallback,
+          fallbackEnabled: fallbackEnabled,
+          defaultCountryCode: country.text,
+          msg91SmsTemplateId: msg91Sms.text,
+          msg91WhatsappTemplateName: msg91WaTemplate.text,
+          msg91WhatsappNamespace: msg91WaNamespace.text,
+          msg91WhatsappIntegratedNumber: msg91WaNumber.text,
+          msg91EmailTemplateId: msg91EmailTemplate.text,
+          msg91EmailDomain: msg91EmailDomain.text,
+          msg91EmailFrom: msg91EmailFrom.text,
+          msg91EmailFromName: msg91EmailName.text,
+          twilioMessagingServiceSid: twilioService.text,
+          twilioSmsFrom: twilioSmsFrom.text,
+          twilioSmsContentSid: twilioSmsContent.text,
+          twilioWhatsappFrom: twilioWaFrom.text,
+          twilioWhatsappContentSid: twilioWaContent.text,
+          sendGridFromEmail: sendGridFrom.text,
+          sendGridFromName: sendGridName.text,
+          sendGridTemplateId: sendGridTemplate.text,
+          twilioStatusCallbackUrl: callbackUrl.text,
+        ),
+      );
+      if (context.mounted) {
+        _notice(context, 'Global notification settings updated.');
+      }
+    }
+    for (final controller in [
+      country,
+      msg91Sms,
+      msg91WaTemplate,
+      msg91WaNamespace,
+      msg91WaNumber,
+      msg91EmailTemplate,
+      msg91EmailDomain,
+      msg91EmailFrom,
+      msg91EmailName,
+      twilioService,
+      twilioSmsFrom,
+      twilioSmsContent,
+      twilioWaFrom,
+      twilioWaContent,
+      sendGridFrom,
+      sendGridName,
+      sendGridTemplate,
+      callbackUrl,
+    ]) {
+      controller.dispose();
+    }
+  }
+
+  Widget _providerFields(
+    BuildContext context, {
+    required String title,
+    required List<Widget> children,
+  }) => ExpansionTile(
+    tilePadding: EdgeInsets.zero,
+    initiallyExpanded: true,
+    title: Text(title, style: Theme.of(context).textTheme.titleMedium),
+    children: children
+        .map(
+          (child) => Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: child,
+          ),
+        )
+        .toList(),
+  );
 }
 
 class PlatformOverviewScreen extends StatelessWidget {
@@ -744,7 +1024,6 @@ class RemindersScreen extends StatelessWidget {
     final message = TextEditingController();
     final channel = TextEditingController(text: 'sms');
     final recipient = TextEditingController();
-    final templateId = TextEditingController();
     final days = TextEditingController(text: '1');
     final saved = await _formDialog(context, 'Schedule reminder', [
       _field(patient, 'Patient name'),
@@ -752,7 +1031,6 @@ class RemindersScreen extends StatelessWidget {
       _field(message, 'Message'),
       _field(channel, 'Channel (sms, whatsapp or email)'),
       _field(recipient, 'Recipient email or phone with country code'),
-      _field(templateId, 'Template ID/name (optional; uses default)'),
       _field(days, 'Send after number of days', number: true),
     ]);
     final selectedChannel = channel.text.trim().toLowerCase();
@@ -768,7 +1046,6 @@ class RemindersScreen extends StatelessWidget {
           type: type.text,
           message: message.text,
           channel: selectedChannel,
-          templateId: templateId.text,
           scheduledAt: DateTime.now().add(
             Duration(days: int.tryParse(days.text) ?? 1),
           ),

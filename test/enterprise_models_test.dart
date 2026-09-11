@@ -50,6 +50,29 @@ void main() {
     expect(reminder.attempts, 2);
   });
 
+  test(
+    'global notification settings preserve primary and fallback providers',
+    () {
+      final settings = PlatformNotificationSettings.fromMap({
+        'primary_provider': 'twilio',
+        'fallback_provider': 'msg91',
+        'fallback_enabled': true,
+        'default_country_code': '91',
+        'msg91': {'sms_template_id': 'flow-1'},
+        'twilio': {
+          'messaging_service_sid': 'MG123',
+          'whatsapp_content_sid': 'HX123',
+        },
+      });
+
+      expect(settings.primaryProvider, 'twilio');
+      expect(settings.fallbackProvider, 'msg91');
+      expect(settings.fallbackEnabled, isTrue);
+      expect(settings.msg91SmsTemplateId, 'flow-1');
+      expect(settings.twilioWhatsappContentSid, 'HX123');
+    },
+  );
+
   test('team invitation preserves its pending clinic role', () {
     final invitation = TeamInvitation.fromMap(
       {'email': 'doctor@example.com', 'role': 'doctor', 'status': 'pending'},

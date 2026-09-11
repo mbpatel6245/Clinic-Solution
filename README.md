@@ -57,9 +57,10 @@ role-based rules:
 firebase deploy --only firestore:rules
 ```
 
-Notification providers are configured server-side. See
-[NOTIFICATION_SETUP.md](NOTIFICATION_SETUP.md) for the MSG91-backed email, SMS,
-and WhatsApp setup and security model.
+Notification providers are configured globally by the Platform Owner, with
+MSG91/Twilio primary and optional fallback routing. Credentials remain
+server-side. See [NOTIFICATION_SETUP.md](NOTIFICATION_SETUP.md) for email, SMS,
+WhatsApp, templates, callbacks, and Secret Manager setup.
 
 Persistent offline caching is enabled on Web, Android, iOS, and macOS. Windows
 uses the connected Firestore client without persistent cache. The official

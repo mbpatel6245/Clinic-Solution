@@ -1,13 +1,14 @@
-# MSG91 notification setup
+# MSG91 and Twilio notification setup
 
 Last verified: **11 September 2026**
 
 The clinic platform sends scheduled email, SMS, and WhatsApp reminders from
-Firebase Functions through MSG91. The retired Firebase Trigger Email extension
-is not used. Provider keys never enter Flutter, Firestore, source control, or a
-browser bundle.
+Firebase Functions through MSG91, Twilio, or both. The Product Owner selects a
+global primary provider and optional fallback; that policy applies to every
+clinic. The retired Firebase Trigger Email extension is not used. Provider keys
+never enter Flutter, Firestore, source control, or a browser bundle.
 
-## Why MSG91 is the default
+## Recommended provider policy
 
 For an India-first clinic product, MSG91 is currently the more economical
 single-provider choice:
@@ -24,8 +25,13 @@ before purchasing: [MSG91 email pricing](https://msg91.com/in/pricing/email),
 [MSG91 SMS pricing](https://msg91.com/in/pricing/sms), and
 [Twilio India SMS pricing](https://www.twilio.com/en-us/sms/pricing/in).
 
-The integration is isolated in `functions/src/msg91.ts`, so another provider
-can be added later without putting provider code in the Flutter app.
+Start with **MSG91 primary and Twilio fallback** for an India-first deployment.
+This uses MSG91's lower domestic SMS price in normal operation while retaining
+Twilio as an operational fallback. You can reverse or disable this routing from
+**Clinic setup → Global notifications** without redeploying functions.
+
+Provider adapters are isolated in `functions/src/msg91.ts` and
+`functions/src/twilio.ts`; provider code and credentials never enter Flutter.
 
 ## What is already implemented
 
@@ -34,7 +40,10 @@ can be added later without putting provider code in the Flutter app.
 - Atomic claiming, a five-minute lease, a maximum of three attempts, and
   exponential retry for timeouts, HTTP 429, and server errors.
 - MSG91 Flow SMS, template email, and approved-template WhatsApp calls.
-- A protected delivery webhook and an authenticated admin-only test function.
+- Twilio Messages API for SMS/WhatsApp and Twilio SendGrid v3 for email.
+- Global primary/fallback routing managed only by Product Owner/Super Admin.
+- Protected MSG91 and cryptographically validated Twilio delivery webhooks.
+- An authenticated admin-only test function with optional provider override.
 - Auth-account cleanup after a Platform Owner deletes a member profile.
 - Firestore indexes for scheduled, retry, and abandoned-processing jobs.
 - Client rules that stop users from forging provider IDs or delivery results.
@@ -44,7 +53,9 @@ parameters; this code uses `defineSecret` and does not use the deprecated
 `functions.config()`. See [manage function runtimes](https://firebase.google.com/docs/functions/manage-functions)
 and [environment configuration](https://firebase.google.com/docs/functions/config-env).
 
-## 1. Create the MSG91 account and key
+## 1. Create the provider accounts and secrets
+
+### MSG91
 
 1. Sign up at [MSG91](https://control.msg91.com/signin/) using the company
    account that will own production messaging.
@@ -69,6 +80,26 @@ firebase functions:secrets:set NOTIFICATION_WEBHOOK_SECRET --project clinical-so
 ```
 
 Use at least 32 random characters. A password manager can generate it.
+
+### Twilio and SendGrid
+
+1. Create a [Twilio account](https://console.twilio.com/) and complete business
+   verification and the relevant India regulatory registration.
+2. Copy the Account SID and Auth Token from the Twilio Console.
+3. Enable Twilio SendGrid, authenticate a sending domain, create a restricted
+   Mail Send API key, and keep that key separate from the Twilio Auth Token.
+4. Add all three values to Firebase Secret Manager:
+
+```powershell
+firebase functions:secrets:set TWILIO_ACCOUNT_SID --project clinical-solution-5dc1d
+firebase functions:secrets:set TWILIO_AUTH_TOKEN --project clinical-solution-5dc1d
+firebase functions:secrets:set SENDGRID_API_KEY --project clinical-solution-5dc1d
+```
+
+The implementation uses Twilio's current
+[Messages resource](https://www.twilio.com/docs/messaging/api/message-resource),
+[Content Template Builder](https://www.twilio.com/docs/content/create-templates-with-the-content-template-builder),
+and [SendGrid v3 Mail Send API](https://www.twilio.com/docs/sendgrid/api-reference/mail-send/mail-send).
 
 ## 2. Configure India SMS
 
@@ -119,7 +150,54 @@ The backend follows the current [MSG91 Send Email API](https://docs.msg91.com/em
 See the current [MSG91 WhatsApp API overview](https://docs.msg91.com/whatsapp)
 and [template creation API](https://docs.msg91.com/whatsapp/create-whatsapp-template).
 
-## 5. Put non-secret identifiers in the correct file
+## 5. Configure Twilio channels
+
+### SMS
+
+Create a Messaging Service and attach an approved sender. For India, complete
+Twilio's current regulatory/DLT onboarding and make the outbound content match
+the approved template. Copy the Messaging Service SID (`MG...`). A direct
+`From` sender is supported when a Messaging Service is not used, but the
+Messaging Service is recommended. Optionally use an approved Content SID
+(`HX...`) whose variables are `{{1}}` patient name, `{{2}}` clinic name, and
+`{{3}}` reminder message.
+
+Use Twilio's current [India SMS guidelines](https://www.twilio.com/en-us/guidelines/in/sms)
+and [DLT registration instructions](https://help.twilio.com/articles/21162166457755-Documents-Required-and-Instructions-to-Register-Your-Alphanumeric-Sender-ID-in-India)
+when preparing production traffic.
+
+### WhatsApp
+
+Connect a WhatsApp Business sender in Twilio, then create and submit a Utility
+Content Template with the same three ordered variables. Copy the approved
+Content SID (`HX...`) and WhatsApp sender number. Scheduled business-initiated
+messages must use an approved template and patient opt-in.
+
+### Email through Twilio SendGrid
+
+Authenticate a dedicated sending domain using every DNS record supplied by
+SendGrid. Create a Dynamic Template containing `patient_name`, `clinic_name`,
+and `message`, then copy its `d-...` template ID and verified sender address.
+
+## 6. Configure the global routing policy
+
+Sign in as Product Owner/Super Admin and open:
+
+```text
+Clinic setup → Global notifications → Configure providers
+```
+
+Choose the primary provider, enable/disable fallback, select the other provider
+as fallback, and enter both providers' sender/template identifiers. Select
+**Apply to all clinics**. The values are stored at
+`platform_settings/notifications`, readable and writable only by the Platform
+Owner role. Clinic admins cannot change the platform-wide routing.
+
+When fallback is enabled, a failed primary API request is attempted once using
+the other provider. A scheduled retry occurs only if neither provider accepts
+the request.
+
+## 7. Environment defaults for first deployment
 
 Copy `functions/.env.example` to
 `functions/.env.clinical-solution-5dc1d` and fill in the IDs:
@@ -134,6 +212,15 @@ MSG91_EMAIL_TEMPLATE_ID=your_email_template_id
 MSG91_EMAIL_DOMAIN=notify.exampleclinic.com
 MSG91_EMAIL_FROM=reminders@notify.exampleclinic.com
 MSG91_EMAIL_FROM_NAME=Example Clinic
+TWILIO_MESSAGING_SERVICE_SID=MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_SMS_FROM=
+TWILIO_SMS_CONTENT_SID=
+TWILIO_WHATSAPP_FROM=14155238886
+TWILIO_WHATSAPP_CONTENT_SID=HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SENDGRID_FROM_EMAIL=reminders@notify.exampleclinic.com
+SENDGRID_FROM_NAME=Example Clinic
+SENDGRID_TEMPLATE_ID=d-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_STATUS_CALLBACK_URL=https://asia-south1-clinical-solution-5dc1d.cloudfunctions.net/twilioDeliveryWebhook
 ```
 
 The real environment file is git-ignored. Only `.env.example` is committed.
@@ -147,11 +234,14 @@ also git-ignored:
 ```dotenv
 MSG91_AUTH_KEY=local-or-test-key
 NOTIFICATION_WEBHOOK_SECRET=local-random-secret
+TWILIO_ACCOUNT_SID=AC-local-test-value
+TWILIO_AUTH_TOKEN=local-test-token
+SENDGRID_API_KEY=local-test-key
 ```
 
 Never use the production auth key when running local tests.
 
-## 6. Install, verify, and deploy
+## 8. Install, verify, and deploy
 
 Use Firebase CLI 15 or newer and a Blaze Firebase project because scheduled
 functions require billing. From the repository root:
@@ -172,10 +262,13 @@ After deployment, confirm these functions exist in `asia-south1`:
 
 - `dispatchDueReminders`
 - `msg91DeliveryWebhook`
+- `twilioDeliveryWebhook`
 - `sendTestNotification`
 - `deleteAuthUserAfterProfileDeletion`
 
-## 7. Configure delivery callbacks
+## 9. Configure delivery callbacks
+
+### MSG91
 
 The deployed webhook URL is printed by Firebase. In MSG91's delivery/report
 webhook settings, set the callback to:
@@ -189,7 +282,26 @@ otherwise use the query parameter. Use the same value stored in
 `NOTIFICATION_WEBHOOK_SECRET`. The function accepts POST only and updates a
 reminder only when its MSG91 message ID matches.
 
-## 8. Send and verify a reminder
+### Twilio
+
+Set the exact callback URL below in the global owner screen and in the Twilio
+Messaging Service status callback configuration:
+
+```text
+https://asia-south1-clinical-solution-5dc1d.cloudfunctions.net/twilioDeliveryWebhook
+```
+
+Twilio signs callbacks with `X-Twilio-Signature`. The function recomputes and
+compares the HMAC signature using `TWILIO_AUTH_TOKEN` before updating a
+reminder. The configured URL must match exactly—including scheme, host, path,
+and any query string—or validation will fail. See Twilio's
+[webhook security documentation](https://www.twilio.com/docs/usage/webhooks/webhooks-security).
+
+SendGrid email is marked accepted from its HTTP 202 response. Add a signed
+SendGrid Event Webhook in a later phase if delivered/bounce/open tracking is
+required; do not point SendGrid events at the Twilio Messaging callback.
+
+## 10. Send and verify a reminder
 
 In the app, open **Reminders → Schedule**, choose `sms`, `whatsapp`, or `email`,
 enter the recipient, and select a future time. Phone numbers should include the
@@ -203,18 +315,19 @@ scheduled → processing → sent → delivered/read
                          ↘ retry → failed
 ```
 
-Check the reminder in Firestore and the corresponding MSG91 channel logs. A
+Check the reminder in Firestore and the corresponding MSG91 or Twilio channel
+logs. The `provider` field records which provider accepted the message. A
 failure stores a safe `failure_reason`; credentials and full provider responses
 are never written to Firestore or logs.
 
 ## Production recommendations
 
-- Use separate MSG91 accounts/keys or subaccounts for development and
+- Use separate MSG91 and Twilio accounts/keys or subaccounts for development and
   production, and rotate keys at least annually or after staff changes.
 - Keep reminder text minimal. Avoid diagnoses, test results, prescriptions, or
   other sensitive clinical data in SMS/email/WhatsApp.
 - Obtain explicit channel consent and retain when/how it was collected.
-- Set MSG91 wallet/spending alerts and Firebase budget alerts; pricing is an
+- Set provider wallet/spending alerts and Firebase budget alerts; pricing is an
   operational setting, not a code constant.
 - Use one general appointment template first. Add vaccination, payment, and
   follow-up templates only after message wording and consent are approved.

@@ -326,6 +326,26 @@ class FirebaseFireStore with ChangeNotifier {
         return clinics;
       });
 
+  Stream<PlatformNotificationSettings> streamPlatformNotificationSettings() =>
+      _db
+          .collection('platform_settings')
+          .doc('notifications')
+          .snapshots()
+          .map(
+            (snapshot) => PlatformNotificationSettings.fromMap(
+              snapshot.data() ?? const <String, dynamic>{},
+            ),
+          );
+
+  Future<void> savePlatformNotificationSettings(
+    PlatformNotificationSettings settings,
+  ) => _queueWrite(
+    _db
+        .collection('platform_settings')
+        .doc('notifications')
+        .set(settings.toMap(), SetOptions(merge: true)),
+  );
+
   Stream<List<TeamInvitation>> streamTeamInvitations({
     bool allClinics = false,
   }) =>

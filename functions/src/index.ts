@@ -12,12 +12,21 @@ import {HttpsError, onCall, onRequest} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onDocumentDeleted} from "firebase-functions/v2/firestore";
 import {
-  ProviderError,
   sendWithMsg91,
   type Msg91Config,
+} from "./msg91.js";
+import {
+  ProviderError,
   type NotificationChannel,
   type NotificationJob,
-} from "./msg91.js";
+  type NotificationProviderName,
+  type SendResult,
+} from "./notification_provider.js";
+import {
+  sendWithTwilio,
+  validateTwilioWebhook,
+  type TwilioConfig,
+} from "./twilio.js";
 import {timingSafeEqual} from "node:crypto";
 
 initializeApp();
@@ -25,6 +34,9 @@ const db = getFirestore();
 
 const MSG91_AUTH_KEY = defineSecret("MSG91_AUTH_KEY");
 const NOTIFICATION_WEBHOOK_SECRET = defineSecret("NOTIFICATION_WEBHOOK_SECRET");
+const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
+const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
+const SENDGRID_API_KEY = defineSecret("SENDGRID_API_KEY");
 const DEFAULT_COUNTRY_CODE = defineString("MSG91_DEFAULT_COUNTRY_CODE", {default: "91"});
 const SMS_TEMPLATE_ID = defineString("MSG91_SMS_TEMPLATE_ID", {default: ""});
 const WHATSAPP_TEMPLATE_NAME = defineString("MSG91_WHATSAPP_TEMPLATE_NAME", {default: ""});
@@ -34,23 +46,126 @@ const EMAIL_TEMPLATE_ID = defineString("MSG91_EMAIL_TEMPLATE_ID", {default: ""})
 const EMAIL_DOMAIN = defineString("MSG91_EMAIL_DOMAIN", {default: ""});
 const EMAIL_FROM = defineString("MSG91_EMAIL_FROM", {default: ""});
 const EMAIL_FROM_NAME = defineString("MSG91_EMAIL_FROM_NAME", {default: "Clinic"});
+const TWILIO_MESSAGING_SERVICE_SID = defineString("TWILIO_MESSAGING_SERVICE_SID", {default: ""});
+const TWILIO_SMS_FROM = defineString("TWILIO_SMS_FROM", {default: ""});
+const TWILIO_SMS_CONTENT_SID = defineString("TWILIO_SMS_CONTENT_SID", {default: ""});
+const TWILIO_WHATSAPP_FROM = defineString("TWILIO_WHATSAPP_FROM", {default: ""});
+const TWILIO_WHATSAPP_CONTENT_SID = defineString("TWILIO_WHATSAPP_CONTENT_SID", {default: ""});
+const SENDGRID_FROM_EMAIL = defineString("SENDGRID_FROM_EMAIL", {default: ""});
+const SENDGRID_FROM_NAME = defineString("SENDGRID_FROM_NAME", {default: "Clinic"});
+const SENDGRID_TEMPLATE_ID = defineString("SENDGRID_TEMPLATE_ID", {default: ""});
+const TWILIO_STATUS_CALLBACK_URL = defineString("TWILIO_STATUS_CALLBACK_URL", {default: ""});
 
 const MAX_ATTEMPTS = 3;
 const REGION = "asia-south1";
 
-function config(): Msg91Config {
+interface ProviderSelection {
+  primary: NotificationProviderName;
+  fallback: NotificationProviderName;
+  fallbackEnabled: boolean;
+  defaultCountryCode: string;
+  msg91: Record<string, string>;
+  twilio: Record<string, string>;
+}
+
+function stringMap(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, asString(item)]),
+  );
+}
+
+function providerName(value: unknown, fallback: NotificationProviderName): NotificationProviderName {
+  return value === "twilio" || value === "msg91" ? value : fallback;
+}
+
+async function providerSelection(): Promise<ProviderSelection> {
+  const snapshot = await db.doc("platform_settings/notifications").get();
+  const data = snapshot.data() ?? {};
+  return {
+    primary: providerName(data.primary_provider, "msg91"),
+    fallback: providerName(data.fallback_provider, "twilio"),
+    fallbackEnabled: data.fallback_enabled === true,
+    defaultCountryCode: asString(data.default_country_code, DEFAULT_COUNTRY_CODE.value()),
+    msg91: stringMap(data.msg91),
+    twilio: stringMap(data.twilio),
+  };
+}
+
+function msg91Config(settings: ProviderSelection): Msg91Config {
+  const values = settings.msg91;
   return {
     authKey: MSG91_AUTH_KEY.value(),
-    defaultCountryCode: DEFAULT_COUNTRY_CODE.value(),
-    smsTemplateId: SMS_TEMPLATE_ID.value(),
-    whatsappTemplateName: WHATSAPP_TEMPLATE_NAME.value(),
-    whatsappNamespace: WHATSAPP_NAMESPACE.value(),
-    whatsappIntegratedNumber: WHATSAPP_NUMBER.value(),
-    emailTemplateId: EMAIL_TEMPLATE_ID.value(),
-    emailDomain: EMAIL_DOMAIN.value(),
-    emailFrom: EMAIL_FROM.value(),
-    emailFromName: EMAIL_FROM_NAME.value(),
+    defaultCountryCode: settings.defaultCountryCode,
+    smsTemplateId: values.sms_template_id || SMS_TEMPLATE_ID.value(),
+    whatsappTemplateName: values.whatsapp_template_name || WHATSAPP_TEMPLATE_NAME.value(),
+    whatsappNamespace: values.whatsapp_namespace || WHATSAPP_NAMESPACE.value(),
+    whatsappIntegratedNumber: values.whatsapp_integrated_number || WHATSAPP_NUMBER.value(),
+    emailTemplateId: values.email_template_id || EMAIL_TEMPLATE_ID.value(),
+    emailDomain: values.email_domain || EMAIL_DOMAIN.value(),
+    emailFrom: values.email_from || EMAIL_FROM.value(),
+    emailFromName: values.email_from_name || EMAIL_FROM_NAME.value(),
   };
+}
+
+function twilioConfig(settings: ProviderSelection): TwilioConfig {
+  const values = settings.twilio;
+  return {
+    accountSid: TWILIO_ACCOUNT_SID.value(),
+    authToken: TWILIO_AUTH_TOKEN.value(),
+    sendGridApiKey: SENDGRID_API_KEY.value(),
+    defaultCountryCode: settings.defaultCountryCode,
+    messagingServiceSid: values.messaging_service_sid || TWILIO_MESSAGING_SERVICE_SID.value(),
+    smsFrom: values.sms_from || TWILIO_SMS_FROM.value(),
+    smsContentSid: values.sms_content_sid || TWILIO_SMS_CONTENT_SID.value(),
+    whatsappFrom: values.whatsapp_from || TWILIO_WHATSAPP_FROM.value(),
+    whatsappContentSid: values.whatsapp_content_sid || TWILIO_WHATSAPP_CONTENT_SID.value(),
+    sendGridFromEmail: values.sendgrid_from_email || SENDGRID_FROM_EMAIL.value(),
+    sendGridFromName: values.sendgrid_from_name || SENDGRID_FROM_NAME.value(),
+    sendGridTemplateId: values.sendgrid_template_id || SENDGRID_TEMPLATE_ID.value(),
+    statusCallbackUrl: values.status_callback_url || TWILIO_STATUS_CALLBACK_URL.value(),
+  };
+}
+
+async function sendThroughProvider(
+  provider: NotificationProviderName,
+  job: NotificationJob,
+  settings: ProviderSelection,
+): Promise<SendResult> {
+  return provider === "twilio"
+    ? sendWithTwilio(job, twilioConfig(settings))
+    : sendWithMsg91(job, msg91Config(settings));
+}
+
+async function sendNotification(
+  job: NotificationJob,
+  settings: ProviderSelection,
+  providerOverride?: NotificationProviderName,
+): Promise<SendResult> {
+  const providers = providerOverride
+    ? [providerOverride]
+    : [
+        settings.primary,
+        ...(settings.fallbackEnabled && settings.fallback !== settings.primary
+          ? [settings.fallback]
+          : []),
+      ];
+  let lastError: unknown;
+  for (const provider of providers) {
+    try {
+      const providerJob = !providerOverride && provider !== settings.primary
+        ? {...job, templateId: undefined}
+        : job;
+      return await sendThroughProvider(provider, providerJob, settings);
+    } catch (error) {
+      lastError = error;
+      logger.warn("Notification provider attempt failed", {
+        provider,
+        retryable: error instanceof ProviderError ? error.retryable : true,
+      });
+    }
+  }
+  throw lastError ?? new ProviderError("No notification provider is configured", false);
 }
 
 function asString(value: unknown, fallback = ""): string {
@@ -105,7 +220,7 @@ async function claim(
     transaction.update(ref, {
       status: "processing",
       attempts: attempts + 1,
-      provider: "msg91",
+      provider: FieldValue.delete(),
       processing_started_at: FieldValue.serverTimestamp(),
       lease_expires_at: Timestamp.fromMillis(Date.now() + 5 * 60_000),
       updated_at: FieldValue.serverTimestamp(),
@@ -117,11 +232,12 @@ async function claim(
 async function deliver(
   ref: DocumentReference,
   expectedStatus: "scheduled" | "retry" | "processing",
+  settings: ProviderSelection,
 ): Promise<void> {
   const claimed = await claim(ref, expectedStatus);
   if (!claimed) return;
   try {
-    const result = await sendWithMsg91(claimed.job, config());
+    const result = await sendNotification(claimed.job, settings);
     await ref.update({
       status: "sent",
       provider: result.provider,
@@ -192,16 +308,24 @@ export const dispatchDueReminders = onSchedule(
     schedule: "every minute",
     timeZone: "Asia/Kolkata",
     region: REGION,
-    secrets: [MSG91_AUTH_KEY],
+    secrets: [
+      MSG91_AUTH_KEY,
+      TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN,
+      SENDGRID_API_KEY,
+    ],
     timeoutSeconds: 300,
     memory: "256MiB",
     maxInstances: 1,
   },
   async () => {
+    const settings = await providerSelection();
     const due = await dueDocuments();
     for (let index = 0; index < due.length; index += 10) {
       await Promise.all(
-        due.slice(index, index + 10).map(({ref, status}) => deliver(ref, status)),
+        due
+          .slice(index, index + 10)
+          .map(({ref, status}) => deliver(ref, status, settings)),
       );
     }
     logger.info("Reminder dispatch completed", {processed: due.length});
@@ -288,7 +412,15 @@ async function canManageClinic(uid: string, clinicId: string): Promise<boolean> 
 }
 
 export const sendTestNotification = onCall(
-  {region: REGION, secrets: [MSG91_AUTH_KEY]},
+  {
+    region: REGION,
+    secrets: [
+      MSG91_AUTH_KEY,
+      TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN,
+      SENDGRID_API_KEY,
+    ],
+  },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Sign in first");
     const input = request.data as Record<string, unknown>;
@@ -298,7 +430,11 @@ export const sendTestNotification = onCall(
     }
     const clinic = await db.collection("clinics").doc(clinicId).get();
     try {
-      const result = await sendWithMsg91(
+      const settings = await providerSelection();
+      const override = input.provider === "msg91" || input.provider === "twilio"
+        ? input.provider
+        : undefined;
+      const result = await sendNotification(
         {
           channel: channel(input.channel),
           recipient: asString(input.recipient),
@@ -308,13 +444,70 @@ export const sendTestNotification = onCall(
           templateId: asString(input.templateId) || undefined,
           templateLanguage: asString(input.templateLanguage) || undefined,
         },
-        config(),
+        settings,
+        override,
       );
       return {ok: true, provider: result.provider, messageId: result.messageId};
     } catch (error) {
       const message = error instanceof Error ? error.message : "Notification failed";
       throw new HttpsError("failed-precondition", message);
     }
+  },
+);
+
+export const twilioDeliveryWebhook = onRequest(
+  {region: REGION, secrets: [TWILIO_AUTH_TOKEN]},
+  async (request, response) => {
+    if (request.method !== "POST") {
+      response.status(405).send("Method not allowed");
+      return;
+    }
+    const settings = await providerSelection();
+    const callbackUrl = twilioConfig(settings).statusCallbackUrl;
+    const signature = request.get("x-twilio-signature") ?? "";
+    if (
+      !callbackUrl ||
+      !signature ||
+      !validateTwilioWebhook(
+        TWILIO_AUTH_TOKEN.value(),
+        signature,
+        callbackUrl,
+        request.body as Record<string, unknown>,
+      )
+    ) {
+      response.status(401).send("Unauthorized");
+      return;
+    }
+    const messageId = asString(request.body?.MessageSid);
+    const providerStatus = asString(request.body?.MessageStatus).toLowerCase();
+    if (!messageId || !providerStatus) {
+      response.status(400).send("MessageSid and MessageStatus are required");
+      return;
+    }
+    const matches = await db
+      .collectionGroup("reminders")
+      .where("provider_message_id", "==", messageId)
+      .limit(10)
+      .get();
+    const terminalStatus = providerStatus === "delivered"
+      ? "delivered"
+      : providerStatus === "read"
+        ? "read"
+        : ["failed", "undelivered", "canceled"].includes(providerStatus)
+          ? "failed"
+          : "sent";
+    await Promise.all(
+      matches.docs.map((doc) =>
+        doc.ref.update({
+          status: terminalStatus,
+          provider_status: providerStatus.slice(0, 100),
+          provider_error_code: asString(request.body?.ErrorCode).slice(0, 50),
+          delivery_updated_at: FieldValue.serverTimestamp(),
+          updated_at: FieldValue.serverTimestamp(),
+        }),
+      ),
+    );
+    response.status(200).send("OK");
   },
 );
 

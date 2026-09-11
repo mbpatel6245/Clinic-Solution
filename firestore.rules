@@ -132,6 +132,11 @@ service cloud.firestore {
       allow delete: if isPlatformOwner() && request.auth.uid != userId;
     }
 
+    match /platform_settings/{settingId} {
+      allow read, create, update: if isPlatformOwner();
+      allow delete: if false;
+    }
+
     match /clinics/{clinicId} {
       allow read: if belongsTo(clinicId);
       allow create, update: if isPlatformOwner();

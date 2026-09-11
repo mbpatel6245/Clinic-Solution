@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {normalizePhone, sendWithMsg91, type Msg91Config} from "./msg91.js";
+import {normalizePhone} from "./notification_provider.js";
+import {sendWithMsg91, type Msg91Config} from "./msg91.js";
 
 const config: Msg91Config = {
   authKey: "test-key",
