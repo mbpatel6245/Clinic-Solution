@@ -334,6 +334,12 @@ approves it. After approval, the member signs in with the one-time password and
 the app requires a new password immediately. Verify the global email template
 before inviting production users.
 
+The **Team & roles → Pending approvals** menu shows the current email state and
+provides **Approve member**, **Resend invitation email**, and **Reject &
+remove** actions. Resend also processes invitations created before the latest
+notification functions were deployed. Both `provisionInvitedMember` and
+`resendInvitedMemberEmail` must be deployed for automatic and manual delivery.
+
 - Use separate MSG91 and Twilio accounts/keys or subaccounts for development and
   production, and rotate keys at least annually or after staff changes.
 - Keep reminder text minimal. Avoid diagnoses, test results, prescriptions, or

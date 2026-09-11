@@ -10,7 +10,11 @@ import {logger} from "firebase-functions";
 import {defineSecret, defineString} from "firebase-functions/params";
 import {HttpsError, onCall, onRequest} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
-import {onDocumentCreated, onDocumentDeleted} from "firebase-functions/v2/firestore";
+import {
+  onDocumentCreated,
+  onDocumentDeleted,
+  onDocumentUpdated,
+} from "firebase-functions/v2/firestore";
 import {
   sendWithMsg91,
   type Msg91Config,
@@ -539,29 +543,18 @@ export const cleanupDeletedClinic = onDocumentDeleted(
   },
 );
 
-export const provisionInvitedMember = onDocumentCreated(
-  {
-    document: "clinics/{clinicId}/team_invites/{inviteId}",
-    region: REGION,
-    secrets: [
-      MSG91_AUTH_KEY,
-      TWILIO_ACCOUNT_SID,
-      TWILIO_AUTH_TOKEN,
-      SENDGRID_API_KEY,
-    ],
-  },
-  async (event) => {
-    const invitation = event.data;
-    if (!invitation) return;
+async function provisionInvitation(
+  invitation: {data(): Record<string, unknown>; ref: DocumentReference},
+  clinicId: string,
+): Promise<void> {
     const data = invitation.data() as Record<string, unknown>;
     const email = asString(data.email).toLowerCase();
     const role = asString(data.role, "doctor");
-    const clinicId = event.params.clinicId;
     if (!email || asString(data.status, "pending") !== "pending") return;
 
     let account;
     let isNewAccount = false;
-    let invitationEmailSent = false;
+    let sendTemporaryPassword = false;
     const temporaryPassword = `C!${randomBytes(9).toString("base64url")}9a`;
     try {
       try {
@@ -571,12 +564,24 @@ export const provisionInvitedMember = onDocumentCreated(
       }
       if (!account) {
         isNewAccount = true;
+        sendTemporaryPassword = true;
         account = await getAuth().createUser({
           email,
           password: temporaryPassword,
           emailVerified: false,
           displayName: email.split("@")[0],
         });
+      } else {
+        const existingProfile = await db.collection("users").doc(account.uid).get();
+        if (
+          !existingProfile.exists ||
+          (existingProfile.data()?.status === "pending" &&
+            existingProfile.data()?.must_change_password === true)
+        ) {
+          await getAuth().updateUser(account.uid, {password: temporaryPassword});
+          sendTemporaryPassword = true;
+          isNewAccount = !existingProfile.exists;
+        }
       }
       if (isNewAccount) {
         await db.collection("users").doc(account.uid).set({
@@ -603,17 +608,18 @@ export const provisionInvitedMember = onDocumentCreated(
         recipient: email,
         patientName: account.displayName ?? "Team member",
         clinicName,
-        message: isNewAccount
+        message: sendTemporaryPassword
           ? `You have been invited to ${clinicName}. Your account is pending platform approval. Sign in with the temporary password and change it immediately after approval.`
           : `You have been invited to ${clinicName}. Your existing account will gain access after platform approval.`,
         templateVariables: {
           username: email,
-          temporary_password: isNewAccount ? temporaryPassword : "Use your existing password",
+          temporary_password: sendTemporaryPassword
+            ? temporaryPassword
+            : "Use your existing password",
           role,
           approval_status: "pending",
         },
       }, settings);
-      invitationEmailSent = true;
       await invitation.ref.update({
         user_id: account.uid,
         notification_status: "sent",
@@ -623,16 +629,49 @@ export const provisionInvitedMember = onDocumentCreated(
       });
     } catch (error) {
       logger.error("Invited member provisioning failed", {clinicId, email, error});
-      if (isNewAccount && account && !invitationEmailSent) {
-        await Promise.allSettled([
-          getAuth().deleteUser(account.uid),
-          db.collection("users").doc(account.uid).delete(),
-        ]);
-      }
       await invitation.ref.update({
         notification_status: "failed",
         notification_error: (error instanceof Error ? error.message : "Unknown error").slice(0, 500),
       });
+    }
+}
+
+const invitationTriggerOptions = {
+  document: "clinics/{clinicId}/team_invites/{inviteId}",
+  region: REGION,
+  secrets: [
+    MSG91_AUTH_KEY,
+    TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN,
+    SENDGRID_API_KEY,
+  ],
+};
+
+export const provisionInvitedMember = onDocumentCreated(
+  invitationTriggerOptions,
+  async (event) => {
+    if (event.data) {
+      await provisionInvitation(event.data, event.params.clinicId);
+    }
+  },
+);
+
+export const resendInvitedMemberEmail = onDocumentUpdated(
+  invitationTriggerOptions,
+  async (event) => {
+    const before = event.data?.before;
+    const after = event.data?.after;
+    if (!before || !after) return;
+    const previousRequest = before.data().resend_requested_at;
+    const currentRequest = after.data().resend_requested_at;
+    const previousMillis = previousRequest instanceof Timestamp
+      ? previousRequest.toMillis()
+      : 0;
+    const currentMillis = currentRequest instanceof Timestamp
+      ? currentRequest.toMillis()
+      : 0;
+    if (currentMillis > previousMillis) {
+      await provisionInvitation(after, event.params.clinicId);
     }
   },
 );

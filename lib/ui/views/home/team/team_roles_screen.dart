@@ -97,31 +97,39 @@ class TeamRolesScreen extends StatelessWidget {
                                   ),
                                   title: Text(invite.email),
                                   subtitle: Text(
-                                    '${invite.role.displayName} • ${clinicNames[invite.clinicId] ?? invite.clinicId}',
+                                    [
+                                      '${invite.role.displayName} • ${clinicNames[invite.clinicId] ?? invite.clinicId}',
+                                      'Email: ${invite.notificationStatus}',
+                                      if (invite.notificationError.isNotEmpty)
+                                        invite.notificationError,
+                                    ].join('\n'),
                                   ),
                                   trailing: isOwner
-                                      ? Wrap(
-                                          spacing: AppSpacing.xs,
-                                          children: [
-                                            IconButton(
-                                              tooltip: 'Approve',
-                                              onPressed: () => _approveInvite(
-                                                context,
-                                                invite,
-                                              ),
-                                              icon: const Icon(
-                                                Icons.check_circle_outline,
+                                      ? PopupMenuButton<String>(
+                                          tooltip: 'Manage pending invitation',
+                                          onSelected: (action) {
+                                            if (action == 'approve') {
+                                              _approveInvite(context, invite);
+                                            } else if (action == 'resend') {
+                                              _resendInvite(context, invite);
+                                            } else if (action == 'reject') {
+                                              _deleteInvite(context, invite);
+                                            }
+                                          },
+                                          itemBuilder: (_) => const [
+                                            PopupMenuItem(
+                                              value: 'approve',
+                                              child: Text('Approve member'),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 'resend',
+                                              child: Text(
+                                                'Resend invitation email',
                                               ),
                                             ),
-                                            IconButton(
-                                              tooltip: 'Delete invitation',
-                                              onPressed: () => _deleteInvite(
-                                                context,
-                                                invite,
-                                              ),
-                                              icon: const Icon(
-                                                Icons.delete_outline,
-                                              ),
+                                            PopupMenuItem(
+                                              value: 'reject',
+                                              child: Text('Reject & remove'),
                                             ),
                                           ],
                                         )
@@ -282,10 +290,22 @@ class TeamRolesScreen extends StatelessWidget {
   ) async {
     final confirmed = await _confirm(
       context,
-      'Delete this pending invitation?',
+      'Reject and remove this pending invitation?',
     );
     if (confirmed && context.mounted) {
       await context.read<FirebaseFireStore>().deleteTeamInvitation(invite);
+    }
+  }
+
+  Future<void> _resendInvite(
+    BuildContext context,
+    TeamInvitation invite,
+  ) async {
+    await context.read<FirebaseFireStore>().resendTeamInvitation(invite);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invitation email queued for resend.')),
+      );
     }
   }
 }
@@ -345,42 +365,61 @@ class _TeamMemberCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (isOwner && user.status == 'pending')
+            if (isOwner && user.status == 'pending') ...[
               IconButton(
-                tooltip: 'Approve member',
+                tooltip: 'Approve request',
                 onPressed: () => _approveRegistration(context, user, clinics),
                 icon: const Icon(Icons.check_circle_outline),
               ),
-            IconButton(
-              tooltip: 'Edit member details',
-              onPressed: currentUser ? null : () => _editMember(context, user),
-              icon: const Icon(Icons.manage_accounts_outlined),
-            ),
-            IconButton(
-              tooltip: 'Edit clinic role',
-              onPressed: currentUser
-                  ? null
-                  : () => _editRole(
-                      context,
-                      user,
-                      clinics,
-                      isOwner,
-                      activeClinicId,
-                    ),
-              icon: const Icon(Icons.edit_outlined),
-            ),
-            IconButton(
-              tooltip: isOwner ? 'Delete member' : 'Remove from this clinic',
-              onPressed: currentUser
-                  ? null
-                  : () => _deleteMember(
-                      context,
-                      user,
-                      isOwner: isOwner,
-                      clinicId: activeClinicId,
-                    ),
-              icon: const Icon(Icons.delete_outline),
-            ),
+              IconButton(
+                tooltip: 'Reject request',
+                onPressed: currentUser
+                    ? null
+                    : () => _deleteMember(
+                        context,
+                        user,
+                        isOwner: true,
+                        clinicId: activeClinicId,
+                        pendingRequest: true,
+                      ),
+                icon: const Icon(Icons.cancel_outlined),
+              ),
+            ],
+            if (!(isOwner && user.status == 'pending'))
+              IconButton(
+                tooltip: 'Edit member details',
+                onPressed: currentUser
+                    ? null
+                    : () => _editMember(context, user),
+                icon: const Icon(Icons.manage_accounts_outlined),
+              ),
+            if (!(isOwner && user.status == 'pending'))
+              IconButton(
+                tooltip: 'Edit clinic role',
+                onPressed: currentUser
+                    ? null
+                    : () => _editRole(
+                        context,
+                        user,
+                        clinics,
+                        isOwner,
+                        activeClinicId,
+                      ),
+                icon: const Icon(Icons.edit_outlined),
+              ),
+            if (!(isOwner && user.status == 'pending'))
+              IconButton(
+                tooltip: isOwner ? 'Delete member' : 'Remove from this clinic',
+                onPressed: currentUser
+                    ? null
+                    : () => _deleteMember(
+                        context,
+                        user,
+                        isOwner: isOwner,
+                        clinicId: activeClinicId,
+                      ),
+                icon: const Icon(Icons.delete_outline),
+              ),
           ],
         ),
       ),
@@ -621,10 +660,13 @@ Future<void> _deleteMember(
   UserModel user, {
   required bool isOwner,
   required String clinicId,
+  bool pendingRequest = false,
 }) async {
   final confirmed = await _confirm(
     context,
-    isOwner
+    pendingRequest
+        ? 'Reject ${user.name.isEmpty ? user.email : user.name} and permanently remove this access request?'
+        : isOwner
         ? 'Delete ${user.name.isEmpty ? user.email : user.name}? This removes platform access.'
         : 'Remove ${user.name.isEmpty ? user.email : user.name} from this clinic?',
   );

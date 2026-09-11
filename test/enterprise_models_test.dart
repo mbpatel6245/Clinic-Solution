@@ -93,7 +93,13 @@ void main() {
 
   test('team invitation preserves its pending clinic role', () {
     final invitation = TeamInvitation.fromMap(
-      {'email': 'doctor@example.com', 'role': 'doctor', 'status': 'pending'},
+      {
+        'email': 'doctor@example.com',
+        'role': 'doctor',
+        'status': 'pending',
+        'notification_status': 'failed',
+        'notification_error': 'Provider configuration missing',
+      },
       'invite-1',
       clinicId: 'clinic-1',
     );
@@ -102,5 +108,7 @@ void main() {
     expect(invitation.role, AppRole.doctor);
     expect(invitation.status, 'pending');
     expect(invitation.clinicId, 'clinic-1');
+    expect(invitation.notificationStatus, 'failed');
+    expect(invitation.notificationError, 'Provider configuration missing');
   });
 }
