@@ -19,6 +19,7 @@ import 'prescription_list/tab_prescription_list.dart';
 import 'stock_inward/tab_stock_inward_screen.dart';
 import 'team/team_roles_screen.dart';
 import 'enterprise/enterprise_screens.dart';
+import 'sync_status_banner.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -279,6 +280,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           if (!compact)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: SyncStatusBanner(compact: true),
+            ),
+          if (!compact)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Chip(label: Text(session.role.displayName)),
@@ -320,23 +326,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
                 return Row(
                   children: [
-                    NavigationRail(
-                      selectedIndex: selectedIndex,
-                      onDestinationSelected: (index) =>
-                          setState(() => _selectedIndex = index),
-                      extended: constraints.maxWidth >= AppBreakpoints.expanded,
-                      labelType: constraints.maxWidth >= AppBreakpoints.expanded
-                          ? NavigationRailLabelType.none
-                          : NavigationRailLabelType.all,
-                      destinations: destinations
-                          .map(
-                            (item) => NavigationRailDestination(
-                              icon: Icon(item.icon),
-                              selectedIcon: Icon(item.selectedIcon),
-                              label: Text(item.label),
-                            ),
-                          )
-                          .toList(),
+                    SingleChildScrollView(
+                      child: NavigationRail(
+                        selectedIndex: selectedIndex,
+                        onDestinationSelected: (index) =>
+                            setState(() => _selectedIndex = index),
+                        extended:
+                            constraints.maxWidth >= AppBreakpoints.expanded,
+                        labelType:
+                            constraints.maxWidth >= AppBreakpoints.expanded
+                            ? NavigationRailLabelType.none
+                            : NavigationRailLabelType.all,
+                        destinations: destinations
+                            .map(
+                              (item) => NavigationRailDestination(
+                                icon: Icon(item.icon),
+                                selectedIcon: Icon(item.selectedIcon),
+                                label: Text(item.label),
+                              ),
+                            )
+                            .toList(),
+                      ),
                     ),
                     const VerticalDivider(width: 1),
                     Expanded(

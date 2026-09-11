@@ -33,15 +33,56 @@ void main() {
     expect(moduleForFeature(AppFeature.team), isNull);
   });
 
+  test('reminder preserves recipient and provider delivery state', () {
+    final reminder = ClinicReminder.fromMap({
+      'patient_name': 'Asha',
+      'message': 'Appointment tomorrow',
+      'scheduled_at': DateTime(2026, 9, 7),
+      'recipient': 'asha@example.com',
+      'channel': 'email',
+      'status': 'failed',
+      'failure_reason': 'Template not configured',
+      'attempts': 2,
+    }, 'reminder-1');
+
+    expect(reminder.recipient, 'asha@example.com');
+    expect(reminder.failureReason, 'Template not configured');
+    expect(reminder.attempts, 2);
+  });
+
+  test(
+    'global notification settings preserve primary and fallback providers',
+    () {
+      final settings = PlatformNotificationSettings.fromMap({
+        'primary_provider': 'twilio',
+        'fallback_provider': 'msg91',
+        'fallback_enabled': true,
+        'default_country_code': '91',
+        'msg91': {'sms_template_id': 'flow-1'},
+        'twilio': {
+          'messaging_service_sid': 'MG123',
+          'whatsapp_content_sid': 'HX123',
+        },
+      });
+
+      expect(settings.primaryProvider, 'twilio');
+      expect(settings.fallbackProvider, 'msg91');
+      expect(settings.fallbackEnabled, isTrue);
+      expect(settings.msg91SmsTemplateId, 'flow-1');
+      expect(settings.twilioWhatsappContentSid, 'HX123');
+    },
+  );
+
   test('team invitation preserves its pending clinic role', () {
-    final invitation = TeamInvitation.fromMap({
-      'email': 'doctor@example.com',
-      'role': 'doctor',
-      'status': 'pending',
-    }, 'invite-1');
+    final invitation = TeamInvitation.fromMap(
+      {'email': 'doctor@example.com', 'role': 'doctor', 'status': 'pending'},
+      'invite-1',
+      clinicId: 'clinic-1',
+    );
 
     expect(invitation.email, 'doctor@example.com');
     expect(invitation.role, AppRole.doctor);
     expect(invitation.status, 'pending');
+    expect(invitation.clinicId, 'clinic-1');
   });
 }

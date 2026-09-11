@@ -91,7 +91,7 @@ class FirebaseFireStore with ChangeNotifier {
     try {
       await deleteDocument(path: pathStock, id: stockDocumentId);
     } catch (e) {
-      print('Error deleting stock: $e');
+      debugPrint('Error deleting stock: $e');
     }
   }
 
@@ -109,7 +109,7 @@ class FirebaseFireStore with ChangeNotifier {
       await docRef.add(stock);
       successCallback();
     } catch (e) {
-      print('Error adding stock: $e');
+      debugPrint('Error adding stock: $e');
       errorCallback(e);
     }
   }
@@ -130,7 +130,7 @@ class FirebaseFireStore with ChangeNotifier {
       successCallback();
       //await docRef.add(stock);
     } catch (e) {
-      print('Error adding stock: $e');
+      debugPrint('Error adding stock: $e');
       errorCallback(e);
     }
   }
@@ -326,18 +326,107 @@ class FirebaseFireStore with ChangeNotifier {
         return clinics;
       });
 
-  Stream<List<TeamInvitation>> streamTeamInvitations() =>
-      _collection(pathTeamInvites).snapshots().map((snapshot) {
-        final invitations = snapshot.docs
-            .map((doc) => TeamInvitation.fromMap(doc.data(), doc.id))
-            .toList();
-        invitations.sort(
-          (a, b) => (b.createdAt ?? DateTime(1970)).compareTo(
-            a.createdAt ?? DateTime(1970),
-          ),
-        );
-        return invitations;
-      });
+  Stream<PlatformNotificationSettings> streamPlatformNotificationSettings() =>
+      _db
+          .collection('platform_settings')
+          .doc('notifications')
+          .snapshots()
+          .map(
+            (snapshot) => PlatformNotificationSettings.fromMap(
+              snapshot.data() ?? const <String, dynamic>{},
+            ),
+          );
+
+  Future<void> savePlatformNotificationSettings(
+    PlatformNotificationSettings settings,
+  ) => _queueWrite(
+    _db
+        .collection('platform_settings')
+        .doc('notifications')
+        .set(settings.toMap(), SetOptions(merge: true)),
+  );
+
+  Stream<List<TeamInvitation>> streamTeamInvitations({
+    bool allClinics = false,
+  }) =>
+      (allClinics
+              ? _db.collectionGroup(pathTeamInvites).snapshots()
+              : _collection(pathTeamInvites).snapshots())
+          .map((snapshot) {
+            final invitations = snapshot.docs
+                .map(
+                  (doc) => TeamInvitation.fromMap(
+                    doc.data(),
+                    doc.id,
+                    clinicId:
+                        doc.reference.parent.parent?.id ?? _activeClinicId,
+                  ),
+                )
+                .toList();
+            invitations.sort(
+              (a, b) => (b.createdAt ?? DateTime(1970)).compareTo(
+                a.createdAt ?? DateTime(1970),
+              ),
+            );
+            return invitations;
+          });
+
+  Future<void> approveTeamInvitation(TeamInvitation invitation) async {
+    final clinicId = invitation.clinicId.isEmpty
+        ? _activeClinicId
+        : invitation.clinicId;
+    var users = await _db
+        .collection(pathUser)
+        .where('email_normalized', isEqualTo: invitation.email.toLowerCase())
+        .limit(1)
+        .get();
+    if (users.docs.isEmpty) {
+      users = await _db
+          .collection(pathUser)
+          .where('email', isEqualTo: invitation.email)
+          .limit(1)
+          .get();
+    }
+    if (users.docs.isEmpty) {
+      throw StateError(
+        'The invited person must register with ${invitation.email} before approval.',
+      );
+    }
+    final batch = _db.batch();
+    batch.set(users.docs.first.reference, {
+      'clinic_ids': FieldValue.arrayUnion([clinicId]),
+      'clinic_roles.$clinicId': invitation.role.storageValue,
+      'status': 'approved',
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    batch.update(
+      _db
+          .collection('clinics')
+          .doc(clinicId)
+          .collection(pathTeamInvites)
+          .doc(invitation.id),
+      {
+        'status': 'approved',
+        'approved_at': FieldValue.serverTimestamp(),
+        'approved_by': FirebaseAuth.instance.currentUser?.uid ?? '',
+      },
+    );
+    await _queueWrite(batch.commit());
+  }
+
+  Future<void> deleteTeamInvitation(TeamInvitation invitation) {
+    final clinicId = invitation.clinicId.isEmpty
+        ? _activeClinicId
+        : invitation.clinicId;
+    return _queueWrite(
+      _db
+          .collection('clinics')
+          .doc(clinicId)
+          .collection(pathTeamInvites)
+          .doc(invitation.id)
+          .delete(),
+    );
+  }
 
   Future<String> createClinic(String name) async {
     final document = _db.collection('clinics').doc();
@@ -351,8 +440,17 @@ class FirebaseFireStore with ChangeNotifier {
     return document.id;
   }
 
-  Future<void> inviteTeamMember(String email, AppRole role) async {
-    final document = _collection(pathTeamInvites).doc();
+  Future<void> inviteTeamMember(
+    String email,
+    AppRole role, {
+    String? clinicId,
+  }) async {
+    final targetClinicId = clinicId ?? _activeClinicId;
+    final document = _db
+        .collection('clinics')
+        .doc(targetClinicId)
+        .collection(pathTeamInvites)
+        .doc();
     await _queueWrite(
       document.set({
         'email': email.trim().toLowerCase(),
@@ -362,7 +460,7 @@ class FirebaseFireStore with ChangeNotifier {
         'created_at': FieldValue.serverTimestamp(),
       }),
     );
-    await logAudit('team.invited', document.id);
+    await _writeAuditToClinic(targetClinicId, 'team.invited', document.id);
   }
 
   Future<void> saveClinic(ClinicProfile clinic) async {
@@ -465,7 +563,7 @@ class FirebaseFireStore with ChangeNotifier {
   Future<UserModel?> fetchUser(String id) async {
     _isLoading = true;
     notifyListeners();
-    print('Fetch user ID: $id');
+    debugPrint('Fetch user ID: $id');
     try {
       return await getDocument(
         path: pathUser,
@@ -473,8 +571,8 @@ class FirebaseFireStore with ChangeNotifier {
         builder: (data, documentId) => UserModel.fromMap(data, documentId),
       );
     } catch (e, stacktrace) {
-      print(stacktrace.toString());
-      print('Error fetching users: $e');
+      debugPrint(stacktrace.toString());
+      debugPrint('Error fetching users: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -493,7 +591,7 @@ class FirebaseFireStore with ChangeNotifier {
         builder: (data, documentId) => UserModel.fromMap(data, documentId),
       );
     } catch (e) {
-      print('Error fetching users: $e');
+      debugPrint('Error fetching users: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -511,7 +609,7 @@ class FirebaseFireStore with ChangeNotifier {
       // await _db.collection(pathUser).add(user.toMap());
       //await fetchUsers(); // Refresh data after adding a new user
     } catch (e) {
-      print('Error adding user: $e');
+      debugPrint('Error adding user: $e');
     }
   }
 
@@ -521,19 +619,35 @@ class FirebaseFireStore with ChangeNotifier {
       await updateDocument(path: pathUser, id: id, data: user.toMap());
       //await fetchUsers(); // Refresh data after updating a user
     } catch (e) {
-      print('Error updating user: $e');
+      debugPrint('Error updating user: $e');
     }
   }
 
   Future<void> updateUserRole(String id, String role) async {
+    return updateUserClinicRole(id, _activeClinicId, role);
+  }
+
+  Future<void> updateUserClinicRole(
+    String id,
+    String clinicId,
+    String role,
+  ) async {
     await _queueWrite(
-      _collection(pathUser).doc(id).set({
-        'clinic_roles.$_activeClinicId': role,
-        'clinic_ids': FieldValue.arrayUnion([_activeClinicId]),
+      _db.collection(pathUser).doc(id).set({
+        'clinic_roles.$clinicId': role,
+        'clinic_ids': FieldValue.arrayUnion([clinicId]),
+        'status': 'approved',
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true)),
     );
   }
+
+  Future<void> approveUser(String id) => _queueWrite(
+    _db.collection(pathUser).doc(id).update({
+      'status': 'approved',
+      'updated_at': FieldValue.serverTimestamp(),
+    }),
+  );
 
   // Delete a User
   Future<void> deleteUser(String id) async {
@@ -541,21 +655,22 @@ class FirebaseFireStore with ChangeNotifier {
       await deleteDocument(path: pathUser, id: id);
       //await fetchUsers(); // Refresh data after deleting a user
     } catch (e) {
-      print('Error deleting user: $e');
+      debugPrint('Error deleting user: $e');
     }
   }
 
   // Listen to Firestore Changes in Real-Time (Optional)
-  Stream<List<UserModel>> streamUsers() {
-    return _db
-        .collection(pathUser)
-        .where('clinic_ids', arrayContains: _activeClinicId)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => UserModel.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
+  Stream<List<UserModel>> streamUsers({bool allClinics = false}) {
+    final query = allClinics
+        ? _db.collection(pathUser)
+        : _db
+              .collection(pathUser)
+              .where('clinic_ids', arrayContains: _activeClinicId);
+    return query.snapshots().map(
+      (snapshot) => snapshot.docs
+          .map((doc) => UserModel.fromMap(doc.data(), doc.id))
+          .toList(),
+    );
     /*return _db.collection(pathUser).snapshots().map((snapshot) {
       return snapshot.docs
           .map((doc) =>

@@ -9,6 +9,7 @@ class UserModel {
   final String activeClinicId;
   final List<String> clinicIds;
   final Map<String, String> clinicRoles;
+  final String status;
   final Timestamp createdAt;
 
   UserModel({
@@ -20,6 +21,7 @@ class UserModel {
     this.activeClinicId = '',
     this.clinicIds = const [],
     this.clinicRoles = const {},
+    this.status = 'approved',
     required this.createdAt,
   });
 
@@ -42,6 +44,7 @@ class UserModel {
               ),
             )
           : const {},
+      status: data['status']?.toString() ?? 'approved',
       createdAt: data['createdAt'] ?? Timestamp.now(),
     );
   }
@@ -51,11 +54,13 @@ class UserModel {
     return {
       'name': name,
       'email': email,
+      'email_normalized': email.trim().toLowerCase(),
       'phone': phone,
       'role': role,
       'active_clinic_id': activeClinicId,
       'clinic_ids': clinicIds,
       'clinic_roles': clinicRoles,
+      'status': status,
       'createdAt': createdAt,
     };
   }

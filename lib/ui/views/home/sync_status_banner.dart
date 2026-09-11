@@ -6,7 +6,9 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../services/sync_status_service.dart';
 
 class SyncStatusBanner extends StatelessWidget {
-  const SyncStatusBanner({super.key});
+  const SyncStatusBanner({super.key, this.compact = false});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +38,10 @@ class SyncStatusBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: sync.state == ClinicSyncState.pending ? sync.syncNow : null,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 10 : 16,
+            vertical: compact ? 7 : 10,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -47,7 +52,7 @@ class SyncStatusBanner extends StatelessWidget {
                     ? AppColors.inkMuted
                     : AppColors.inverse,
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: compact ? AppSpacing.xs : AppSpacing.sm),
               Flexible(
                 child: Text(
                   message,

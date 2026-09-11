@@ -48,6 +48,7 @@ class SessionController extends ChangeNotifier {
   bool can(AppFeature feature) {
     if (isAllClinics) {
       return feature == AppFeature.dashboard ||
+          feature == AppFeature.team ||
           feature == AppFeature.clinicSetup;
     }
     if (!_role.can(feature)) return false;
@@ -74,6 +75,13 @@ class SessionController extends ChangeNotifier {
       _loading = false;
       notifyListeners();
       return;
+    }
+
+    // Render the last verified clinic workspace immediately on repeat visits;
+    // the live profile listener below remains the source of truth.
+    if (preferences.containsKey(_roleKey)) {
+      _loading = false;
+      notifyListeners();
     }
 
     _profileSubscription = _firestore
@@ -105,7 +113,10 @@ class SessionController extends ChangeNotifier {
               final clinicRole = clinicRoles is Map
                   ? clinicRoles[_activeClinicId]?.toString()
                   : null;
-              _role = AppRole.fromValue(clinicRole ?? data['role']?.toString());
+              final globalRole = AppRole.fromValue(data['role']?.toString());
+              _role = globalRole == AppRole.platformOwner
+                  ? globalRole
+                  : AppRole.fromValue(clinicRole ?? data['role']?.toString());
               if (_role == AppRole.platformOwner && clinicId.isEmpty) {
                 _activeClinicId = allClinicsId;
               }

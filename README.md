@@ -11,9 +11,13 @@ details.
 - **Enterprise clinic tenancy:** operational data is isolated below each clinic,
   users can hold clinic-specific roles, and multi-clinic accounts can switch
   their active clinic.
-- **Configurable modules:** clinic administrators can enable Reception,
+- **Configurable modules:** Platform Owners activate purchased Reception,
   Pharmacy, Vaccination, Reminders, Billing, Expenses, Reports, Data Exchange,
-  and Laboratory independently.
+  and Laboratory modules independently for each clinic. Clinic Admins manage
+  only their clinic's activated workflows.
+- **Platform administration:** searchable clinic directory, all-clinic member
+  visibility, clinic-role allocation, invitation approval, member editing, and
+  access removal. Switching into a clinic never reduces Platform Owner access.
 - **Extended roles:** Platform Owner, Clinic Admin, Branch Manager, Doctor,
   Receptionist, Pharmacy Operator, Nurse/Vaccinator, Accountant, and Patient.
 - **Billing:** split doctor, clinic/case, and pharmacy line items with paid,
@@ -53,9 +57,10 @@ role-based rules:
 firebase deploy --only firestore:rules
 ```
 
-Notification providers are configured server-side. See
-[NOTIFICATION_SETUP.md](NOTIFICATION_SETUP.md) for the email, SMS, and WhatsApp
-setup and security model.
+Notification providers are configured globally by the Platform Owner, with
+MSG91/Twilio primary and optional fallback routing. Credentials remain
+server-side. See [NOTIFICATION_SETUP.md](NOTIFICATION_SETUP.md) for email, SMS,
+WhatsApp, templates, callbacks, and Secret Manager setup.
 
 Persistent offline caching is enabled on Web, Android, iOS, and macOS. Windows
 uses the connected Firestore client without persistent cache. The official
