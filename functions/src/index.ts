@@ -10,7 +10,7 @@ import {logger} from "firebase-functions";
 import {defineSecret, defineString} from "firebase-functions/params";
 import {HttpsError, onCall, onRequest} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
-import {onDocumentDeleted} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentDeleted} from "firebase-functions/v2/firestore";
 import {
   sendWithMsg91,
   type Msg91Config,
@@ -27,7 +27,7 @@ import {
   validateTwilioWebhook,
   type TwilioConfig,
 } from "./twilio.js";
-import {timingSafeEqual} from "node:crypto";
+import {randomBytes, timingSafeEqual} from "node:crypto";
 
 initializeApp();
 const db = getFirestore();
@@ -519,6 +519,120 @@ export const deleteAuthUserAfterProfileDeletion = onDocumentDeleted(
     } catch (error) {
       const code = (error as {code?: string}).code;
       if (code !== "auth/user-not-found") throw error;
+    }
+  },
+);
+
+export const cleanupDeletedClinic = onDocumentDeleted(
+  {document: "clinics/{clinicId}", region: REGION},
+  async (event) => {
+    const clinicId = event.params.clinicId;
+    const users = await db.collection("users")
+      .where("clinic_ids", "array-contains", clinicId)
+      .get();
+    await Promise.all(users.docs.map((user) => user.ref.update({
+      clinic_ids: FieldValue.arrayRemove(clinicId),
+      [`clinic_roles.${clinicId}`]: FieldValue.delete(),
+      updated_at: FieldValue.serverTimestamp(),
+    })));
+    if (event.data) await db.recursiveDelete(event.data.ref);
+  },
+);
+
+export const provisionInvitedMember = onDocumentCreated(
+  {
+    document: "clinics/{clinicId}/team_invites/{inviteId}",
+    region: REGION,
+    secrets: [
+      MSG91_AUTH_KEY,
+      TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN,
+      SENDGRID_API_KEY,
+    ],
+  },
+  async (event) => {
+    const invitation = event.data;
+    if (!invitation) return;
+    const data = invitation.data() as Record<string, unknown>;
+    const email = asString(data.email).toLowerCase();
+    const role = asString(data.role, "doctor");
+    const clinicId = event.params.clinicId;
+    if (!email || asString(data.status, "pending") !== "pending") return;
+
+    let account;
+    let isNewAccount = false;
+    let invitationEmailSent = false;
+    const temporaryPassword = `C!${randomBytes(9).toString("base64url")}9a`;
+    try {
+      try {
+        account = await getAuth().getUserByEmail(email);
+      } catch (error) {
+        if ((error as {code?: string}).code !== "auth/user-not-found") throw error;
+      }
+      if (!account) {
+        isNewAccount = true;
+        account = await getAuth().createUser({
+          email,
+          password: temporaryPassword,
+          emailVerified: false,
+          displayName: email.split("@")[0],
+        });
+      }
+      if (isNewAccount) {
+        await db.collection("users").doc(account.uid).set({
+          name: account.displayName ?? email.split("@")[0],
+          email,
+          email_normalized: email,
+          phone: "",
+          role,
+          clinic_ids: [],
+          clinic_roles: {},
+          active_clinic_id: clinicId,
+          status: "pending",
+          must_change_password: true,
+          createdAt: FieldValue.serverTimestamp(),
+          updated_at: FieldValue.serverTimestamp(),
+        }, {merge: true});
+      }
+
+      const clinic = await db.collection("clinics").doc(clinicId).get();
+      const clinicName = asString(clinic.data()?.name, "Clinic");
+      const settings = await providerSelection();
+      const result = await sendNotification({
+        channel: "email",
+        recipient: email,
+        patientName: account.displayName ?? "Team member",
+        clinicName,
+        message: isNewAccount
+          ? `You have been invited to ${clinicName}. Your account is pending platform approval. Sign in with the temporary password and change it immediately after approval.`
+          : `You have been invited to ${clinicName}. Your existing account will gain access after platform approval.`,
+        templateVariables: {
+          username: email,
+          temporary_password: isNewAccount ? temporaryPassword : "Use your existing password",
+          role,
+          approval_status: "pending",
+        },
+      }, settings);
+      invitationEmailSent = true;
+      await invitation.ref.update({
+        user_id: account.uid,
+        notification_status: "sent",
+        notification_provider: result.provider,
+        notification_message_id: result.messageId,
+        notification_sent_at: FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      logger.error("Invited member provisioning failed", {clinicId, email, error});
+      if (isNewAccount && account && !invitationEmailSent) {
+        await Promise.allSettled([
+          getAuth().deleteUser(account.uid),
+          db.collection("users").doc(account.uid).delete(),
+        ]);
+      }
+      await invitation.ref.update({
+        notification_status: "failed",
+        notification_error: (error instanceof Error ? error.message : "Unknown error").slice(0, 500),
+      });
     }
   },
 );

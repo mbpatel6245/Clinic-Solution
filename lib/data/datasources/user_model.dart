@@ -10,6 +10,7 @@ class UserModel {
   final List<String> clinicIds;
   final Map<String, String> clinicRoles;
   final String status;
+  final bool mustChangePassword;
   final Timestamp createdAt;
 
   UserModel({
@@ -22,6 +23,7 @@ class UserModel {
     this.clinicIds = const [],
     this.clinicRoles = const {},
     this.status = 'approved',
+    this.mustChangePassword = false,
     required this.createdAt,
   });
 
@@ -45,6 +47,7 @@ class UserModel {
             )
           : const {},
       status: data['status']?.toString() ?? 'approved',
+      mustChangePassword: data['must_change_password'] == true,
       createdAt: data['createdAt'] ?? Timestamp.now(),
     );
   }
@@ -61,6 +64,7 @@ class UserModel {
       'clinic_ids': clinicIds,
       'clinic_roles': clinicRoles,
       'status': status,
+      'must_change_password': mustChangePassword,
       'createdAt': createdAt,
     };
   }

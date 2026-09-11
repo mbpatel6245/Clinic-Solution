@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -33,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   PatientModel? _prescriptionPatient;
   int _prescriptionFormVersion = 0;
   final _secureData = SecureDataViewModel();
+  bool _passwordDialogShown = false;
 
   @override
   void dispose() {
@@ -62,6 +64,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final session = context.watch<SessionController>();
     if (session.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (session.mustChangePassword && !_passwordDialogShown) {
+      _passwordDialogShown = true;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _changePassword(context),
+      );
     }
     context.read<FirebaseFireStore>().useClinic(session.activeClinicId);
 
@@ -301,8 +309,33 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           IconButton(
+            tooltip: 'My profile',
+            onPressed: () => _editProfile(context),
+            icon: const Icon(Icons.account_circle_outlined),
+          ),
+          IconButton(
             tooltip: strings.logout,
             onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('Log out?'),
+                  content: const Text(
+                    'Are you sure you want to end this session?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: const Text('Log out'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed != true || !context.mounted) return;
               await context.read<SessionController>().clear();
               await _secureData.clearData();
               await FirebaseAuth.instance.signOut();
@@ -326,26 +359,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
                 return Row(
                   children: [
-                    SingleChildScrollView(
-                      child: NavigationRail(
-                        selectedIndex: selectedIndex,
-                        onDestinationSelected: (index) =>
-                            setState(() => _selectedIndex = index),
-                        extended:
-                            constraints.maxWidth >= AppBreakpoints.expanded,
-                        labelType:
-                            constraints.maxWidth >= AppBreakpoints.expanded
-                            ? NavigationRailLabelType.none
-                            : NavigationRailLabelType.all,
-                        destinations: destinations
-                            .map(
-                              (item) => NavigationRailDestination(
-                                icon: Icon(item.icon),
-                                selectedIcon: Icon(item.selectedIcon),
-                                label: Text(item.label),
-                              ),
-                            )
-                            .toList(),
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: SingleChildScrollView(
+                        child: NavigationRail(
+                          selectedIndex: selectedIndex,
+                          groupAlignment: -1,
+                          onDestinationSelected: (index) =>
+                              setState(() => _selectedIndex = index),
+                          extended:
+                              constraints.maxWidth >= AppBreakpoints.expanded,
+                          labelType:
+                              constraints.maxWidth >= AppBreakpoints.expanded
+                              ? NavigationRailLabelType.none
+                              : NavigationRailLabelType.all,
+                          destinations: destinations
+                              .map(
+                                (item) => NavigationRailDestination(
+                                  icon: Icon(item.icon),
+                                  selectedIcon: Icon(item.selectedIcon),
+                                  label: Text(item.label),
+                                ),
+                              )
+                              .toList(),
+                        ),
                       ),
                     ),
                     const VerticalDivider(width: 1),
@@ -365,6 +402,168 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _editProfile(BuildContext context) async {
+    final authUser = FirebaseAuth.instance.currentUser;
+    if (authUser == null) return;
+    final session = context.read<SessionController>();
+    final name = TextEditingController(text: session.displayName);
+    final phone = TextEditingController();
+    final email = TextEditingController(text: authUser.email ?? '');
+    final profile = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(authUser.uid)
+        .get();
+    phone.text = profile.data()?['phone']?.toString() ?? '';
+    if (!context.mounted) return;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('My profile'),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Phone'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(dialogContext, false);
+                    _changePassword(context);
+                  },
+                  icon: const Icon(Icons.password_outlined),
+                  label: const Text('Change password'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved != true || !context.mounted) return;
+    final service = context.read<FirebaseFireStore>();
+    await authUser.updateDisplayName(name.text.trim());
+    await service.updateMemberDetails(
+      authUser.uid,
+      name: name.text,
+      phone: phone.text,
+    );
+    final requestedEmail = email.text.trim().toLowerCase();
+    if (requestedEmail.isNotEmpty && requestedEmail != authUser.email) {
+      await authUser.verifyBeforeUpdateEmail(requestedEmail);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Verification sent to $requestedEmail.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _changePassword(BuildContext context) async {
+    final password = TextEditingController();
+    final confirmation = TextEditingController();
+    final required = context.read<SessionController>().mustChangePassword;
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: !required,
+      builder: (dialogContext) => PopScope(
+        canPop: !required,
+        child: AlertDialog(
+          title: Text(required ? 'Set your new password' : 'Change password'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: password,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'New password'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: confirmation,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm password',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            if (!required)
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+            FilledButton(
+              onPressed: () {
+                if (password.text.length < 8 ||
+                    password.text != confirmation.text) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Use at least 8 matching characters.'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Update password'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == true) {
+      try {
+        await FirebaseAuth.instance.currentUser!.updatePassword(password.text);
+        if (context.mounted) {
+          await context.read<SessionController>().markPasswordChanged();
+        }
+      } catch (_) {
+        _passwordDialogShown = false;
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please sign in again, then change the password.'),
+            ),
+          );
+        }
+      }
+    } else {
+      _passwordDialogShown = false;
+    }
   }
 }
 

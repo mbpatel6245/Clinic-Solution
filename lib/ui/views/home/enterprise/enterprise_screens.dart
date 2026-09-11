@@ -25,8 +25,11 @@ class ClinicSetupScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = context.read<FirebaseFireStore>();
     final session = context.watch<SessionController>();
+    final isOwner = session.role == AppRole.platformOwner;
     return StreamBuilder<List<ClinicProfile>>(
-      stream: service.streamAllClinics(),
+      stream: isOwner
+          ? service.streamAllClinics()
+          : service.streamClinics([session.activeClinicId]),
       builder: (context, snapshot) {
         final clinics = snapshot.data ?? const <ClinicProfile>[];
         ClinicProfile? selectedClinic;
@@ -46,39 +49,42 @@ class ClinicSetupScreen extends StatelessWidget {
                       'Configure this clinic and enable only the modules it needs.',
                     ),
                   ),
-                  FilledButton.icon(
-                    onPressed: () => _createClinic(context),
-                    icon: const Icon(Icons.add_business_outlined),
-                    label: const Text('New clinic'),
-                  ),
+                  if (isOwner)
+                    FilledButton.icon(
+                      onPressed: () => _createClinic(context),
+                      icon: const Icon(Icons.add_business_outlined),
+                      label: const Text('New clinic'),
+                    ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
-              StreamBuilder<PlatformNotificationSettings>(
-                stream: service.streamPlatformNotificationSettings(),
-                builder: (context, notificationSnapshot) =>
-                    _GlobalNotificationSettingsCard(
-                      settings:
-                          notificationSnapshot.data ??
-                          const PlatformNotificationSettings(),
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              AppSection(
-                title: 'Clinics (${clinics.length})',
-                trailing: session.isAllClinics
-                    ? null
-                    : TextButton.icon(
-                        onPressed: session.showAllClinics,
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text('Back to all clinics'),
+              if (isOwner) ...[
+                StreamBuilder<PlatformNotificationSettings>(
+                  stream: service.streamPlatformNotificationSettings(),
+                  builder: (context, notificationSnapshot) =>
+                      _GlobalNotificationSettingsCard(
+                        settings:
+                            notificationSnapshot.data ??
+                            const PlatformNotificationSettings(),
                       ),
-                child: _ClinicDirectory(
-                  clinics: clinics,
-                  activeClinicId: session.activeClinicId,
-                  onSelected: session.selectClinic,
                 ),
-              ),
+                const SizedBox(height: AppSpacing.lg),
+                AppSection(
+                  title: 'Clinics (${clinics.length})',
+                  trailing: session.isAllClinics
+                      ? null
+                      : TextButton.icon(
+                          onPressed: session.showAllClinics,
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Back to all clinics'),
+                        ),
+                  child: _ClinicDirectory(
+                    clinics: clinics,
+                    activeClinicId: session.activeClinicId,
+                    onSelected: session.selectClinic,
+                  ),
+                ),
+              ],
               if (selectedClinic == null) ...[
                 const SizedBox(height: AppSpacing.lg),
                 const AppSection(
@@ -90,10 +96,22 @@ class ClinicSetupScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
                 AppSection(
                   title: selectedClinic.name,
-                  trailing: FilledButton.icon(
-                    onPressed: () => _editClinic(context, selectedClinic!),
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Edit profile'),
+                  trailing: Wrap(
+                    spacing: AppSpacing.xs,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => _editClinic(context, selectedClinic!),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Edit profile'),
+                      ),
+                      if (isOwner)
+                        IconButton(
+                          tooltip: 'Delete clinic',
+                          onPressed: () =>
+                              _deleteClinic(context, selectedClinic!),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                    ],
                   ),
                   child: Wrap(
                     spacing: 24,
@@ -112,7 +130,7 @@ class ClinicSetupScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppSection(
-                  title: 'Modules',
+                  title: isOwner ? 'Modules' : 'Purchased modules',
                   child: SizedBox(
                     height: 470,
                     child: ListView.separated(
@@ -141,7 +159,7 @@ class ClinicSetupScreen extends StatelessWidget {
                           value:
                               core ||
                               selectedClinic!.enabledModules.contains(module),
-                          onChanged: core
+                          onChanged: core || !isOwner
                               ? null
                               : (enabled) async {
                                   final modules = {
@@ -239,6 +257,33 @@ class ClinicSetupScreen extends StatelessWidget {
           address: address.text,
         ),
       );
+    }
+  }
+
+  Future<void> _deleteClinic(BuildContext context, ClinicProfile clinic) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete clinic?'),
+        content: Text(
+          'Delete ${clinic.name}? Existing clinic records will no longer be accessible from the platform.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await context.read<FirebaseFireStore>().deleteClinic(clinic.id);
+    if (context.mounted) {
+      await context.read<SessionController>().showAllClinics();
     }
   }
 }
@@ -1185,6 +1230,7 @@ class DataExchangeScreen extends StatefulWidget {
 class _DataExchangeScreenState extends State<DataExchangeScreen> {
   final _csv = TextEditingController();
   bool _busy = false;
+  ClinicModule _module = ClinicModule.patients;
 
   @override
   void dispose() {
@@ -1193,69 +1239,140 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => AppPage(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _heading(
-          context,
-          'Import & export',
-          'Use clinic-scoped CSV with validation before records are saved.',
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        AppSection(
-          title: 'Patients CSV',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Columns: first_name,middle_name,last_name,gender,phone,address,age',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _csv,
-                minLines: 8,
-                maxLines: 16,
-                decoration: const InputDecoration(hintText: 'Paste CSV here…'),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _copyTemplate,
-                    icon: const Icon(Icons.content_copy),
-                    label: const Text('Copy template'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : _export,
-                    icon: const Icon(Icons.download_outlined),
-                    label: const Text('Export to clipboard'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: _busy ? null : _import,
-                    icon: const Icon(Icons.upload_file_outlined),
-                    label: const Text('Validate & import'),
-                  ),
-                ],
-              ),
-            ],
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionController>();
+    final modules = <ClinicModule>[
+      if (session.role == AppRole.platformOwner ||
+          session.enabledModules.contains(ClinicModule.patients))
+        ClinicModule.patients,
+      if (session.role == AppRole.platformOwner ||
+          session.enabledModules.contains(ClinicModule.pharmacy))
+        ClinicModule.pharmacy,
+    ];
+    if (!modules.contains(_module)) _module = modules.first;
+    final medicines = _module == ClinicModule.pharmacy;
+    final columns = medicines
+        ? 'name,invoice_number,batch_number,supplier,manufacturer,quantity,unit,purchase_rate,mrp,minimum_level,expiry_date'
+        : 'first_name,middle_name,last_name,gender,phone,address,age';
+    return AppPage(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _heading(
+            context,
+            'Import & export',
+            'Choose a purchased module, then import or export its clinic-scoped records.',
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: AppSpacing.lg),
+          DropdownButtonFormField<ClinicModule>(
+            initialValue: _module,
+            decoration: const InputDecoration(labelText: 'Data module'),
+            items: modules
+                .map(
+                  (module) => DropdownMenuItem(
+                    value: module,
+                    child: Text(
+                      module == ClinicModule.pharmacy
+                          ? 'Pharmacy medicines & stock'
+                          : 'Patients',
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() {
+              _module = value ?? _module;
+              _csv.clear();
+            }),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppSection(
+            title: medicines ? 'Pharmacy medicines CSV' : 'Patients CSV',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Columns: $columns'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _csv,
+                  minLines: 8,
+                  maxLines: 16,
+                  decoration: const InputDecoration(
+                    hintText: 'Paste CSV here…',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _copyTemplate,
+                      icon: const Icon(Icons.content_copy),
+                      label: const Text('Copy template'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _export,
+                      icon: const Icon(Icons.download_outlined),
+                      label: const Text('Export to clipboard'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _import,
+                      icon: const Icon(Icons.upload_file_outlined),
+                      label: const Text('Validate & import'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _copyTemplate() async {
-    const value = 'first_name,middle_name,last_name,gender,phone,address,age\n';
-    await Clipboard.setData(const ClipboardData(text: value));
+    final value = _module == ClinicModule.pharmacy
+        ? 'name,invoice_number,batch_number,supplier,manufacturer,quantity,unit,purchase_rate,mrp,minimum_level,expiry_date\n'
+        : 'first_name,middle_name,last_name,gender,phone,address,age\n';
+    await Clipboard.setData(ClipboardData(text: value));
     _csv.text = value;
   }
 
   Future<void> _export() async {
     setState(() => _busy = true);
     final service = context.read<FirebaseFireStore>();
+    if (_module == ClinicModule.pharmacy) {
+      final items = await service.streamInventory().first;
+      final buffer = StringBuffer(
+        'name,invoice_number,batch_number,supplier,manufacturer,quantity,unit,purchase_rate,mrp,minimum_level,expiry_date\n',
+      );
+      String escape(String value) => '"${value.replaceAll('"', '""')}"';
+      for (final item in items) {
+        buffer.writeln(
+          [
+            item.name,
+            item.invoiceNumber,
+            item.batchNumber,
+            item.supplier,
+            item.manufacturer,
+            item.remainingQuantity,
+            item.unit,
+            item.purchaseRate,
+            item.mrp,
+            item.minimumLevel,
+            item.expiryDate == null
+                ? ''
+                : DateFormat('yyyy-MM-dd').format(item.expiryDate!),
+          ].map((value) => escape('$value')).join(','),
+        );
+      }
+      await Clipboard.setData(ClipboardData(text: buffer.toString()));
+      if (mounted) {
+        setState(() => _busy = false);
+        _notice(context, '${items.length} medicines copied as CSV.');
+      }
+      return;
+    }
     final patients = await service.streamPatients().first;
     final buffer = StringBuffer(
       'first_name,middle_name,last_name,gender,phone,address,age\n',
@@ -1292,28 +1409,49 @@ class _DataExchangeScreenState extends State<DataExchangeScreen> {
           .split(',')
           .map((e) => e.trim().replaceAll(RegExp(r'^"|"$'), ''))
           .toList();
-      if (cells.length < 7 || cells[0].isEmpty) {
+      final minimumCells = _module == ClinicModule.pharmacy ? 11 : 7;
+      if (cells.length < minimumCells || cells[0].isEmpty) {
         errors++;
         continue;
       }
-      await service.addDocument(
-        path: FirebaseFireStore.pathPatients,
-        data: PatientModel(
-          firstName: cells[0],
-          middleName: cells[1],
-          lastName: cells[2],
-          gender: cells[3],
-          phone: cells[4],
-          address: cells[5],
-          age: int.tryParse(cells[6]),
-        ).toMap(),
-      );
+      if (_module == ClinicModule.pharmacy) {
+        await service.saveInventoryItem(
+          InventoryItem(
+            name: cells[0],
+            invoiceNumber: cells[1],
+            batchNumber: cells[2],
+            supplier: cells[3],
+            manufacturer: cells[4],
+            quantityIn: double.tryParse(cells[5]) ?? 0,
+            remainingQuantity: double.tryParse(cells[5]) ?? 0,
+            unit: cells[6].isEmpty ? 'units' : cells[6],
+            purchaseRate: double.tryParse(cells[7]) ?? 0,
+            mrp: double.tryParse(cells[8]) ?? 0,
+            minimumLevel: double.tryParse(cells[9]) ?? 0,
+            expiryDate: DateTime.tryParse(cells[10]),
+          ),
+        );
+      } else {
+        await service.addDocument(
+          path: FirebaseFireStore.pathPatients,
+          data: PatientModel(
+            firstName: cells[0],
+            middleName: cells[1],
+            lastName: cells[2],
+            gender: cells[3],
+            phone: cells[4],
+            address: cells[5],
+            age: int.tryParse(cells[6]),
+          ).toMap(),
+        );
+      }
       imported++;
     }
-    await service.logAudit('patients.imported', '$imported');
+    final label = _module == ClinicModule.pharmacy ? 'medicines' : 'patients';
+    await service.logAudit('$label.imported', '$imported');
     if (mounted) {
       setState(() => _busy = false);
-      _notice(context, 'Imported $imported patients; $errors rows rejected.');
+      _notice(context, 'Imported $imported $label; $errors rows rejected.');
     }
   }
 }
