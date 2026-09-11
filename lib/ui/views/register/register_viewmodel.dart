@@ -9,6 +9,7 @@ class RegisterViewModel with ChangeNotifier {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+  final TextEditingController clinicNameController = TextEditingController();
 
   // final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFireStore _fireStoreService = FirebaseFireStore();
@@ -17,7 +18,10 @@ class RegisterViewModel with ChangeNotifier {
   String? selectedRole;
 
   // List of roles for the dropdown
-  final List<String> roles = [AppRole.patient.displayName];
+  final List<String> roles = [
+    AppRole.clinicAdmin.displayName,
+    AppRole.doctor.displayName,
+  ];
 
   void onRoleChanged(String? value) {
     selectedRole = value;
@@ -30,19 +34,14 @@ class RegisterViewModel with ChangeNotifier {
   }
 
   // Save data to Firestore
-  Future<void> registerUser() async {
-    try {
-      await _fireStoreService.registerUserData(
-        emailController.text.trim(),
-        passwordController.text.trim(),
-        nameController.text.trim(),
-        phoneController.text,
-        AppRole.fromValue(selectedRole).storageValue,
-      );
-    } catch (e) {
-      print('Error saving data: $e');
-    }
-  }
+  Future<void> registerUser() => _fireStoreService.registerUserData(
+    emailController.text.trim(),
+    passwordController.text.trim(),
+    nameController.text.trim(),
+    phoneController.text,
+    AppRole.fromValue(selectedRole).storageValue,
+    clinicNameController.text,
+  );
 
   // Dispose controllers
   @override
@@ -51,6 +50,7 @@ class RegisterViewModel with ChangeNotifier {
     emailController.dispose();
     passwordController.dispose();
     phoneController.dispose();
+    clinicNameController.dispose();
     super.dispose();
   }
 }

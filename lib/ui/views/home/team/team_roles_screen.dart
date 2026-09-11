@@ -348,8 +348,7 @@ class _TeamMemberCard extends StatelessWidget {
             if (isOwner && user.status == 'pending')
               IconButton(
                 tooltip: 'Approve member',
-                onPressed: () =>
-                    context.read<FirebaseFireStore>().approveUser(user.id),
+                onPressed: () => _approveRegistration(context, user, clinics),
                 icon: const Icon(Icons.check_circle_outline),
               ),
             IconButton(
@@ -469,6 +468,99 @@ Future<void> _editRole(
       user.id,
       clinicId,
       role.storageValue,
+    );
+  }
+}
+
+Future<void> _approveRegistration(
+  BuildContext context,
+  UserModel user,
+  List<ClinicProfile> clinics,
+) async {
+  const createValue = '__create_clinic__';
+  var clinicId = createValue;
+  var role = AppRole.fromValue(user.role);
+  final clinicName = TextEditingController(text: user.requestedClinicName);
+  final approved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('Approve enterprise request'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: Text(user.email)),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<String>(
+                initialValue: clinicId,
+                decoration: const InputDecoration(
+                  labelText: 'Clinic allocation',
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: createValue,
+                    child: Text('Create requested clinic'),
+                  ),
+                  ...clinics.map(
+                    (clinic) => DropdownMenuItem(
+                      value: clinic.id,
+                      child: Text(clinic.name),
+                    ),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setState(() => clinicId = value ?? clinicId),
+              ),
+              if (clinicId == createValue) ...[
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: clinicName,
+                  decoration: const InputDecoration(labelText: 'Clinic name'),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<AppRole>(
+                initialValue: role,
+                decoration: const InputDecoration(labelText: 'Approved role'),
+                items: const [AppRole.clinicAdmin, AppRole.doctor]
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(item.displayName),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => role = value ?? role),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: clinicId == createValue && clinicName.text.trim().isEmpty
+                ? null
+                : () => Navigator.pop(dialogContext, true),
+            child: const Text('Approve & activate'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (approved != true || !context.mounted) return;
+  final service = context.read<FirebaseFireStore>();
+  final targetClinicId = clinicId == createValue
+      ? await service.createClinicForApproval(clinicName.text)
+      : clinicId;
+  await service.approveUserForClinic(user.id, targetClinicId, role);
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Request approved and clinic activated.')),
     );
   }
 }

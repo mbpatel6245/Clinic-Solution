@@ -67,23 +67,37 @@ class FirebaseFireStore with ChangeNotifier {
     String name,
     String phone,
     String role,
+    String clinicName,
   ) async {
-    UserCredential userCredential = await _authService
-        .createUserWithEmailAndPassword(email, password);
-
-    await addUser(
-      UserModel(
-        id: userCredential.user?.uid ?? "",
-        name: name,
-        email: email,
-        phone: phone,
-        role: role,
-        activeClinicId: 'default-clinic',
-        clinicIds: const ['default-clinic'],
-        clinicRoles: {'default-clinic': role},
-        createdAt: Timestamp.now(),
-      ),
+    final userCredential = await _authService.createUserWithEmailAndPassword(
+      email,
+      password,
     );
+    final user = userCredential.user;
+    if (user == null) {
+      throw StateError('Authentication account was not created.');
+    }
+    try {
+      await _db.collection(pathUser).doc(user.uid).set({
+        'name': name.trim(),
+        'email': email.trim(),
+        'email_normalized': email.trim().toLowerCase(),
+        'phone': phone.trim(),
+        'role': role,
+        'requested_clinic_name': clinicName.trim(),
+        'active_clinic_id': '',
+        'clinic_ids': <String>[],
+        'clinic_roles': <String, String>{},
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {
+      await user.delete();
+      await FirebaseAuth.instance.signOut();
+      rethrow;
+    }
   }
 
   //---------------------------
@@ -440,6 +454,17 @@ class FirebaseFireStore with ChangeNotifier {
     return document.id;
   }
 
+  Future<String> createClinicForApproval(String name) async {
+    final document = _db.collection('clinics').doc();
+    final clinic = ClinicProfile(
+      id: document.id,
+      name: name,
+      enabledModules: ClinicProfile.defaultModules,
+    );
+    await _queueWrite(document.set(clinic.toMap()));
+    return document.id;
+  }
+
   Future<void> inviteTeamMember(
     String email,
     AppRole role, {
@@ -675,6 +700,20 @@ class FirebaseFireStore with ChangeNotifier {
       'updated_at': FieldValue.serverTimestamp(),
     }),
   );
+
+  Future<void> approveUserForClinic(String id, String clinicId, AppRole role) =>
+      _queueWrite(
+        _db.collection(pathUser).doc(id).update({
+          'role': role.storageValue,
+          'clinic_ids': FieldValue.arrayUnion([clinicId]),
+          'clinic_roles.$clinicId': role.storageValue,
+          'active_clinic_id': clinicId,
+          'status': 'approved',
+          'approved_by': FirebaseAuth.instance.currentUser?.uid ?? '',
+          'approved_at': FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        }),
+      );
 
   // Delete a User
   Future<void> deleteUser(String id) async {

@@ -11,11 +11,13 @@ void main() {
       'role': 'doctor',
       'status': 'pending',
       'must_change_password': true,
+      'requested_clinic_name': 'Sunrise Clinic',
       'createdAt': Timestamp.fromDate(DateTime(2026)),
     }, 'member-1');
 
     expect(user.status, 'pending');
     expect(user.mustChangePassword, isTrue);
+    expect(user.requestedClinicName, 'Sunrise Clinic');
     expect(user.toMap()['must_change_password'], isTrue);
   });
 
