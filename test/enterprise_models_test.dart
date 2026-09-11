@@ -21,6 +21,21 @@ void main() {
     expect(user.toMap()['must_change_password'], isTrue);
   });
 
+  test('member preserves multiple roles independently for each clinic', () {
+    final user = UserModel.fromMap({
+      'email': 'member@example.com',
+      'role': 'doctor',
+      'clinic_roles': {'clinic-1': 'doctor'},
+      'clinic_role_lists': {
+        'clinic-1': ['doctor', 'vaccinator'],
+      },
+      'createdAt': Timestamp.fromDate(DateTime(2026)),
+    }, 'member-1');
+
+    expect(user.clinicRoleLists['clinic-1'], ['doctor', 'vaccinator']);
+    expect(user.toMap()['clinic_role_lists'], isNotEmpty);
+  });
+
   test('clinic configuration reads enabled modules', () {
     final clinic = ClinicProfile.fromMap({
       'name': 'Small Clinic',
@@ -96,9 +111,12 @@ void main() {
       {
         'email': 'doctor@example.com',
         'role': 'doctor',
+        'roles': ['doctor', 'vaccinator'],
         'status': 'pending',
         'notification_status': 'failed',
         'notification_error': 'Provider configuration missing',
+        'approval_status': 'failed',
+        'approval_error': 'Provisioning failed',
       },
       'invite-1',
       clinicId: 'clinic-1',
@@ -106,9 +124,12 @@ void main() {
 
     expect(invitation.email, 'doctor@example.com');
     expect(invitation.role, AppRole.doctor);
+    expect(invitation.roles, [AppRole.doctor, AppRole.vaccinator]);
     expect(invitation.status, 'pending');
     expect(invitation.clinicId, 'clinic-1');
     expect(invitation.notificationStatus, 'failed');
     expect(invitation.notificationError, 'Provider configuration missing');
+    expect(invitation.approvalStatus, 'failed');
+    expect(invitation.approvalError, 'Provisioning failed');
   });
 }

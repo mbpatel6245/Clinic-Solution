@@ -411,8 +411,14 @@ async function canManageClinic(uid: string, clinicId: string): Promise<boolean> 
   const clinicIds = Array.isArray(data.clinic_ids) ? data.clinic_ids.map(String) : [];
   if (!clinicIds.includes(clinicId)) return false;
   const roles = data.clinic_roles as Record<string, unknown> | undefined;
-  const role = asString(roles?.[clinicId] ?? data.role).toLowerCase().replace(/[\s_-]+/g, "");
-  return ["admin", "administrator", "clinicadmin", "branchmanager"].includes(role);
+  const roleLists = data.clinic_role_lists as Record<string, unknown> | undefined;
+  const assignedRoles = Array.isArray(roleLists?.[clinicId])
+    ? (roleLists?.[clinicId] as unknown[]).map((value) => asString(value))
+    : [asString(roles?.[clinicId] ?? data.role)];
+  return assignedRoles.some((value) =>
+    ["admin", "administrator", "clinicadmin", "branchmanager"].includes(
+      value.toLowerCase().replace(/[\s_-]+/g, ""),
+    ));
 }
 
 export const sendTestNotification = onCall(
@@ -537,6 +543,7 @@ export const cleanupDeletedClinic = onDocumentDeleted(
     await Promise.all(users.docs.map((user) => user.ref.update({
       clinic_ids: FieldValue.arrayRemove(clinicId),
       [`clinic_roles.${clinicId}`]: FieldValue.delete(),
+      [`clinic_role_lists.${clinicId}`]: FieldValue.delete(),
       updated_at: FieldValue.serverTimestamp(),
     })));
     if (event.data) await db.recursiveDelete(event.data.ref);
@@ -550,6 +557,9 @@ async function provisionInvitation(
     const data = invitation.data() as Record<string, unknown>;
     const email = asString(data.email).toLowerCase();
     const role = asString(data.role, "doctor");
+    const invitationRoles = Array.isArray(data.roles) && data.roles.length > 0
+      ? data.roles.map((value) => asString(value)).filter(Boolean)
+      : [role];
     if (!email || asString(data.status, "pending") !== "pending") return;
 
     let account;
@@ -592,6 +602,7 @@ async function provisionInvitation(
           role,
           clinic_ids: [],
           clinic_roles: {},
+          clinic_role_lists: {},
           active_clinic_id: clinicId,
           status: "pending",
           must_change_password: true,
@@ -617,6 +628,7 @@ async function provisionInvitation(
             ? temporaryPassword
             : "Use your existing password",
           role,
+          roles: invitationRoles.join(", "),
           approval_status: "pending",
         },
       }, settings);
@@ -672,6 +684,66 @@ export const resendInvitedMemberEmail = onDocumentUpdated(
       : 0;
     if (currentMillis > previousMillis) {
       await provisionInvitation(after, event.params.clinicId);
+    }
+  },
+);
+
+export const approveInvitedMember = onDocumentUpdated(
+  invitationTriggerOptions,
+  async (event) => {
+    const before = event.data?.before;
+    const after = event.data?.after;
+    if (!before || !after || after.data().status !== "pending") return;
+    const previousRequest = before.data().approval_requested_at;
+    const currentRequest = after.data().approval_requested_at;
+    const previousMillis = previousRequest instanceof Timestamp
+      ? previousRequest.toMillis()
+      : 0;
+    const currentMillis = currentRequest instanceof Timestamp
+      ? currentRequest.toMillis()
+      : 0;
+    if (currentMillis <= previousMillis) return;
+
+    const clinicId = event.params.clinicId;
+    const invitation = after.data() as Record<string, unknown>;
+    const email = asString(invitation.email).toLowerCase();
+    try {
+      await provisionInvitation(after, clinicId);
+      const users = await db.collection("users")
+        .where("email_normalized", "==", email)
+        .limit(1)
+        .get();
+      if (users.empty) {
+        throw new Error("The invited account could not be provisioned");
+      }
+      const role = asString(invitation.role, "doctor");
+      const roles = Array.isArray(invitation.roles) && invitation.roles.length > 0
+        ? invitation.roles.map((value) => asString(value)).filter(Boolean)
+        : [role];
+      const user = users.docs[0];
+      const batch = db.batch();
+      batch.update(user.ref, {
+        clinic_ids: FieldValue.arrayUnion(clinicId),
+        [`clinic_roles.${clinicId}`]: role,
+        [`clinic_role_lists.${clinicId}`]: roles,
+        status: "approved",
+        updated_at: FieldValue.serverTimestamp(),
+      });
+      batch.update(after.ref, {
+        status: "approved",
+        approval_status: "approved",
+        approved_at: FieldValue.serverTimestamp(),
+        approved_by: asString(invitation.approval_requested_by),
+        approval_error: FieldValue.delete(),
+      });
+      await batch.commit();
+    } catch (error) {
+      logger.error("Invitation approval failed", {clinicId, email, error});
+      await after.ref.update({
+        approval_status: "failed",
+        approval_error: (error instanceof Error ? error.message : "Unknown error")
+          .slice(0, 500),
+      });
     }
   },
 );

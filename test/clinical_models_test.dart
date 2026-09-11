@@ -64,6 +64,23 @@ void main() {
     expect(prescription.medicines.single.duration, '5 days');
   });
 
+  test('a new visit is offered only after four hours', () {
+    final createdAt = DateTime(2026, 9, 11, 9);
+    final prescription = PrescriptionModel(
+      patient: const PatientModel(firstName: 'Asha'),
+      createdAt: createdAt,
+    );
+
+    expect(
+      prescription.canStartNewVisitAt(createdAt.add(const Duration(hours: 3))),
+      isFalse,
+    );
+    expect(
+      prescription.canStartNewVisitAt(createdAt.add(const Duration(hours: 4))),
+      isTrue,
+    );
+  });
+
   test('AppointmentModel preserves the account that created it', () {
     final appointment = AppointmentModel.fromMap({
       'patient_name': 'Asha Patel',
