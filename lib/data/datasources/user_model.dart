@@ -11,6 +11,7 @@ class UserModel {
   final Map<String, String> clinicRoles;
   final String status;
   final bool mustChangePassword;
+  final String requestedClinicName;
   final Timestamp createdAt;
 
   UserModel({
@@ -24,6 +25,7 @@ class UserModel {
     this.clinicRoles = const {},
     this.status = 'approved',
     this.mustChangePassword = false,
+    this.requestedClinicName = '',
     required this.createdAt,
   });
 
@@ -48,6 +50,7 @@ class UserModel {
           : const {},
       status: data['status']?.toString() ?? 'approved',
       mustChangePassword: data['must_change_password'] == true,
+      requestedClinicName: data['requested_clinic_name']?.toString() ?? '',
       createdAt: data['createdAt'] ?? Timestamp.now(),
     );
   }
@@ -65,6 +68,8 @@ class UserModel {
       'clinic_roles': clinicRoles,
       'status': status,
       'must_change_password': mustChangePassword,
+      if (requestedClinicName.isNotEmpty)
+        'requested_clinic_name': requestedClinicName.trim(),
       'createdAt': createdAt,
     };
   }

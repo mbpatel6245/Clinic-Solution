@@ -76,11 +76,20 @@ class LoginViewModel with ChangeNotifier {
             )!.userAuthenticationFailed;
       ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
         SnackBar(
+          backgroundColor: Theme.of(
+            navigatorKey.currentContext!,
+          ).colorScheme.error,
           content: CommonText(
             text: message,
-            style: AppTextStyles.getRegularTextStyle(
-              localeProvider.locale,
-            ).copyWith(color: Colors.white),
+            style:
+                AppTextStyles.getRegularTextStyle(
+                  localeProvider.locale,
+                  fontSize: 15,
+                ).copyWith(
+                  color: Theme.of(
+                    navigatorKey.currentContext!,
+                  ).colorScheme.onError,
+                ),
           ),
         ),
       );

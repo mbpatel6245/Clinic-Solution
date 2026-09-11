@@ -94,7 +94,10 @@ enum AppRole {
       'superadmin' ||
       'platformowner' ||
       'productowner' => AppRole.platformOwner,
-      'admin' || 'administrator' || 'clinicadmin' => AppRole.clinicAdmin,
+      'admin' ||
+      'administrator' ||
+      'clinicadmin' ||
+      'clinicowner' => AppRole.clinicAdmin,
       'manager' || 'branchmanager' => AppRole.branchManager,
       'patient' || 'user' || 'guest' => AppRole.patient,
       'pharmacy' ||
@@ -103,7 +106,7 @@ enum AppRole {
       'reception' || 'receptionist' => AppRole.receptionist,
       'vaccination' || 'vaccinator' || 'nurse' => AppRole.vaccinator,
       'accounts' || 'accountant' => AppRole.accountant,
-      'doctor' || 'physician' => AppRole.doctor,
+      'doctor' || 'physician' || 'independentdoctor' => AppRole.doctor,
       _ => AppRole.doctor,
     };
   }

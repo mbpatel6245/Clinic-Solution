@@ -90,15 +90,18 @@ void main() {
   });
 
   group('role permissions', () {
-    test('clinic admin can access clinic profile without module purchasing', () {
-      expect(AppRole.platformOwner.features, containsAll(AppFeature.values));
-      expect(AppRole.clinicAdmin.can(AppFeature.dashboard), isTrue);
-      expect(AppRole.clinicAdmin.can(AppFeature.clinicSetup), isTrue);
-      expect(
-        AppRole.clinicAdmin.isAllowed(AppPermission.configureClinic),
-        isFalse,
-      );
-    });
+    test(
+      'clinic admin can access clinic profile without module purchasing',
+      () {
+        expect(AppRole.platformOwner.features, containsAll(AppFeature.values));
+        expect(AppRole.clinicAdmin.can(AppFeature.dashboard), isTrue);
+        expect(AppRole.clinicAdmin.can(AppFeature.clinicSetup), isTrue);
+        expect(
+          AppRole.clinicAdmin.isAllowed(AppPermission.configureClinic),
+          isFalse,
+        );
+      },
+    );
 
     test('patient can book appointments without staff access', () {
       expect(AppRole.patient.can(AppFeature.appointments), isTrue);
@@ -110,6 +113,8 @@ void main() {
       expect(AppRole.fromValue('User'), AppRole.patient);
       expect(AppRole.fromValue('Pharmacy Operator'), AppRole.pharmacyOperator);
       expect(AppRole.fromValue('Admin'), AppRole.clinicAdmin);
+      expect(AppRole.fromValue('Clinic Owner'), AppRole.clinicAdmin);
+      expect(AppRole.fromValue('Independent Doctor'), AppRole.doctor);
       expect(AppRole.fromValue('vaccination'), AppRole.vaccinator);
     });
 
