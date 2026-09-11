@@ -243,9 +243,13 @@ class TeamRolesScreen extends StatelessWidget {
         clinicId: clinicId,
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Invitation created.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Invitation created. A one-time password will be emailed automatically.',
+            ),
+          ),
+        );
       }
     }
   }
@@ -341,13 +345,18 @@ class _TeamMemberCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (user.status == 'pending')
+            if (isOwner && user.status == 'pending')
               IconButton(
                 tooltip: 'Approve member',
                 onPressed: () =>
                     context.read<FirebaseFireStore>().approveUser(user.id),
                 icon: const Icon(Icons.check_circle_outline),
               ),
+            IconButton(
+              tooltip: 'Edit member details',
+              onPressed: currentUser ? null : () => _editMember(context, user),
+              icon: const Icon(Icons.manage_accounts_outlined),
+            ),
             IconButton(
               tooltip: 'Edit clinic role',
               onPressed: currentUser
@@ -361,14 +370,18 @@ class _TeamMemberCard extends StatelessWidget {
                     ),
               icon: const Icon(Icons.edit_outlined),
             ),
-            if (isOwner)
-              IconButton(
-                tooltip: 'Delete member',
-                onPressed: currentUser
-                    ? null
-                    : () => _deleteMember(context, user),
-                icon: const Icon(Icons.delete_outline),
-              ),
+            IconButton(
+              tooltip: isOwner ? 'Delete member' : 'Remove from this clinic',
+              onPressed: currentUser
+                  ? null
+                  : () => _deleteMember(
+                      context,
+                      user,
+                      isOwner: isOwner,
+                      clinicId: activeClinicId,
+                    ),
+              icon: const Icon(Icons.delete_outline),
+            ),
           ],
         ),
       ),
@@ -460,13 +473,76 @@ Future<void> _editRole(
   }
 }
 
-Future<void> _deleteMember(BuildContext context, UserModel user) async {
+Future<void> _editMember(BuildContext context, UserModel user) async {
+  final name = TextEditingController(text: user.name);
+  final phone = TextEditingController(text: user.phone);
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Member details'),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Phone'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Login email: ${user.email}'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  if (saved == true && context.mounted) {
+    await context.read<FirebaseFireStore>().updateMemberDetails(
+      user.id,
+      name: name.text,
+      phone: phone.text,
+    );
+  }
+}
+
+Future<void> _deleteMember(
+  BuildContext context,
+  UserModel user, {
+  required bool isOwner,
+  required String clinicId,
+}) async {
   final confirmed = await _confirm(
     context,
-    'Delete ${user.name.isEmpty ? user.email : user.name}? This removes platform access.',
+    isOwner
+        ? 'Delete ${user.name.isEmpty ? user.email : user.name}? This removes platform access.'
+        : 'Remove ${user.name.isEmpty ? user.email : user.name} from this clinic?',
   );
   if (confirmed && context.mounted) {
-    await context.read<FirebaseFireStore>().deleteUser(user.id);
+    final service = context.read<FirebaseFireStore>();
+    if (isOwner) {
+      await service.deleteUser(user.id);
+    } else {
+      await service.removeUserFromClinic(user.id, clinicId);
+    }
   }
 }
 

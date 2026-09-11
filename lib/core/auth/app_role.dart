@@ -130,8 +130,11 @@ enum AppRole {
 
   Set<AppFeature> get features => switch (this) {
     platformOwner => AppFeature.values.toSet(),
-    clinicAdmin => AppFeature.values.toSet()..remove(AppFeature.clinicSetup),
-    branchManager => AppFeature.values.toSet()..remove(AppFeature.clinicSetup),
+    clinicAdmin => AppFeature.values.toSet(),
+    branchManager =>
+      AppFeature.values.toSet()
+        ..remove(AppFeature.clinicSetup)
+        ..remove(AppFeature.team),
     doctor => {
       AppFeature.dashboard,
       AppFeature.createPrescription,

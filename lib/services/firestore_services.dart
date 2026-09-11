@@ -482,6 +482,10 @@ class FirebaseFireStore with ChangeNotifier {
     await _writeAuditToClinic(clinic.id, 'clinic.updated', clinic.id);
   }
 
+  Future<void> deleteClinic(String clinicId) async {
+    await _queueWrite(_db.collection('clinics').doc(clinicId).delete());
+  }
+
   Stream<List<ClinicInvoice>> streamInvoices() =>
       _collection(pathInvoices).snapshots().map((snapshot) {
         final items = snapshot.docs
@@ -639,6 +643,29 @@ class FirebaseFireStore with ChangeNotifier {
         'status': 'approved',
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true)),
+    );
+  }
+
+  Future<void> updateMemberDetails(
+    String id, {
+    required String name,
+    required String phone,
+  }) => _queueWrite(
+    _db.collection(pathUser).doc(id).update({
+      'name': name.trim(),
+      'phone': phone.trim(),
+      'updated_at': FieldValue.serverTimestamp(),
+    }),
+  );
+
+  Future<void> removeUserFromClinic(String id, String clinicId) async {
+    await _queueWrite(
+      _db.collection(pathUser).doc(id).update({
+        'clinic_ids': FieldValue.arrayRemove([clinicId]),
+        'clinic_roles.$clinicId': FieldValue.delete(),
+        'active_clinic_id': '',
+        'updated_at': FieldValue.serverTimestamp(),
+      }),
     );
   }
 

@@ -24,11 +24,19 @@ service cloud.firestore {
       return globalRole() in ['platform_owner', 'super_admin', 'owner'];
     }
 
+    function isDirectClinicAdmin(clinicId) {
+      return hasClinicRole(clinicId, [
+        'admin', 'Admin', 'administrator', 'clinic_admin', 'branch_manager'
+      ]);
+    }
+
     function belongsTo(clinicId) {
       return signedIn() && (
         isPlatformOwner() ||
-        clinicId in profile().get('clinic_ids', []) ||
-        (clinicId == 'default-clinic' && profile().get('clinic_ids', []).size() == 0)
+        (profile().get('status', 'approved') == 'approved' && (
+          clinicId in profile().get('clinic_ids', []) ||
+          (clinicId == 'default-clinic' && profile().get('clinic_ids', []).size() == 0)
+        ))
       );
     }
 
@@ -128,6 +136,19 @@ service cloud.firestore {
           request.resource.data.get('clinic_roles', {}).diff(
             resource.data.get('clinic_roles', {})
           ).affectedKeys().hasOnly(profile().get('clinic_ids', [])))
+        || (globalRole() in ['admin', 'administrator', 'clinic_admin'] &&
+          resource.data.get('role', '') != 'platform_owner' &&
+          resource.data.get('clinic_ids', []).hasAny(profile().get('clinic_ids', [])) &&
+          request.resource.data.get('role', '') == resource.data.get('role', '') &&
+          request.resource.data.get('clinic_ids', []).hasOnly(
+            resource.data.get('clinic_ids', [])
+          ) &&
+          request.resource.data.get('clinic_roles', {}).diff(
+            resource.data.get('clinic_roles', {})
+          ).affectedKeys().hasOnly(profile().get('clinic_ids', [])) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'clinic_ids', 'clinic_roles', 'active_clinic_id', 'updated_at'
+          ]))
       );
       allow delete: if isPlatformOwner() && request.auth.uid != userId;
     }
@@ -139,7 +160,13 @@ service cloud.firestore {
 
     match /clinics/{clinicId} {
       allow read: if belongsTo(clinicId);
-      allow create, update: if isPlatformOwner();
+      allow create: if isPlatformOwner();
+      allow update: if isPlatformOwner() ||
+        (isDirectClinicAdmin(clinicId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'code', 'phone', 'address', 'currency', 'timezone',
+            'updated_at'
+          ]));
       allow delete: if isPlatformOwner();
 
       match /patients/{patientId} {
@@ -214,7 +241,8 @@ service cloud.firestore {
       }
 
       match /team_invites/{inviteId} {
-        allow read, create, update: if isClinicAdmin(clinicId);
+        allow read, create: if isClinicAdmin(clinicId);
+        allow update: if isPlatformOwner();
         allow delete: if isClinicAdmin(clinicId);
       }
 

@@ -322,6 +322,18 @@ are never written to Firestore or logs.
 
 ## Production recommendations
 
+### Team invitation email template
+
+Creating a team invitation provisions its Firebase Authentication account and
+sends an email through the globally selected provider. The email template must
+support `patient_name`, `clinic_name`, `message`, `username`,
+`temporary_password`, `role`, and `approval_status` variables.
+
+The invited account remains blocked from clinic data until the Platform Owner
+approves it. After approval, the member signs in with the one-time password and
+the app requires a new password immediately. Verify the global email template
+before inviting production users.
+
 - Use separate MSG91 and Twilio accounts/keys or subaccounts for development and
   production, and rotate keys at least annually or after staff changes.
 - Keep reminder text minimal. Avoid diagnoses, test results, prescriptions, or

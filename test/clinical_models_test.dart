@@ -90,10 +90,10 @@ void main() {
   });
 
   group('role permissions', () {
-    test('admin can access every clinic feature', () {
+    test('clinic admin can access clinic profile without module purchasing', () {
       expect(AppRole.platformOwner.features, containsAll(AppFeature.values));
       expect(AppRole.clinicAdmin.can(AppFeature.dashboard), isTrue);
-      expect(AppRole.clinicAdmin.can(AppFeature.clinicSetup), isFalse);
+      expect(AppRole.clinicAdmin.can(AppFeature.clinicSetup), isTrue);
       expect(
         AppRole.clinicAdmin.isAllowed(AppPermission.configureClinic),
         isFalse,

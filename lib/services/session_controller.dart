@@ -35,6 +35,7 @@ class SessionController extends ChangeNotifier {
   Set<ClinicModule> _enabledModules = ClinicProfile.defaultModules;
   List<String> _clinicIds = const ['default-clinic'];
   bool _loading = true;
+  bool _mustChangePassword = false;
 
   AppRole get role => _role;
   String get displayName => _displayName;
@@ -45,6 +46,7 @@ class SessionController extends ChangeNotifier {
   bool get isAllClinics =>
       _role == AppRole.platformOwner && _activeClinicId == allClinicsId;
   bool get isLoading => _loading;
+  bool get mustChangePassword => _mustChangePassword;
   bool can(AppFeature feature) {
     if (isAllClinics) {
       return feature == AppFeature.dashboard ||
@@ -114,6 +116,7 @@ class SessionController extends ChangeNotifier {
                   ? clinicRoles[_activeClinicId]?.toString()
                   : null;
               final globalRole = AppRole.fromValue(data['role']?.toString());
+              _mustChangePassword = data['must_change_password'] == true;
               _role = globalRole == AppRole.platformOwner
                   ? globalRole
                   : AppRole.fromValue(clinicRole ?? data['role']?.toString());
@@ -183,6 +186,17 @@ class SessionController extends ChangeNotifier {
     await preferences.remove(_roleKey);
     await preferences.remove(_nameKey);
     await preferences.remove(_clinicKey);
+  }
+
+  Future<void> markPasswordChanged() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _firestore.collection('users').doc(user.uid).update({
+      'must_change_password': false,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+    _mustChangePassword = false;
+    notifyListeners();
   }
 
   @override

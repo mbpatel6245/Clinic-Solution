@@ -1,8 +1,24 @@
 import 'package:clinic_solution/core/auth/app_role.dart';
 import 'package:clinic_solution/data/datasources/enterprise_models.dart';
+import 'package:clinic_solution/data/datasources/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('invited member preserves mandatory password change state', () {
+    final user = UserModel.fromMap({
+      'email': 'member@example.com',
+      'role': 'doctor',
+      'status': 'pending',
+      'must_change_password': true,
+      'createdAt': Timestamp.fromDate(DateTime(2026)),
+    }, 'member-1');
+
+    expect(user.status, 'pending');
+    expect(user.mustChangePassword, isTrue);
+    expect(user.toMap()['must_change_password'], isTrue);
+  });
+
   test('clinic configuration reads enabled modules', () {
     final clinic = ClinicProfile.fromMap({
       'name': 'Small Clinic',
