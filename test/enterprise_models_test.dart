@@ -46,6 +46,22 @@ void main() {
     expect(clinic.enabledModules, isNot(contains(ClinicModule.reception)));
   });
 
+  test('clinic reports open status and prescription sharing policy', () {
+    final clinic = ClinicProfile.fromMap({
+      'name': 'Day Clinic',
+      'active': true,
+      'opening_time': '09:00',
+      'closing_time': '18:00',
+      'working_days': [1, 2, 3, 4, 5],
+      'share_prescriptions_with_patients': true,
+    }, 'clinic-1');
+
+    expect(clinic.isOpenAt(DateTime(2026, 9, 11, 10)), isTrue);
+    expect(clinic.isOpenAt(DateTime(2026, 9, 11, 19)), isFalse);
+    expect(clinic.isOpenAt(DateTime(2026, 9, 12, 10)), isFalse);
+    expect(clinic.sharePrescriptionsWithPatients, isTrue);
+  });
+
   test('platform-disabled modules are removed from global availability', () {
     final settings = PlatformModuleSettings.fromMap({
       'disabled_modules': ['pharmacy', 'reminders'],

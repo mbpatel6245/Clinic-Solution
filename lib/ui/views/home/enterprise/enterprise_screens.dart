@@ -204,11 +204,49 @@ class ClinicSetupScreen extends StatelessWidget {
 
   Future<void> _createClinic(BuildContext context) async {
     final name = TextEditingController();
-    final saved = await _formDialog(context, 'Create clinic', [
-      _field(name, 'Clinic name'),
-    ]);
-    if (!saved || name.text.trim().isEmpty || !context.mounted) return;
-    final id = await context.read<FirebaseFireStore>().createClinic(name.text);
+    var sharePrescriptions = false;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Create clinic'),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _field(name, 'Clinic name'),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Share prescriptions with patients'),
+                  subtitle: const Text(
+                    'Doctors can still choose sharing per prescription.',
+                  ),
+                  value: sharePrescriptions,
+                  onChanged: (value) =>
+                      setState(() => sharePrescriptions = value),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved != true || name.text.trim().isEmpty || !context.mounted) return;
+    final id = await context.read<FirebaseFireStore>().createClinic(
+      name.text,
+      sharePrescriptionsWithPatients: sharePrescriptions,
+    );
     if (context.mounted) {
       await context.read<SessionController>().selectClinic(id);
     }
@@ -221,7 +259,11 @@ class ClinicSetupScreen extends StatelessWidget {
     final code = TextEditingController(text: clinic.code);
     final phone = TextEditingController(text: clinic.phone);
     final address = TextEditingController(text: clinic.address);
+    final openingTime = TextEditingController(text: clinic.openingTime);
+    final closingTime = TextEditingController(text: clinic.closingTime);
     var active = clinic.active;
+    var sharePrescriptions = clinic.sharePrescriptionsWithPatients;
+    var workingDays = <int>{...clinic.workingDays};
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -229,40 +271,103 @@ class ClinicSetupScreen extends StatelessWidget {
           title: const Text('Clinic profile'),
           content: SizedBox(
             width: 520,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Clinic name'),
-                ),
-                if (isOwner)
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'Clinic name'),
+                  ),
+                  if (isOwner)
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Clinic active'),
+                      subtitle: const Text(
+                        'Disabled clinics cannot be used by clinic members.',
+                      ),
+                      value: active,
+                      onChanged: (value) => setState(() => active = value),
+                    ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: code,
+                    decoration: const InputDecoration(labelText: 'Clinic code'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phone,
+                    decoration: const InputDecoration(labelText: 'Phone'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: address,
+                    maxLines: 2,
+                    decoration: const InputDecoration(labelText: 'Address'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _field(openingTime, 'Opening time (HH:mm)'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _field(closingTime, 'Closing time (HH:mm)'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Open days',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children:
+                          const [
+                                (1, 'Mon'),
+                                (2, 'Tue'),
+                                (3, 'Wed'),
+                                (4, 'Thu'),
+                                (5, 'Fri'),
+                                (6, 'Sat'),
+                                (7, 'Sun'),
+                              ]
+                              .map(
+                                (day) => FilterChip(
+                                  label: Text(day.$2),
+                                  selected: workingDays.contains(day.$1),
+                                  onSelected: (selected) => setState(() {
+                                    workingDays = {...workingDays};
+                                    selected
+                                        ? workingDays.add(day.$1)
+                                        : workingDays.remove(day.$1);
+                                  }),
+                                ),
+                              )
+                              .toList(),
+                    ),
+                  ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Clinic active'),
+                    title: const Text('Share prescriptions with patients'),
                     subtitle: const Text(
-                      'Disabled clinics cannot be used by clinic members.',
+                      'Enables the share option when doctors save prescriptions.',
                     ),
-                    value: active,
-                    onChanged: (value) => setState(() => active = value),
+                    value: sharePrescriptions,
+                    onChanged: (value) =>
+                        setState(() => sharePrescriptions = value),
                   ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: code,
-                  decoration: const InputDecoration(labelText: 'Clinic code'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phone,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: address,
-                  maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Address'),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
@@ -306,6 +411,10 @@ class ClinicSetupScreen extends StatelessWidget {
           phone: phone.text,
           address: address.text,
           active: active,
+          openingTime: openingTime.text,
+          closingTime: closingTime.text,
+          workingDays: workingDays,
+          sharePrescriptionsWithPatients: sharePrescriptions,
         ),
       );
     }
@@ -701,6 +810,188 @@ class PlatformOverviewScreen extends StatelessWidget {
       );
     },
   );
+}
+
+class PatientPortalScreen extends StatelessWidget {
+  const PatientPortalScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final service = context.read<FirebaseFireStore>();
+    final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final session = context.watch<SessionController>();
+    return AppPage(
+      child: StreamBuilder<List<ClinicProfile>>(
+        stream: service.streamPublicClinics(),
+        builder: (context, clinicSnapshot) {
+          final clinics = clinicSnapshot.data ?? const <ClinicProfile>[];
+          final clinicNames = {
+            for (final clinic in clinics) clinic.id: clinic.name,
+          };
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _heading(
+                context,
+                'My care',
+                'Choose a clinic, book appointments and review shared treatment history.',
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              AppSection(
+                title: 'Clinics',
+                child: SizedBox(
+                  height: clinics.isEmpty ? 80 : 210,
+                  child: clinics.isEmpty
+                      ? const Center(child: Text('No clinics are available.'))
+                      : ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: clinics.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(width: AppSpacing.sm),
+                          itemBuilder: (context, index) {
+                            final clinic = clinics[index];
+                            final open = clinic.isOpenAt(DateTime.now());
+                            final selected =
+                                clinic.id == session.activeClinicId;
+                            return SizedBox(
+                              width: 260,
+                              child: Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        clinic.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleMedium,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        open ? 'Open now' : 'Closed now',
+                                        style: TextStyle(
+                                          color: open
+                                              ? Colors.green.shade700
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.error,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${clinic.openingTime}–${clinic.closingTime}',
+                                      ),
+                                      const Spacer(),
+                                      FilledButton.tonal(
+                                        onPressed: selected
+                                            ? null
+                                            : () => service.selectPatientClinic(
+                                                clinic.id,
+                                              ),
+                                        child: Text(
+                                          selected
+                                              ? 'Selected clinic'
+                                              : 'Choose clinic',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              StreamBuilder<List<AppointmentModel>>(
+                stream: service.streamAppointmentsForUser(userId),
+                builder: (context, snapshot) {
+                  final visits = snapshot.data ?? const <AppointmentModel>[];
+                  return AppSection(
+                    title: 'All clinic visits (${visits.length})',
+                    child: visits.isEmpty
+                        ? const Text('No clinic visits yet.')
+                        : Column(
+                            children: visits
+                                .take(8)
+                                .map(
+                                  (visit) => ListTile(
+                                    dense: true,
+                                    leading: const Icon(
+                                      Icons.event_note_outlined,
+                                    ),
+                                    title: Text(
+                                      clinicNames[visit.clinicId] ??
+                                          visit.patientName,
+                                    ),
+                                    subtitle: Text(
+                                      '${DateFormat.yMMMd().add_jm().format(visit.scheduledAt)} • ${visit.status}',
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              StreamBuilder<List<PrescriptionModel>>(
+                stream: service.streamPatientPrescriptions(userId),
+                builder: (context, snapshot) {
+                  final prescriptions =
+                      snapshot.data ?? const <PrescriptionModel>[];
+                  return AppSection(
+                    title: 'Shared prescriptions & medicines',
+                    child: prescriptions.isEmpty
+                        ? const Text(
+                            'No prescriptions have been shared with you.',
+                          )
+                        : Column(
+                            children: prescriptions
+                                .map(
+                                  (prescription) => ListTile(
+                                    dense: true,
+                                    leading: const Icon(
+                                      Icons.medication_outlined,
+                                    ),
+                                    title: Text(
+                                      prescription.medicines.isEmpty
+                                          ? 'Prescription'
+                                          : prescription.medicines
+                                                .map(
+                                                  (medicine) => medicine.name,
+                                                )
+                                                .where(
+                                                  (name) => name.isNotEmpty,
+                                                )
+                                                .join(', '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: Text(
+                                      '${clinicNames[prescription.clinicId] ?? 'Clinic'} • ${DateFormat.yMMMd().format(prescription.visitTimestamp)}'
+                                      '${prescription.diagnoses.isEmpty ? '' : ' • ${prescription.diagnoses.join(', ')}'}',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _PlatformDataExplorer extends StatefulWidget {

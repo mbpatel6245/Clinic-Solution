@@ -64,6 +64,19 @@ void main() {
     expect(prescription.medicines.single.duration, '5 days');
   });
 
+  test('shared prescription keeps the linked patient account', () {
+    final prescription = PrescriptionModel.fromMap({
+      'patient_id': 'patient-1',
+      'patient_user_id': 'user-1',
+      'shared_with_patient': true,
+      'patient': {'first_name': 'Asha', 'user_id': 'user-1'},
+    }, 'rx-1');
+
+    expect(prescription.patient.userId, 'user-1');
+    expect(prescription.patientUserId, 'user-1');
+    expect(prescription.sharedWithPatient, isTrue);
+  });
+
   test('a new visit is offered only after four hours', () {
     final createdAt = DateTime(2026, 9, 11, 9);
     final prescription = PrescriptionModel(
@@ -139,6 +152,7 @@ void main() {
     );
 
     test('patient can book appointments without staff access', () {
+      expect(AppRole.patient.can(AppFeature.dashboard), isTrue);
       expect(AppRole.patient.can(AppFeature.appointments), isTrue);
       expect(AppRole.patient.can(AppFeature.finance), isFalse);
       expect(AppRole.patient.can(AppFeature.inventory), isFalse);

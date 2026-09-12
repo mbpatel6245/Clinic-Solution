@@ -119,6 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedIcon: Icons.space_dashboard,
           page: session.isAllClinics
               ? const PlatformOverviewScreen()
+              : session.role == AppRole.patient
+              ? const PatientPortalScreen()
               : ClinicOverview(showFinance: session.can(AppFeature.finance)),
         ),
       if (session.can(AppFeature.createPrescription))
@@ -150,7 +152,9 @@ class _HomeScreenState extends State<HomeScreen> {
             onEditPrescription: editPrescription,
           ),
         ),
-      if (session.can(AppFeature.appointments))
+      if (session.can(AppFeature.appointments) &&
+          (session.role != AppRole.patient ||
+              session.activeClinicId.isNotEmpty))
         _WorkspaceDestination(
           feature: AppFeature.appointments,
           label: strings.appointments,
@@ -173,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (session.can(AppFeature.inventory))
         _WorkspaceDestination(
           feature: AppFeature.inventory,
-          label: strings.stockInward,
+          label: 'Pharmacy / Medical Store',
           icon: Icons.inventory_2_outlined,
           selectedIcon: Icons.inventory_2,
           page: const TabStockInward(),

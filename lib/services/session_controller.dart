@@ -44,6 +44,7 @@ class SessionController extends ChangeNotifier {
   Map<String, String> _clinicNames = const {};
   bool _loading = true;
   bool _mustChangePassword = false;
+  bool _sharePrescriptionsWithPatients = false;
 
   AppRole get role => _role;
   Set<AppRole> get roles => Set.unmodifiable(_roles);
@@ -61,7 +62,11 @@ class SessionController extends ChangeNotifier {
       _role == AppRole.platformOwner && _activeClinicId == allClinicsId;
   bool get isLoading => _loading;
   bool get mustChangePassword => _mustChangePassword;
+  bool get sharePrescriptionsWithPatients => _sharePrescriptionsWithPatients;
   bool can(AppFeature feature) {
+    if (_role == AppRole.patient && _activeClinicId.isEmpty) {
+      return feature == AppFeature.dashboard;
+    }
     if (isAllClinics) {
       return feature == AppFeature.dashboard ||
           feature == AppFeature.team ||
@@ -151,6 +156,10 @@ class SessionController extends ChangeNotifier {
                               .toSet()
                         : <AppRole>{_role});
               if (_roles.isEmpty) _roles = {_role};
+              if (_role == AppRole.patient && clinicIds.isEmpty) {
+                _clinicIds = const [];
+                _activeClinicId = '';
+              }
               if (_role == AppRole.platformOwner && clinicId.isEmpty) {
                 _activeClinicId = allClinicsId;
               }
@@ -174,8 +183,16 @@ class SessionController extends ChangeNotifier {
 
   void _listenToClinic() {
     _clinicSubscription?.cancel();
+    if (_activeClinicId.isEmpty) {
+      _clinicName = 'Choose a clinic';
+      _clinicEnabledModules = ClinicModule.values.toSet();
+      _refreshEffectiveModules();
+      notifyListeners();
+      return;
+    }
     if (_activeClinicId == allClinicsId) {
       _clinicName = 'All clinics';
+      _sharePrescriptionsWithPatients = false;
       _clinicEnabledModules = ClinicModule.values.toSet();
       _refreshEffectiveModules();
       notifyListeners();
@@ -190,11 +207,14 @@ class SessionController extends ChangeNotifier {
           if (data == null) {
             _clinicName = 'Clinic';
             _clinicEnabledModules = ClinicProfile.defaultModules;
+            _sharePrescriptionsWithPatients = false;
           } else {
             final clinic = ClinicProfile.fromMap(data, snapshot.id);
             _clinicName = clinic.name;
             _clinicNames = {..._clinicNames, snapshot.id: clinic.name};
             _clinicEnabledModules = clinic.enabledModules;
+            _sharePrescriptionsWithPatients =
+                clinic.sharePrescriptionsWithPatients;
           }
           _refreshEffectiveModules();
           notifyListeners();

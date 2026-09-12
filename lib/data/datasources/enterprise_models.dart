@@ -22,6 +22,10 @@ class ClinicProfile {
     this.timezone = 'Asia/Kolkata',
     this.enabledModules = const {},
     this.active = true,
+    this.openingTime = '09:00',
+    this.closingTime = '18:00',
+    this.workingDays = const {1, 2, 3, 4, 5, 6},
+    this.sharePrescriptionsWithPatients = false,
   });
 
   final String id;
@@ -33,6 +37,22 @@ class ClinicProfile {
   final String timezone;
   final Set<ClinicModule> enabledModules;
   final bool active;
+  final String openingTime;
+  final String closingTime;
+  final Set<int> workingDays;
+  final bool sharePrescriptionsWithPatients;
+
+  bool isOpenAt(DateTime value) {
+    if (!active || !workingDays.contains(value.weekday)) return false;
+    int minutes(String time) {
+      final parts = time.split(':');
+      return (int.tryParse(parts.first) ?? 0) * 60 +
+          (parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0);
+    }
+
+    final current = value.hour * 60 + value.minute;
+    return current >= minutes(openingTime) && current < minutes(closingTime);
+  }
 
   static Set<ClinicModule> get defaultModules => {
     ClinicModule.patients,
@@ -59,6 +79,14 @@ class ClinicProfile {
       timezone: data['timezone']?.toString() ?? 'Asia/Kolkata',
       enabledModules: modules.isEmpty ? defaultModules : modules,
       active: data['active'] != false,
+      openingTime: data['opening_time']?.toString() ?? '09:00',
+      closingTime: data['closing_time']?.toString() ?? '18:00',
+      workingDays: (data['working_days'] as Iterable? ?? [1, 2, 3, 4, 5, 6])
+          .map((value) => int.tryParse('$value'))
+          .whereType<int>()
+          .toSet(),
+      sharePrescriptionsWithPatients:
+          data['share_prescriptions_with_patients'] == true,
     );
   }
 
@@ -72,6 +100,10 @@ class ClinicProfile {
     'timezone': timezone,
     'enabled_modules': enabledModules.map((e) => e.storageValue).toList(),
     'active': active,
+    'opening_time': openingTime,
+    'closing_time': closingTime,
+    'working_days': workingDays.toList(),
+    'share_prescriptions_with_patients': sharePrescriptionsWithPatients,
     'updated_at': FieldValue.serverTimestamp(),
   };
 
@@ -84,6 +116,10 @@ class ClinicProfile {
     String? timezone,
     Set<ClinicModule>? enabledModules,
     bool? active,
+    String? openingTime,
+    String? closingTime,
+    Set<int>? workingDays,
+    bool? sharePrescriptionsWithPatients,
   }) => ClinicProfile(
     id: id,
     name: name ?? this.name,
@@ -94,6 +130,11 @@ class ClinicProfile {
     timezone: timezone ?? this.timezone,
     enabledModules: enabledModules ?? this.enabledModules,
     active: active ?? this.active,
+    openingTime: openingTime ?? this.openingTime,
+    closingTime: closingTime ?? this.closingTime,
+    workingDays: workingDays ?? this.workingDays,
+    sharePrescriptionsWithPatients:
+        sharePrescriptionsWithPatients ?? this.sharePrescriptionsWithPatients,
   );
 }
 

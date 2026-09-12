@@ -97,17 +97,19 @@ class FirebaseFireStore with ChangeNotifier {
       throw StateError('Authentication account was not created.');
     }
     try {
+      final appRole = AppRole.fromValue(role);
+      final patient = appRole == AppRole.patient;
       await _db.collection(pathUser).doc(user.uid).set({
         'name': name.trim(),
         'email': email.trim(),
         'email_normalized': email.trim().toLowerCase(),
         'phone': phone.trim(),
         'role': role,
-        'requested_clinic_name': clinicName.trim(),
+        if (!patient) 'requested_clinic_name': clinicName.trim(),
         'active_clinic_id': '',
         'clinic_ids': <String>[],
         'clinic_roles': <String, String>{},
-        'status': 'pending',
+        'status': patient ? 'approved' : 'pending',
         'createdAt': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
       });
@@ -211,6 +213,44 @@ class FirebaseFireStore with ChangeNotifier {
   Future<void> removeInventoryItem(String id) =>
       _queueWrite(_collection(pathStock).doc(id).delete());
 
+  Future<void> sellInventoryItem(
+    InventoryItem item, {
+    required double quantity,
+    required String patientName,
+  }) async {
+    final stockReference = _collection(pathStock).doc(item.id);
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(stockReference);
+      final remaining =
+          double.tryParse('${snapshot.data()?['remaining_quantity']}') ?? 0;
+      if (quantity <= 0 || quantity > remaining) {
+        throw StateError('Insufficient available stock.');
+      }
+      transaction.update(stockReference, {
+        'remaining_quantity': FieldValue.increment(-quantity),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      transaction.set(
+        _collection(pathInvoices).doc(),
+        ClinicInvoice(
+          patientName: patientName.trim().isEmpty
+              ? 'Walk-in customer'
+              : patientName,
+          lines: [
+            InvoiceLine(
+              type: 'pharmacy',
+              description: '${item.name} × $quantity',
+              amount: item.mrp * quantity,
+            ),
+          ],
+          issuedAt: DateTime.now(),
+          amountPaid: item.mrp * quantity,
+          status: InvoiceStatus.paid,
+        ).toMap(),
+      );
+    });
+  }
+
   Stream<List<PrescriptionModel>> streamPrescriptions() {
     return _collection(pathPrescriptions).snapshots().map((snapshot) {
       final items = snapshot.docs
@@ -282,13 +322,103 @@ class FirebaseFireStore with ChangeNotifier {
   }
 
   Stream<List<AppointmentModel>> streamAppointmentsForUser(String userId) {
-    return streamAppointments().map(
-      (items) => items.where((item) => item.createdBy == userId).toList(),
+    return _db
+        .collectionGroup(pathAppointments)
+        .where('created_by', isEqualTo: userId)
+        .orderBy('scheduled_at', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          final items = snapshot.docs
+              .map(
+                (doc) => AppointmentModel.fromMap({
+                  ...doc.data(),
+                  '_clinic_id': doc.reference.parent.parent?.id ?? '',
+                }, doc.id),
+              )
+              .toList();
+          items.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+          return items;
+        });
+  }
+
+  Stream<List<PrescriptionModel>> streamPatientPrescriptions(String userId) =>
+      _db
+          .collectionGroup(pathPrescriptions)
+          .where('patient_user_id', isEqualTo: userId)
+          .where('shared_with_patient', isEqualTo: true)
+          .orderBy('visit_date', descending: true)
+          .snapshots()
+          .map((snapshot) {
+            final items = snapshot.docs
+                .map(
+                  (doc) => PrescriptionModel.fromMap({
+                    ...doc.data(),
+                    '_clinic_id': doc.reference.parent.parent?.id ?? '',
+                  }, doc.id),
+                )
+                .toList();
+            items.sort((a, b) => b.visitTimestamp.compareTo(a.visitTimestamp));
+            return items;
+          });
+
+  Stream<List<ClinicProfile>> streamPublicClinics() => _db
+      .collection('clinics')
+      .where('active', isEqualTo: true)
+      .snapshots()
+      .map(
+        (snapshot) => snapshot.docs
+            .map((doc) => ClinicProfile.fromMap(doc.data(), doc.id))
+            .toList(),
+      );
+
+  Future<void> selectPatientClinic(String clinicId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await _queueWrite(
+      _db.collection(pathUser).doc(user.uid).update({
+        'clinic_ids': FieldValue.arrayUnion([clinicId]),
+        'active_clinic_id': clinicId,
+        'updated_at': FieldValue.serverTimestamp(),
+      }),
     );
   }
 
   Future<void> saveAppointment(AppointmentModel appointment) async {
     final data = appointment.toMap();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null && appointment.createdBy == currentUser.uid) {
+      final profile = await _db.collection(pathUser).doc(currentUser.uid).get();
+      if (AppRole.fromValue(profile.data()?['role']?.toString()) ==
+          AppRole.patient) {
+        final patient = PatientModel(
+          id: currentUser.uid,
+          userId: currentUser.uid,
+          firstName: appointment.patientName,
+          phone: appointment.phone,
+        );
+        final appointmentReference = appointment.id.isEmpty
+            ? _collection(pathAppointments).doc()
+            : _collection(pathAppointments).doc(appointment.id);
+        final embedded = patient.toMap()
+          ..remove('created_at')
+          ..remove('updated_at');
+        final batch = _db.batch();
+        batch.set(
+          _collection(pathPatients).doc(currentUser.uid),
+          patient.toMap(),
+          SetOptions(merge: true),
+        );
+        batch.set(
+          appointmentReference,
+          data
+            ..['patient_id'] = currentUser.uid
+            ..['patient'] = embedded,
+          SetOptions(merge: true),
+        );
+        await _queueWrite(batch.commit());
+        return;
+      }
+    }
     if (appointment.id.isEmpty) {
       final document = _collection(pathAppointments).doc();
       await _queueWrite(document.set(data));
@@ -601,7 +731,10 @@ class FirebaseFireStore with ChangeNotifier {
     );
   }
 
-  Future<String> createClinic(String name) async {
+  Future<String> createClinic(
+    String name, {
+    bool sharePrescriptionsWithPatients = false,
+  }) async {
     await _ensureUniqueClinicName(name);
     final document = _db.collection('clinics').doc();
     await saveClinic(
@@ -609,6 +742,7 @@ class FirebaseFireStore with ChangeNotifier {
         id: document.id,
         name: name,
         enabledModules: ClinicProfile.defaultModules,
+        sharePrescriptionsWithPatients: sharePrescriptionsWithPatients,
       ),
     );
     return document.id;
@@ -698,8 +832,14 @@ class FirebaseFireStore with ChangeNotifier {
   }
 
   Future<void> saveClinic(ClinicProfile clinic) async {
+    final previous = await _db.collection('clinics').doc(clinic.id).get();
+    final previouslyShared =
+        previous.data()?['share_prescriptions_with_patients'] == true;
     await _ensureUniqueClinicName(clinic.name, excludeClinicId: clinic.id);
     await _saveClinicWithUniqueName(clinic);
+    if (previouslyShared && !clinic.sharePrescriptionsWithPatients) {
+      await _revokePatientPrescriptionSharing(clinic.id);
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       await _queueWrite(
@@ -710,6 +850,25 @@ class FirebaseFireStore with ChangeNotifier {
       );
     }
     await _writeAuditToClinic(clinic.id, 'clinic.updated', clinic.id);
+  }
+
+  Future<void> _revokePatientPrescriptionSharing(String clinicId) async {
+    final snapshot = await _db
+        .collection('clinics')
+        .doc(clinicId)
+        .collection(pathPrescriptions)
+        .where('shared_with_patient', isEqualTo: true)
+        .get();
+    for (var offset = 0; offset < snapshot.docs.length; offset += 400) {
+      final batch = _db.batch();
+      for (final doc in snapshot.docs.skip(offset).take(400)) {
+        batch.update(doc.reference, {
+          'shared_with_patient': false,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+      }
+      await _queueWrite(batch.commit());
+    }
   }
 
   String _clinicNameKey(String name) => base64Url

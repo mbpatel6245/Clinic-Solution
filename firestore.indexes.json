@@ -1,6 +1,23 @@
 {
   "indexes": [
     {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "created_by", "order": "ASCENDING"},
+        {"fieldPath": "scheduled_at", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "prescriptions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "patient_user_id", "order": "ASCENDING"},
+        {"fieldPath": "shared_with_patient", "order": "ASCENDING"},
+        {"fieldPath": "visit_date", "order": "DESCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "reminders",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

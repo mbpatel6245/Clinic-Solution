@@ -143,7 +143,7 @@ class _TabStockInwardState extends State<TabStockInward> {
                         )
                       : ListView.separated(
                           itemCount: items.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (_, _) =>
                               const SizedBox(height: 10),
                           itemBuilder: (context, index) => _InventoryCard(
                             item: items[index],
@@ -301,6 +301,10 @@ class _InventoryCard extends StatelessWidget {
             PopupMenuButton<String>(
               onSelected: (action) => _handleAction(context, action),
               itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'sell',
+                  child: Text('Sell / dispense'),
+                ),
                 PopupMenuItem(value: 'add', child: Text(strings.addStock)),
                 PopupMenuItem(value: 'use', child: Text(strings.useStock)),
                 PopupMenuItem(value: 'edit', child: Text(strings.update)),
@@ -316,6 +320,13 @@ class _InventoryCard extends StatelessWidget {
   Future<void> _handleAction(BuildContext context, String action) async {
     if (action == 'edit') {
       onEdit();
+      return;
+    }
+    if (action == 'sell') {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => _SaleDialog(item: item),
+      );
       return;
     }
     if (action == 'add' || action == 'use') {
@@ -351,6 +362,96 @@ class _InventoryCard extends StatelessWidget {
   static String _number(double value) => value == value.roundToDouble()
       ? value.toInt().toString()
       : value.toStringAsFixed(2);
+}
+
+class _SaleDialog extends StatefulWidget {
+  const _SaleDialog({required this.item});
+
+  final InventoryItem item;
+
+  @override
+  State<_SaleDialog> createState() => _SaleDialogState();
+}
+
+class _SaleDialogState extends State<_SaleDialog> {
+  final _patient = TextEditingController();
+  final _quantity = TextEditingController(text: '1');
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _patient.dispose();
+    _quantity.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final quantity = double.tryParse(_quantity.text);
+    if (quantity == null ||
+        quantity <= 0 ||
+        quantity > widget.item.remainingQuantity) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid available quantity.')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await context.read<FirebaseFireStore>().sellInventoryItem(
+        widget.item,
+        quantity: quantity,
+        patientName: _patient.text,
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$error')));
+      setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Sell ${widget.item.name}'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: _patient,
+          decoration: const InputDecoration(
+            labelText: 'Patient / customer (optional)',
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _quantity,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Quantity',
+            helperText:
+                '${widget.item.remainingQuantity} ${widget.item.unit} available',
+          ),
+        ),
+        if (widget.item.mrp > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text('MRP per unit: ${widget.item.mrp}'),
+          ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _save,
+        child: const Text('Complete sale'),
+      ),
+    ],
+  );
 }
 
 class _Info extends StatelessWidget {

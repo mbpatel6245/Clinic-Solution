@@ -19,6 +19,7 @@ class RegisterViewModel with ChangeNotifier {
 
   // List of roles for the dropdown
   final List<String> roles = [
+    AppRole.patient.displayName,
     AppRole.clinicAdmin.displayName,
     AppRole.doctor.displayName,
   ];
@@ -27,6 +28,8 @@ class RegisterViewModel with ChangeNotifier {
     selectedRole = value;
     notifyListeners();
   }
+
+  bool get isPatient => AppRole.fromValue(selectedRole) == AppRole.patient;
 
   // Validate all fields
   bool validateForm(GlobalKey<FormState> formKey) {

@@ -154,7 +154,11 @@ enum AppRole {
       AppFeature.billing,
       AppFeature.reminders,
     },
-    patient => {AppFeature.appointments, AppFeature.reminders},
+    patient => {
+      AppFeature.dashboard,
+      AppFeature.appointments,
+      AppFeature.reminders,
+    },
     pharmacyOperator => {
       AppFeature.dashboard,
       AppFeature.prescriptionList,
