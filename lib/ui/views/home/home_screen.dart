@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   PatientModel? _prescriptionPatient;
   PrescriptionModel? _prescriptionToEdit;
   int _prescriptionFormVersion = 0;
+  String? _lastClinicId;
   final _secureData = SecureDataViewModel();
   bool _passwordDialogShown = false;
 
@@ -66,6 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final session = context.watch<SessionController>();
     if (session.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_lastClinicId != session.activeClinicId) {
+      _lastClinicId = session.activeClinicId;
+      _selectedIndex = 0;
+      _prescriptionPatient = null;
+      _prescriptionToEdit = null;
+      _prescriptionFormVersion++;
     }
     if (session.mustChangePassword && !_passwordDialogShown) {
       _passwordDialogShown = true;
@@ -111,6 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedIcon: Icons.space_dashboard,
           page: session.isAllClinics
               ? const PlatformOverviewScreen()
+              : session.role == AppRole.patient
+              ? const PatientPortalScreen()
               : ClinicOverview(showFinance: session.can(AppFeature.finance)),
         ),
       if (session.can(AppFeature.createPrescription))
@@ -142,7 +152,9 @@ class _HomeScreenState extends State<HomeScreen> {
             onEditPrescription: editPrescription,
           ),
         ),
-      if (session.can(AppFeature.appointments))
+      if (session.can(AppFeature.appointments) &&
+          (session.role != AppRole.patient ||
+              session.activeClinicId.isNotEmpty))
         _WorkspaceDestination(
           feature: AppFeature.appointments,
           label: strings.appointments,
@@ -151,17 +163,21 @@ class _HomeScreenState extends State<HomeScreen> {
           page: TabAppointments(patientOnly: session.role == AppRole.patient),
         ),
       if (session.can(AppFeature.reception))
-        const _WorkspaceDestination(
+        _WorkspaceDestination(
           feature: AppFeature.reception,
           label: 'Reception',
           icon: Icons.how_to_reg_outlined,
           selectedIcon: Icons.how_to_reg,
-          page: ReceptionScreen(),
+          page: ReceptionScreen(
+            onStartPrescription: session.can(AppFeature.createPrescription)
+                ? startNewVisit
+                : null,
+          ),
         ),
       if (session.can(AppFeature.inventory))
         _WorkspaceDestination(
           feature: AppFeature.inventory,
-          label: strings.stockInward,
+          label: 'Pharmacy / Medical Store',
           icon: Icons.inventory_2_outlined,
           selectedIcon: Icons.inventory_2,
           page: const TabStockInward(),
@@ -304,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Icon(Icons.check, size: 18),
                         if (id == session.activeClinicId)
                           const SizedBox(width: 8),
-                        Flexible(child: Text(id)),
+                        Flexible(child: Text(session.clinicNameFor(id))),
                       ],
                     ),
                   ),

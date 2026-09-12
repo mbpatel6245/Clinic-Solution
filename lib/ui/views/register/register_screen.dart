@@ -42,12 +42,16 @@ class RegisterScreen extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                       children: [
                         Text(
-                          'Request enterprise access',
+                          viewModel.isPatient
+                              ? 'Create patient account'
+                              : 'Request enterprise access',
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'For clinic owners and independent doctors. Your workspace starts after Platform Owner approval.',
+                        Text(
+                          viewModel.isPatient
+                              ? 'Register immediately, choose a clinic and book appointments.'
+                              : 'For clinic owners and independent doctors. Your workspace starts after Platform Owner approval.',
                         ),
                         const SizedBox(height: 24),
                         CommonTextField(
@@ -101,14 +105,15 @@ class RegisterScreen extends StatelessWidget {
                           prefixIcon: Icons.person,
                         ),
                         const SizedBox(height: 16.0),
-                        CommonTextField(
-                          controller: viewModel.clinicNameController,
-                          keyboardType: TextInputType.text,
-                          labelText: 'Clinic / practice name',
-                          hintText: '',
-                          prefixIcon: Icons.local_hospital_outlined,
-                          validator: Validator().validateName,
-                        ),
+                        if (!viewModel.isPatient)
+                          CommonTextField(
+                            controller: viewModel.clinicNameController,
+                            keyboardType: TextInputType.text,
+                            labelText: 'Clinic / practice name',
+                            hintText: '',
+                            prefixIcon: Icons.local_hospital_outlined,
+                            validator: Validator().validateName,
+                          ),
                         const SizedBox(height: 20.0),
                         CommonButton(
                           onPressed: () async {
@@ -117,9 +122,11 @@ class RegisterScreen extends StatelessWidget {
                                 await viewModel.registerUser();
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text(
-                                      'Request submitted. Sign-in will work after Platform Owner approval.',
+                                      viewModel.isPatient
+                                          ? 'Patient account created. You can sign in now.'
+                                          : 'Request submitted. Sign-in will work after Platform Owner approval.',
                                     ),
                                   ),
                                 );
@@ -144,7 +151,9 @@ class RegisterScreen extends StatelessWidget {
                               }
                             }
                           },
-                          text: 'Submit approval request',
+                          text: viewModel.isPatient
+                              ? 'Create patient account'
+                              : 'Submit approval request',
                         ),
                         const SizedBox(height: 12),
                         TextButton(

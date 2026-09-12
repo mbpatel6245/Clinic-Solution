@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../data/datasources/clinical_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
+import '../../../../services/session_controller.dart';
 
 class TabNewPrescription extends StatefulWidget {
   const TabNewPrescription({
@@ -40,6 +41,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
   DateTime _visitDate = DateTime.now();
   DateTime? _followUpDate;
   bool _saving = false;
+  late bool _shareWithPatient;
   String? _draftPrescriptionId;
 
   @override
@@ -48,6 +50,9 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
     final patient = widget.initialPatient;
     final existing = widget.initialPrescription;
     final sourcePatient = existing?.patient ?? patient;
+    _shareWithPatient =
+        existing?.sharedWithPatient ??
+        context.read<SessionController>().sharePrescriptionsWithPatients;
     if (sourcePatient != null) {
       _firstName.text = sourcePatient.firstName;
       _middleName.text = sourcePatient.middleName;
@@ -144,6 +149,10 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
         address: _address.text,
         age: int.tryParse(_age.text),
         gender: _gender,
+        userId:
+            widget.initialPrescription?.patient.userId ??
+            widget.initialPatient?.userId ??
+            '',
         createdAt: widget.initialPatient?.createdAt,
       );
       await service.savePrescription(
@@ -160,6 +169,12 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
           investigation: _investigation.text,
           advice: _advice.text,
           medicines: _medicines.map((item) => item.toModel()).toList(),
+          sharedWithPatient:
+              context
+                  .read<SessionController>()
+                  .sharePrescriptionsWithPatients &&
+              _shareWithPatient,
+          patientUserId: patient.userId,
           visitDate: _visitDate,
           followUpDate: _followUpDate,
         ),
@@ -183,6 +198,8 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
   @override
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context)!;
+    final linkedPatient =
+        widget.initialPrescription?.patient ?? widget.initialPatient;
     final dateFormat = DateFormat.yMMMd(
       Localizations.localeOf(context).toString(),
     );
@@ -205,62 +222,90 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
                   _Section(
                     title: strings.patientDetails,
                     icon: Icons.person_outline,
-                    child: _ResponsiveFields(
-                      children: [
-                        _field(
-                          controller: _firstName,
-                          label: strings.firstName,
-                          requiredText: strings.requiredField,
-                        ),
-                        _field(
-                          controller: _middleName,
-                          label: strings.middleName,
-                        ),
-                        _field(controller: _lastName, label: strings.lastName),
-                        _field(
-                          controller: _phone,
-                          label: strings.phone,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        _field(
-                          controller: _age,
-                          label: strings.age,
-                          keyboardType: TextInputType.number,
-                          validator: (value) =>
-                              value != null &&
-                                  value.isNotEmpty &&
-                                  int.tryParse(value) == null
-                              ? strings.invalidNumber
-                              : null,
-                        ),
-                        DropdownButtonFormField<String>(
-                          initialValue: _gender.isEmpty ? null : _gender,
-                          decoration: InputDecoration(
-                            labelText: strings.gender,
+                    child:
+                        widget.initialPatient != null &&
+                            widget.initialPrescription == null
+                        ? ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              child: Text(
+                                widget.initialPatient!.firstName.isEmpty
+                                    ? '?'
+                                    : widget.initialPatient!.firstName[0]
+                                          .toUpperCase(),
+                              ),
+                            ),
+                            title: Text(widget.initialPatient!.fullName),
+                            subtitle: Text(
+                              [
+                                if (widget.initialPatient!.phone.isNotEmpty)
+                                  widget.initialPatient!.phone,
+                                if (widget.initialPatient!.age != null)
+                                  '${widget.initialPatient!.age} ${strings.age}',
+                                if (widget.initialPatient!.address.isNotEmpty)
+                                  widget.initialPatient!.address,
+                              ].join(' • '),
+                            ),
+                          )
+                        : _ResponsiveFields(
+                            children: [
+                              _field(
+                                controller: _firstName,
+                                label: strings.firstName,
+                                requiredText: strings.requiredField,
+                              ),
+                              _field(
+                                controller: _middleName,
+                                label: strings.middleName,
+                              ),
+                              _field(
+                                controller: _lastName,
+                                label: strings.lastName,
+                              ),
+                              _field(
+                                controller: _phone,
+                                label: strings.phone,
+                                keyboardType: TextInputType.phone,
+                              ),
+                              _field(
+                                controller: _age,
+                                label: strings.age,
+                                keyboardType: TextInputType.number,
+                                validator: (value) =>
+                                    value != null &&
+                                        value.isNotEmpty &&
+                                        int.tryParse(value) == null
+                                    ? strings.invalidNumber
+                                    : null,
+                              ),
+                              DropdownButtonFormField<String>(
+                                initialValue: _gender.isEmpty ? null : _gender,
+                                decoration: InputDecoration(
+                                  labelText: strings.gender,
+                                ),
+                                items: [
+                                  DropdownMenuItem(
+                                    value: 'male',
+                                    child: Text(strings.male),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'female',
+                                    child: Text(strings.female),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'other',
+                                    child: Text(strings.other),
+                                  ),
+                                ],
+                                onChanged: (value) => _gender = value ?? '',
+                              ),
+                              _field(
+                                controller: _address,
+                                label: strings.address,
+                                maxLines: 2,
+                              ),
+                            ],
                           ),
-                          items: [
-                            DropdownMenuItem(
-                              value: 'male',
-                              child: Text(strings.male),
-                            ),
-                            DropdownMenuItem(
-                              value: 'female',
-                              child: Text(strings.female),
-                            ),
-                            DropdownMenuItem(
-                              value: 'other',
-                              child: Text(strings.other),
-                            ),
-                          ],
-                          onChanged: (value) => _gender = value ?? '',
-                        ),
-                        _field(
-                          controller: _address,
-                          label: strings.address,
-                          maxLines: 2,
-                        ),
-                      ],
-                    ),
                   ),
                   const SizedBox(height: 16),
                   _Section(
@@ -345,6 +390,25 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  if (context
+                      .watch<SessionController>()
+                      .sharePrescriptionsWithPatients)
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Share with patient'),
+                      subtitle: Text(
+                        linkedPatient?.userId.isEmpty != false
+                            ? 'Available after this patient books or links an account.'
+                            : 'Patient can view this prescription and medicines.',
+                      ),
+                      value:
+                          _shareWithPatient &&
+                          linkedPatient?.userId.isNotEmpty == true,
+                      onChanged: linkedPatient?.userId.isNotEmpty != true
+                          ? null
+                          : (value) =>
+                                setState(() => _shareWithPatient = value),
+                    ),
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
                     child: FilledButton.icon(
@@ -517,9 +581,62 @@ class _MedicineRow extends StatelessWidget {
             ),
             _ResponsiveFields(
               children: [
-                TextFormField(
-                  controller: controllers.name,
-                  decoration: InputDecoration(labelText: strings.medicine),
+                StreamBuilder<List<InventoryItem>>(
+                  stream: context.read<FirebaseFireStore>().streamInventory(),
+                  builder: (context, snapshot) => Autocomplete<InventoryItem>(
+                    initialValue: TextEditingValue(text: controllers.name.text),
+                    displayStringForOption: (item) => item.name,
+                    optionsBuilder: (value) {
+                      final query = value.text.trim().toLowerCase();
+                      if (query.isEmpty) return const <InventoryItem>[];
+                      return (snapshot.data ?? const <InventoryItem>[])
+                          .where(
+                            (item) =>
+                                item.remainingQuantity > 0 &&
+                                item.name.toLowerCase().contains(query),
+                          )
+                          .take(8);
+                    },
+                    onSelected: (item) => controllers.name.text = item.name,
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onSubmitted) {
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            onChanged: (value) => controllers.name.text = value,
+                            decoration: InputDecoration(
+                              labelText: strings.medicine,
+                              helperText:
+                                  'Stock suggestions; free text = outside medicine',
+                            ),
+                          );
+                        },
+                    optionsViewBuilder: (context, onSelected, options) => Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 6,
+                        child: SizedBox(
+                          width: 340,
+                          child: ListView(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            children: options
+                                .map(
+                                  (item) => ListTile(
+                                    dense: true,
+                                    title: Text(item.name),
+                                    subtitle: Text(
+                                      '${item.remainingQuantity} ${item.unit} in stock',
+                                    ),
+                                    onTap: () => onSelected(item),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 TextFormField(
                   controller: controllers.dosage,

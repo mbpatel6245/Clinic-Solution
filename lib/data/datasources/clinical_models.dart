@@ -36,6 +36,7 @@ class PatientModel {
     this.age,
     this.createdAt,
     this.updatedAt,
+    this.userId = '',
   });
 
   final String id;
@@ -48,6 +49,7 @@ class PatientModel {
   final int? age;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String userId;
 
   String get fullName => [
     firstName,
@@ -67,6 +69,7 @@ class PatientModel {
       age: int.tryParse(data['age']?.toString() ?? ''),
       createdAt: _dateTimeFrom(data['created_at']),
       updatedAt: _dateTimeFrom(data['updated_at']),
+      userId: data['user_id']?.toString() ?? '',
     );
   }
 
@@ -79,11 +82,26 @@ class PatientModel {
     'phone': phone.trim(),
     'address': address.trim(),
     'age': age,
+    'user_id': userId,
     'created_at': createdAt == null
         ? FieldValue.serverTimestamp()
         : Timestamp.fromDate(createdAt!),
     'updated_at': FieldValue.serverTimestamp(),
   };
+
+  PatientModel copyWith({String? id}) => PatientModel(
+    id: id ?? this.id,
+    firstName: firstName,
+    middleName: middleName,
+    lastName: lastName,
+    gender: gender,
+    phone: phone,
+    address: address,
+    age: age,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    userId: userId,
+  );
 }
 
 class MedicineLine {
@@ -135,6 +153,9 @@ class PrescriptionModel {
     this.followUpDate,
     this.createdAt,
     this.updatedAt,
+    this.sharedWithPatient = false,
+    this.patientUserId = '',
+    this.clinicId = '',
   });
 
   final String id;
@@ -150,6 +171,9 @@ class PrescriptionModel {
   final DateTime? followUpDate;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool sharedWithPatient;
+  final String patientUserId;
+  final String clinicId;
 
   DateTime get visitTimestamp => createdAt ?? visitDate ?? DateTime.now();
 
@@ -197,6 +221,12 @@ class PrescriptionModel {
       followUpDate: _dateTimeFrom(data['follow_up_date']),
       createdAt: _dateTimeFrom(data['created_at']),
       updatedAt: _dateTimeFrom(data['updated_at']),
+      sharedWithPatient: data['shared_with_patient'] == true,
+      patientUserId:
+          data['patient_user_id']?.toString() ??
+          patientData['user_id']?.toString() ??
+          '',
+      clinicId: data['_clinic_id']?.toString() ?? '',
     );
   }
 
@@ -217,6 +247,8 @@ class PrescriptionModel {
         .map((medicine) => medicine.toMap())
         .toList(),
     'status': status,
+    'shared_with_patient': sharedWithPatient,
+    'patient_user_id': patientUserId.isEmpty ? patient.userId : patientUserId,
     'visit_date': Timestamp.fromDate(visitDate ?? DateTime.now()),
     'follow_up_date': followUpDate == null
         ? null
@@ -239,7 +271,12 @@ class AppointmentModel {
     this.notes = '',
     this.status = 'booked',
     this.createdBy = '',
+    this.patient,
+    this.doctorFee = 0,
+    this.clinicFee = 0,
+    this.amountPaid = 0,
     this.createdAt,
+    this.clinicId = '',
   });
 
   final String id;
@@ -251,7 +288,12 @@ class AppointmentModel {
   final String notes;
   final String status;
   final String createdBy;
+  final PatientModel? patient;
+  final double doctorFee;
+  final double clinicFee;
+  final double amountPaid;
   final DateTime? createdAt;
+  final String clinicId;
 
   factory AppointmentModel.fromMap(Map<String, dynamic> data, String id) {
     return AppointmentModel(
@@ -264,7 +306,17 @@ class AppointmentModel {
       notes: data['notes']?.toString() ?? '',
       status: data['status']?.toString() ?? 'booked',
       createdBy: data['created_by']?.toString() ?? '',
+      patient: data['patient'] is Map
+          ? PatientModel.fromMap(
+              Map<String, dynamic>.from(data['patient'] as Map),
+              data['patient_id']?.toString() ?? '',
+            )
+          : null,
+      doctorFee: _doubleFrom(data['doctor_fee']),
+      clinicFee: _doubleFrom(data['clinic_fee']),
+      amountPaid: _doubleFrom(data['amount_paid']),
       createdAt: _dateTimeFrom(data['created_at']),
+      clinicId: data['_clinic_id']?.toString() ?? '',
     );
   }
 
@@ -278,6 +330,13 @@ class AppointmentModel {
     'notes': notes.trim(),
     'status': status,
     'created_by': createdBy,
+    if (patient != null)
+      'patient': patient!.toMap()
+        ..remove('created_at')
+        ..remove('updated_at'),
+    'doctor_fee': doctorFee,
+    'clinic_fee': clinicFee,
+    'amount_paid': amountPaid,
     'created_at': createdAt == null
         ? FieldValue.serverTimestamp()
         : Timestamp.fromDate(createdAt!),
@@ -294,7 +353,12 @@ class AppointmentModel {
     notes: notes,
     status: status ?? this.status,
     createdBy: createdBy,
+    patient: patient,
+    doctorFee: doctorFee,
+    clinicFee: clinicFee,
+    amountPaid: amountPaid,
     createdAt: createdAt,
+    clinicId: clinicId,
   );
 }
 

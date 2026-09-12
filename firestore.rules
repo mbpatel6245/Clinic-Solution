@@ -34,6 +34,17 @@ service cloud.firestore {
       return globalRole() in ['platform_owner', 'super_admin', 'owner'];
     }
 
+    function moduleAvailable(moduleId) {
+      return isPlatformOwner() ||
+        !exists(/databases/$(database)/documents/platform_settings/modules) ||
+        !(moduleId in get(/databases/$(database)/documents/platform_settings/modules).data.get('disabled_modules', []));
+    }
+
+    function clinicAllowsPrescriptionSharing(clinicId) {
+      return get(/databases/$(database)/documents/clinics/$(clinicId)).data
+        .get('share_prescriptions_with_patients', false) == true;
+    }
+
     function isDirectClinicAdmin(clinicId) {
       return hasClinicRole(clinicId, [
         'admin', 'Admin', 'administrator', 'clinic_admin', 'branch_manager'
@@ -134,8 +145,11 @@ service cloud.firestore {
         (isActiveClinicAdmin() &&
           resource.data.get('clinic_ids', []).hasAny(profile().get('clinic_ids', []))));
       allow create: if signedIn() && request.auth.uid == userId &&
-        request.resource.data.role in ['clinic_admin', 'doctor'] &&
-        request.resource.data.status == 'pending' &&
+        request.resource.data.role in ['clinic_admin', 'doctor', 'patient'] &&
+        ((request.resource.data.role == 'patient' &&
+          request.resource.data.status == 'approved') ||
+         (request.resource.data.role in ['clinic_admin', 'doctor'] &&
+          request.resource.data.status == 'pending')) &&
         request.resource.data.get('clinic_ids', []).size() == 0 &&
         request.resource.data.get('clinic_roles', {}).size() == 0 &&
         request.resource.data.get('clinic_role_lists', {}).size() == 0 &&
@@ -148,6 +162,20 @@ service cloud.firestore {
           request.resource.data.get('clinic_ids', []) == resource.data.get('clinic_ids', []) &&
           request.resource.data.get('clinic_roles', {}) == resource.data.get('clinic_roles', {}) &&
           request.resource.data.get('clinic_role_lists', {}) == resource.data.get('clinic_role_lists', {})) ||
+        (request.auth.uid == userId && globalRole() == 'patient' &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.get('status', '') == resource.data.get('status', '') &&
+          request.resource.data.get('clinic_ids', []).hasAll(resource.data.get('clinic_ids', [])) &&
+          request.resource.data.get('clinic_ids', []).size() <=
+            resource.data.get('clinic_ids', []).size() + 1 &&
+          request.resource.data.get('active_clinic_id', '') in
+            request.resource.data.get('clinic_ids', []) &&
+          clinicIsActive(request.resource.data.get('active_clinic_id', '')) &&
+          request.resource.data.get('clinic_roles', {}) == resource.data.get('clinic_roles', {}) &&
+          request.resource.data.get('clinic_role_lists', {}) == resource.data.get('clinic_role_lists', {}) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'clinic_ids', 'active_clinic_id', 'updated_at'
+          ])) ||
         (isActiveClinicAdmin() &&
           resource.data.get('clinic_ids', []).hasAny(profile().get('clinic_ids', [])) &&
           request.resource.data.role == resource.data.role &&
@@ -180,7 +208,8 @@ service cloud.firestore {
     }
 
     match /platform_settings/{settingId} {
-      allow read, create, update: if isPlatformOwner();
+      allow read: if signedIn();
+      allow create, update: if isPlatformOwner();
       allow delete: if false;
     }
 
@@ -189,79 +218,109 @@ service cloud.firestore {
     }
 
     match /clinics/{clinicId} {
-      allow read: if belongsTo(clinicId);
+      allow read: if belongsTo(clinicId) ||
+        (signedIn() && globalRole() == 'patient' &&
+          resource.data.get('active', true) == true);
       allow create: if isPlatformOwner();
       allow update: if isPlatformOwner() ||
         (isDirectClinicAdmin(clinicId) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'name', 'code', 'phone', 'address', 'currency', 'timezone',
-            'updated_at'
+            'opening_time', 'closing_time', 'working_days',
+            'share_prescriptions_with_patients', 'updated_at'
           ]));
       allow delete: if isPlatformOwner();
 
       match /patients/{patientId} {
-        allow read: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
-          isReception(clinicId);
-        allow create, update: if isClinicAdmin(clinicId) ||
-          isClinical(clinicId) || isReception(clinicId);
-        allow delete: if isClinicAdmin(clinicId);
+        allow read: if (moduleAvailable('patients') || moduleAvailable('reception') ||
+          moduleAvailable('clinical')) &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) || isReception(clinicId));
+        allow read: if signedIn() && globalRole() == 'patient' &&
+          patientId == request.auth.uid && belongsTo(clinicId);
+        allow create, update: if (moduleAvailable('patients') ||
+          moduleAvailable('reception') || moduleAvailable('clinical')) &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) || isReception(clinicId));
+        allow create, update: if signedIn() && globalRole() == 'patient' &&
+          patientId == request.auth.uid && belongsTo(clinicId) &&
+          request.resource.data.get('user_id', '') == request.auth.uid;
+        allow delete: if (moduleAvailable('patients') || moduleAvailable('reception') ||
+          moduleAvailable('clinical')) && isClinicAdmin(clinicId);
       }
 
       match /prescriptions/{prescriptionId} {
-        allow read: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
-          isPharmacy(clinicId);
-        allow create, update: if isClinicAdmin(clinicId) || isClinical(clinicId);
-        allow delete: if isClinicAdmin(clinicId);
+        allow read: if moduleAvailable('clinical') &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) || isPharmacy(clinicId) ||
+          (signedIn() && globalRole() == 'patient' &&
+            resource.data.get('shared_with_patient', false) == true &&
+            resource.data.get('patient_user_id', '') == request.auth.uid));
+        allow create, update: if moduleAvailable('clinical') &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId)) &&
+          (request.resource.data.get('shared_with_patient', false) == false ||
+            clinicAllowsPrescriptionSharing(clinicId));
+        allow delete: if moduleAvailable('clinical') && isClinicAdmin(clinicId);
       }
 
       match /appointments/{appointmentId} {
-        allow create: if validAppointment() && (
-          (signedIn() && request.resource.data.created_by == request.auth.uid) ||
+        allow create: if (moduleAvailable('appointments') || moduleAvailable('reception')) &&
+          validAppointment() && (
+          (belongsTo(clinicId) &&
+            request.resource.data.created_by == request.auth.uid) ||
           (!signedIn() && clinicId == 'default-clinic' &&
             request.resource.data.created_by == '')
         );
-        allow read: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
+        allow read: if (moduleAvailable('appointments') || moduleAvailable('reception')) &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) ||
           isReception(clinicId) ||
-          (signedIn() && resource.data.created_by == request.auth.uid);
-        allow update: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
+          (signedIn() && resource.data.created_by == request.auth.uid));
+        allow update: if (moduleAvailable('appointments') || moduleAvailable('reception')) &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) ||
           isReception(clinicId) ||
           (signedIn() && resource.data.created_by == request.auth.uid &&
             request.resource.data.created_by == request.auth.uid &&
-            request.resource.data.status in ['booked', 'cancelled']);
-        allow delete: if isClinicAdmin(clinicId);
+            request.resource.data.status in ['booked', 'cancelled']));
+        allow delete: if (moduleAvailable('appointments') || moduleAvailable('reception')) &&
+          isClinicAdmin(clinicId);
       }
 
       match /stocks/{stockId} {
-        allow read, create, update: if isClinicAdmin(clinicId) || isPharmacy(clinicId);
-        allow delete: if isClinicAdmin(clinicId);
+        allow read, create, update: if moduleAvailable('pharmacy') &&
+          (isClinicAdmin(clinicId) || isPharmacy(clinicId));
+        allow delete: if moduleAvailable('pharmacy') && isClinicAdmin(clinicId);
       }
 
       match /invoices/{invoiceId} {
-        allow read: if isClinicAdmin(clinicId) || isReception(clinicId) ||
-          isPharmacy(clinicId) || isAccounts(clinicId);
-        allow create, update: if isClinicAdmin(clinicId) || isReception(clinicId) ||
-          isPharmacy(clinicId) || isAccounts(clinicId);
-        allow delete: if isClinicAdmin(clinicId);
+        allow read: if (moduleAvailable('billing') || moduleAvailable('pharmacy')) &&
+          (isClinicAdmin(clinicId) || isReception(clinicId) ||
+          isPharmacy(clinicId) || isAccounts(clinicId));
+        allow create, update: if (moduleAvailable('billing') || moduleAvailable('pharmacy')) &&
+          (isClinicAdmin(clinicId) || isReception(clinicId) ||
+          isPharmacy(clinicId) || isAccounts(clinicId));
+        allow delete: if (moduleAvailable('billing') || moduleAvailable('pharmacy')) &&
+          isClinicAdmin(clinicId);
       }
 
       match /finance_entries/{entryId} {
-        allow read, create, update: if isClinicAdmin(clinicId) || isAccounts(clinicId);
-        allow delete: if isClinicAdmin(clinicId);
+        allow read, create, update: if moduleAvailable('expenses') &&
+          (isClinicAdmin(clinicId) || isAccounts(clinicId));
+        allow delete: if moduleAvailable('expenses') && isClinicAdmin(clinicId);
       }
 
       match /vaccinations/{recordId} {
-        allow read, create, update: if isClinicAdmin(clinicId) || isClinical(clinicId);
-        allow delete: if isClinicAdmin(clinicId);
+        allow read, create, update: if moduleAvailable('vaccination') &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId));
+        allow delete: if moduleAvailable('vaccination') && isClinicAdmin(clinicId);
       }
 
       match /reminders/{reminderId} {
-        allow read: if isClinicAdmin(clinicId) || isClinical(clinicId) ||
-          isReception(clinicId);
-        allow create: if (isClinicAdmin(clinicId) || isClinical(clinicId) ||
+        allow read: if moduleAvailable('reminders') &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) || isReception(clinicId));
+        allow create: if moduleAvailable('reminders') &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) ||
           isReception(clinicId)) && validReminderCreate();
-        allow update: if (isClinicAdmin(clinicId) || isClinical(clinicId) ||
+        allow update: if moduleAvailable('reminders') &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) ||
           isReception(clinicId)) && validReminderUpdate();
-        allow delete: if isClinicAdmin(clinicId);
+        allow delete: if moduleAvailable('reminders') && isClinicAdmin(clinicId);
       }
 
       match /audit_logs/{logId} {
@@ -277,9 +336,9 @@ service cloud.firestore {
       }
 
       match /laboratory/{recordId} {
-        allow read, create, update: if isClinicAdmin(clinicId) ||
-          isClinical(clinicId);
-        allow delete: if isClinicAdmin(clinicId);
+        allow read, create, update: if moduleAvailable('laboratory') &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId));
+        allow delete: if moduleAvailable('laboratory') && isClinicAdmin(clinicId);
       }
     }
 

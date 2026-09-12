@@ -64,6 +64,19 @@ void main() {
     expect(prescription.medicines.single.duration, '5 days');
   });
 
+  test('shared prescription keeps the linked patient account', () {
+    final prescription = PrescriptionModel.fromMap({
+      'patient_id': 'patient-1',
+      'patient_user_id': 'user-1',
+      'shared_with_patient': true,
+      'patient': {'first_name': 'Asha', 'user_id': 'user-1'},
+    }, 'rx-1');
+
+    expect(prescription.patient.userId, 'user-1');
+    expect(prescription.patientUserId, 'user-1');
+    expect(prescription.sharedWithPatient, isTrue);
+  });
+
   test('a new visit is offered only after four hours', () {
     final createdAt = DateTime(2026, 9, 11, 9);
     final prescription = PrescriptionModel(
@@ -91,6 +104,24 @@ void main() {
 
     expect(appointment.createdBy, 'patient-user-1');
     expect(appointment.toMap()['created_by'], 'patient-user-1');
+  });
+
+  test('reception appointment preserves patient profile and fees', () {
+    final appointment = AppointmentModel.fromMap({
+      'patient_id': 'patient-1',
+      'patient_name': 'Asha Patel',
+      'phone': '',
+      'scheduled_at': DateTime(2027, 1, 5),
+      'patient': {'first_name': 'Asha', 'last_name': 'Patel', 'age': 34},
+      'doctor_fee': 500,
+      'clinic_fee': 100,
+      'amount_paid': 600,
+    }, 'appointment-1');
+
+    expect(appointment.patient?.fullName, 'Asha Patel');
+    expect(appointment.patient?.id, 'patient-1');
+    expect(appointment.doctorFee + appointment.clinicFee, 600);
+    expect(appointment.amountPaid, 600);
   });
 
   test('FinanceEntry reads income and expense records', () {
@@ -121,6 +152,7 @@ void main() {
     );
 
     test('patient can book appointments without staff access', () {
+      expect(AppRole.patient.can(AppFeature.dashboard), isTrue);
       expect(AppRole.patient.can(AppFeature.appointments), isTrue);
       expect(AppRole.patient.can(AppFeature.finance), isFalse);
       expect(AppRole.patient.can(AppFeature.inventory), isFalse);
@@ -140,6 +172,7 @@ void main() {
       expect(AppRole.receptionist.can(AppFeature.inventory), isFalse);
       expect(AppRole.pharmacyOperator.can(AppFeature.inventory), isTrue);
       expect(AppRole.pharmacyOperator.can(AppFeature.finance), isFalse);
+      expect(AppRole.doctor.can(AppFeature.reception), isTrue);
     });
   });
 }

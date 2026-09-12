@@ -166,15 +166,18 @@ class _PrescriptionCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(child: Text(_initials(record.patient.fullName))),
-                const SizedBox(width: 12),
+                CircleAvatar(
+                  radius: 18,
+                  child: Text(_initials(record.patient.fullName)),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,7 +186,6 @@ class _PrescriptionCard extends StatelessWidget {
                         record.patient.fullName,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      const SizedBox(height: 3),
                       Text(
                         [
                           if (record.patient.phone.isNotEmpty)
@@ -216,24 +218,24 @@ class _PrescriptionCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ...record.diagnoses.map((item) => Chip(label: Text(item))),
-              ],
-            ),
+            if (record.diagnoses.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Diagnosis: ${record.diagnoses.join(', ')}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
             if (record.complaints.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 3),
               Text(
                 '${strings.chiefComplaints}: ${record.complaints}',
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
             if (record.medicines.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 3),
               Text(
                 'Medicines: ${record.medicines.take(3).map((item) => item.name).where((name) => name.isNotEmpty).join(', ')}',
                 maxLines: 1,
