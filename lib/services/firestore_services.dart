@@ -301,6 +301,69 @@ class FirebaseFireStore with ChangeNotifier {
     );
   }
 
+  Future<PatientModel> saveReceptionVisit(
+    PatientModel patient,
+    AppointmentModel appointment,
+  ) async {
+    final patientReference = patient.id.isEmpty
+        ? _collection(pathPatients).doc()
+        : _collection(pathPatients).doc(patient.id);
+    final appointmentReference = appointment.id.isEmpty
+        ? _collection(pathAppointments).doc()
+        : _collection(pathAppointments).doc(appointment.id);
+    final savedPatient = patient.copyWith(id: patientReference.id);
+    final embeddedPatient = savedPatient.toMap()
+      ..remove('created_at')
+      ..remove('updated_at');
+    final appointmentData = appointment.toMap()
+      ..['patient_id'] = patientReference.id
+      ..['patient'] = embeddedPatient;
+    final batch = _db.batch();
+    batch.set(patientReference, savedPatient.toMap(), SetOptions(merge: true));
+    batch.set(appointmentReference, appointmentData, SetOptions(merge: true));
+    final lines = <InvoiceLine>[
+      if (appointment.doctorFee > 0)
+        InvoiceLine(
+          type: 'doctor',
+          description: 'Doctor consultation',
+          amount: appointment.doctorFee,
+        ),
+      if (appointment.clinicFee > 0)
+        InvoiceLine(
+          type: 'clinic',
+          description: 'Clinic / case fee',
+          amount: appointment.clinicFee,
+        ),
+    ];
+    if (lines.isNotEmpty) {
+      final total = appointment.doctorFee + appointment.clinicFee;
+      batch.set(
+        _collection(pathInvoices).doc(),
+        ClinicInvoice(
+          patientId: patientReference.id,
+          patientName: savedPatient.fullName,
+          lines: lines,
+          issuedAt: appointment.scheduledAt,
+          amountPaid: appointment.amountPaid,
+          status: appointment.amountPaid >= total
+              ? InvoiceStatus.paid
+              : appointment.amountPaid > 0
+              ? InvoiceStatus.partiallyPaid
+              : InvoiceStatus.unpaid,
+        ).toMap(),
+      );
+    }
+    await _queueWrite(batch.commit());
+    return savedPatient;
+  }
+
+  Future<PatientModel?> getPatient(String patientId) async {
+    if (patientId.isEmpty) return null;
+    final snapshot = await _collection(pathPatients).doc(patientId).get();
+    final data = snapshot.data();
+    return data == null ? null : PatientModel.fromMap(data, snapshot.id);
+  }
+
   Future<void> updateAppointmentStatus(String id, String status) async {
     await _queueWrite(
       _collection(pathAppointments).doc(id).update({
@@ -380,6 +443,85 @@ class FirebaseFireStore with ChangeNotifier {
         .doc('notifications')
         .set(settings.toMap(), SetOptions(merge: true)),
   );
+
+  Stream<PlatformModuleSettings> streamPlatformModuleSettings() => _db
+      .collection('platform_settings')
+      .doc('modules')
+      .snapshots()
+      .map(
+        (snapshot) =>
+            PlatformModuleSettings.fromMap(snapshot.data() ?? const {}),
+      );
+
+  Future<void> savePlatformModuleSettings(PlatformModuleSettings settings) =>
+      _queueWrite(
+        _db
+            .collection('platform_settings')
+            .doc('modules')
+            .set(settings.toMap(), SetOptions(merge: true)),
+      );
+
+  static String moduleCollectionPath(ClinicModule module) => switch (module) {
+    ClinicModule.patients => pathPatients,
+    ClinicModule.reception || ClinicModule.appointments => pathAppointments,
+    ClinicModule.clinical => pathPrescriptions,
+    ClinicModule.pharmacy => pathStock,
+    ClinicModule.vaccination => pathVaccinations,
+    ClinicModule.reminders => pathReminders,
+    ClinicModule.billing => pathInvoices,
+    ClinicModule.expenses => pathFinance,
+    ClinicModule.laboratory => 'laboratory',
+    ClinicModule.reports || ClinicModule.dataExchange => '',
+  };
+
+  Stream<List<PlatformModuleRecord>> streamAllModuleRecords(
+    ClinicModule module,
+  ) {
+    final path = moduleCollectionPath(module);
+    if (path.isEmpty) return Stream.value(const []);
+    return _db
+        .collectionGroup(path)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => PlatformModuleRecord(
+                  id: doc.id,
+                  clinicId: doc.reference.parent.parent?.id ?? '',
+                  data: doc.data(),
+                ),
+              )
+              .toList(),
+        );
+  }
+
+  Future<void> deletePlatformModuleRecord(
+    ClinicModule module,
+    PlatformModuleRecord record,
+  ) => _queueWrite(
+    _db
+        .collection('clinics')
+        .doc(record.clinicId)
+        .collection(moduleCollectionPath(module))
+        .doc(record.id)
+        .delete(),
+  );
+
+  Future<int> deleteModuleData(ClinicModule module, {String? clinicId}) async {
+    final path = moduleCollectionPath(module);
+    if (path.isEmpty) return 0;
+    final snapshot = clinicId == null
+        ? await _db.collectionGroup(path).get()
+        : await _db.collection('clinics').doc(clinicId).collection(path).get();
+    for (var offset = 0; offset < snapshot.docs.length; offset += 400) {
+      final batch = _db.batch();
+      for (final doc in snapshot.docs.skip(offset).take(400)) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+    return snapshot.docs.length;
+  }
 
   Stream<List<TeamInvitation>> streamTeamInvitations({
     bool allClinics = false,

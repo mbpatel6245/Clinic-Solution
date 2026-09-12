@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   PatientModel? _prescriptionPatient;
   PrescriptionModel? _prescriptionToEdit;
   int _prescriptionFormVersion = 0;
+  String? _lastClinicId;
   final _secureData = SecureDataViewModel();
   bool _passwordDialogShown = false;
 
@@ -66,6 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final session = context.watch<SessionController>();
     if (session.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_lastClinicId != session.activeClinicId) {
+      _lastClinicId = session.activeClinicId;
+      _selectedIndex = 0;
+      _prescriptionPatient = null;
+      _prescriptionToEdit = null;
+      _prescriptionFormVersion++;
     }
     if (session.mustChangePassword && !_passwordDialogShown) {
       _passwordDialogShown = true;
@@ -151,12 +159,16 @@ class _HomeScreenState extends State<HomeScreen> {
           page: TabAppointments(patientOnly: session.role == AppRole.patient),
         ),
       if (session.can(AppFeature.reception))
-        const _WorkspaceDestination(
+        _WorkspaceDestination(
           feature: AppFeature.reception,
           label: 'Reception',
           icon: Icons.how_to_reg_outlined,
           selectedIcon: Icons.how_to_reg,
-          page: ReceptionScreen(),
+          page: ReceptionScreen(
+            onStartPrescription: session.can(AppFeature.createPrescription)
+                ? startNewVisit
+                : null,
+          ),
         ),
       if (session.can(AppFeature.inventory))
         _WorkspaceDestination(
@@ -304,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Icon(Icons.check, size: 18),
                         if (id == session.activeClinicId)
                           const SizedBox(width: 8),
-                        Flexible(child: Text(id)),
+                        Flexible(child: Text(session.clinicNameFor(id))),
                       ],
                     ),
                   ),

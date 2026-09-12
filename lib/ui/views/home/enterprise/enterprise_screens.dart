@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -62,6 +63,10 @@ class ClinicSetupScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               if (isOwner) ...[
+                _PlatformModulesCard(
+                  enabledModules: session.platformEnabledModules,
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 StreamBuilder<PlatformNotificationSettings>(
                   stream: service.streamPlatformNotificationSettings(),
                   builder: (context, notificationSnapshot) =>
@@ -144,6 +149,8 @@ class ClinicSetupScreen extends StatelessWidget {
                         final core =
                             module == ClinicModule.patients ||
                             module == ClinicModule.clinical;
+                        final platformEnabled = session.platformEnabledModules
+                            .contains(module);
                         return SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           secondary: CircleAvatar(
@@ -155,14 +162,19 @@ class ClinicSetupScreen extends StatelessWidget {
                           ),
                           title: Text(module.displayName),
                           subtitle: Text(
-                            core
+                            !platformEnabled
+                                ? 'Disabled platform-wide'
+                                : core
                                 ? 'Core clinical module'
                                 : 'Optional — enable when this clinic uses it',
                           ),
                           value:
-                              core ||
-                              selectedClinic!.enabledModules.contains(module),
-                          onChanged: core || !isOwner
+                              platformEnabled &&
+                              (core ||
+                                  selectedClinic!.enabledModules.contains(
+                                    module,
+                                  )),
+                          onChanged: core || !isOwner || !platformEnabled
                               ? null
                               : (enabled) async {
                                   final modules = {
@@ -325,6 +337,44 @@ class ClinicSetupScreen extends StatelessWidget {
       await context.read<SessionController>().showAllClinics();
     }
   }
+}
+
+class _PlatformModulesCard extends StatelessWidget {
+  const _PlatformModulesCard({required this.enabledModules});
+
+  final Set<ClinicModule> enabledModules;
+
+  @override
+  Widget build(BuildContext context) => AppSection(
+    title: 'Platform modules',
+    child: Column(
+      children: ClinicModule.values
+          .map(
+            (module) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: Icon(_moduleIcon(module)),
+              title: Text(module.displayName),
+              subtitle: Text(
+                enabledModules.contains(module)
+                    ? 'Available to clinics that purchased this module'
+                    : 'Hidden and blocked for every clinic',
+              ),
+              value: enabledModules.contains(module),
+              onChanged: (enabled) async {
+                final next = ClinicModule.values.toSet()
+                  ..removeAll(enabledModules);
+                enabled ? next.remove(module) : next.add(module);
+                await context
+                    .read<FirebaseFireStore>()
+                    .savePlatformModuleSettings(
+                      PlatformModuleSettings(disabledModules: next),
+                    );
+              },
+            ),
+          )
+          .toList(),
+    ),
+  );
 }
 
 class _GlobalNotificationSettingsCard extends StatelessWidget {
@@ -644,11 +694,243 @@ class PlatformOverviewScreen extends StatelessWidget {
                 onSelected: context.read<SessionController>().selectClinic,
               ),
             ),
+            const SizedBox(height: AppSpacing.lg),
+            _PlatformDataExplorer(clinics: clinics),
           ],
         ),
       );
     },
   );
+}
+
+class _PlatformDataExplorer extends StatefulWidget {
+  const _PlatformDataExplorer({required this.clinics});
+
+  final List<ClinicProfile> clinics;
+
+  @override
+  State<_PlatformDataExplorer> createState() => _PlatformDataExplorerState();
+}
+
+class _PlatformDataExplorerState extends State<_PlatformDataExplorer> {
+  ClinicModule _module = ClinicModule.patients;
+  String _query = '';
+  bool _deleting = false;
+
+  static final _dataModules = ClinicModule.values
+      .where(
+        (module) =>
+            module != ClinicModule.reports &&
+            module != ClinicModule.dataExchange,
+      )
+      .toList();
+
+  @override
+  Widget build(BuildContext context) {
+    final clinicNames = {
+      for (final clinic in widget.clinics) clinic.id: clinic.name,
+    };
+    return AppSection(
+      title: 'All-clinic module data',
+      trailing: TextButton.icon(
+        onPressed: _deleting ? null : () => _deleteAll(context),
+        icon: const Icon(Icons.delete_sweep_outlined),
+        label: const Text('Delete all shown module data'),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<ClinicModule>(
+                  initialValue: _module,
+                  decoration: const InputDecoration(labelText: 'Module'),
+                  items: _dataModules
+                      .map(
+                        (module) => DropdownMenuItem(
+                          value: module,
+                          child: Text(module.displayName),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() {
+                    _module = value ?? _module;
+                    _query = '';
+                  }),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Search records',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: (value) => setState(() => _query = value),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          StreamBuilder<List<PlatformModuleRecord>>(
+            stream: context.read<FirebaseFireStore>().streamAllModuleRecords(
+              _module,
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text('Unable to load records: ${snapshot.error}');
+              }
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.all(AppSpacing.lg),
+                  child: CircularProgressIndicator(),
+                );
+              }
+              final query = _query.trim().toLowerCase();
+              final records = snapshot.data!.where((record) {
+                if (query.isEmpty) return true;
+                return [
+                  clinicNames[record.clinicId] ?? record.clinicId,
+                  record.id,
+                  ...record.data.values.map((value) => '$value'),
+                ].join(' ').toLowerCase().contains(query);
+              }).toList();
+              if (records.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(AppSpacing.md),
+                  child: Text('No matching records.'),
+                );
+              }
+              return SizedBox(
+                height: 420,
+                child: ListView.separated(
+                  itemCount: records.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final record = records[index];
+                    return ListTile(
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      leading: CircleAvatar(
+                        child: Icon(_moduleIcon(_module), size: 18),
+                      ),
+                      title: Text(_recordTitle(record.data)),
+                      subtitle: Text(
+                        '${clinicNames[record.clinicId] ?? record.clinicId} • ${_recordSummary(record.data)}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: IconButton(
+                        tooltip: 'Delete record',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _deleteRecord(context, record),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _recordTitle(Map<String, dynamic> data) {
+    final patient = data['patient'];
+    final embeddedName = patient is Map
+        ? [patient['first_name'], patient['middle_name'], patient['last_name']]
+              .where((value) => value?.toString().trim().isNotEmpty == true)
+              .join(' ')
+        : '';
+    for (final key in ['patient_name', 'name', 'title', 'description']) {
+      final value = data[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+    return embeddedName.isEmpty ? 'Record' : embeddedName;
+  }
+
+  String _recordSummary(Map<String, dynamic> data) {
+    final values = <String>[];
+    for (final key in ['status', 'reason', 'category', 'amount', 'phone']) {
+      final value = data[key];
+      if (value != null && '$value'.trim().isNotEmpty) values.add('$value');
+    }
+    final medicines = data['medicines'];
+    if (medicines is Iterable) {
+      values.addAll(
+        medicines
+            .whereType<Map>()
+            .map((item) => item['name']?.toString() ?? '')
+            .where((name) => name.isNotEmpty)
+            .take(2),
+      );
+    }
+    return values.isEmpty ? 'Stored module record' : values.take(3).join(' • ');
+  }
+
+  Future<void> _deleteRecord(
+    BuildContext context,
+    PlatformModuleRecord record,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete record?'),
+        content: Text(
+          'Permanently delete this ${_module.displayName} record from its clinic?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await context.read<FirebaseFireStore>().deletePlatformModuleRecord(
+        _module,
+        record,
+      );
+    }
+  }
+
+  Future<void> _deleteAll(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Delete all ${_module.displayName} data?'),
+        content: const Text(
+          'This permanently deletes this module’s records from every clinic. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete all'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    setState(() => _deleting = true);
+    try {
+      final count = await context.read<FirebaseFireStore>().deleteModuleData(
+        _module,
+      );
+      if (context.mounted) _notice(context, 'Deleted $count records.');
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
 }
 
 class _ClinicDirectory extends StatefulWidget {
@@ -750,73 +1032,230 @@ IconData _moduleIcon(ClinicModule module) => switch (module) {
 };
 
 class ReceptionScreen extends StatelessWidget {
-  const ReceptionScreen({super.key});
+  const ReceptionScreen({super.key, this.onStartPrescription});
+
+  final ValueChanged<PatientModel>? onStartPrescription;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<List<AppointmentModel>>(
-    stream: context.read<FirebaseFireStore>().streamAppointments(),
-    builder: (context, snapshot) {
-      final today = DateTime.now();
-      final items = (snapshot.data ?? const <AppointmentModel>[])
-          .where(
-            (item) =>
-                item.scheduledAt.year == today.year &&
-                item.scheduledAt.month == today.month &&
-                item.scheduledAt.day == today.day,
-          )
-          .toList();
-      return AppPage(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _heading(
-              context,
-              'Reception & queue',
-              'Manage today’s check-ins and visit status.',
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            if (items.isEmpty)
-              const AppSection(child: Text('No patients are scheduled today.'))
-            else
-              ...items.indexed.map((entry) {
-                final (index, item) = entry;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Card(
-                    child: ListTile(
-                      leading: CircleAvatar(child: Text('${index + 1}')),
-                      title: Text(item.patientName),
-                      subtitle: Text(
-                        '${DateFormat.jm().format(item.scheduledAt)} • ${item.phone} • ${item.status}',
-                      ),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (status) => context
-                            .read<FirebaseFireStore>()
-                            .updateAppointmentStatus(item.id, status),
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                            value: 'confirmed',
-                            child: Text('Check in'),
-                          ),
-                          PopupMenuItem(
-                            value: 'completed',
-                            child: Text('Complete'),
-                          ),
-                          PopupMenuItem(
-                            value: 'cancelled',
-                            child: Text('Cancel'),
-                          ),
-                        ],
+  Widget build(BuildContext context) {
+    final roles = context.watch<SessionController>().roles;
+    final canRegister = roles.any(
+      (role) =>
+          role == AppRole.platformOwner ||
+          role == AppRole.clinicAdmin ||
+          role == AppRole.branchManager ||
+          role == AppRole.receptionist,
+    );
+    return StreamBuilder<List<AppointmentModel>>(
+      stream: context.read<FirebaseFireStore>().streamAppointments(),
+      builder: (context, snapshot) {
+        final today = DateTime.now();
+        final items = (snapshot.data ?? const <AppointmentModel>[])
+            .where(
+              (item) =>
+                  item.scheduledAt.year == today.year &&
+                  item.scheduledAt.month == today.month &&
+                  item.scheduledAt.day == today.day,
+            )
+            .toList();
+        return AppPage(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _heading(
+                context,
+                'Reception & queue',
+                'Manage today’s check-ins and visit status.',
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (canRegister) ...[
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: () => _registerWalkIn(context),
+                    icon: const Icon(Icons.person_add_alt_1_outlined),
+                    label: const Text('Register patient'),
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              if (items.isEmpty)
+                const AppSection(
+                  child: Text('No patients are scheduled today.'),
+                )
+              else
+                ...items.indexed.map((entry) {
+                  final (index, item) = entry;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Card(
+                      child: ListTile(
+                        leading: CircleAvatar(child: Text('${index + 1}')),
+                        title: Text(item.patientName),
+                        subtitle: Text(
+                          [
+                            DateFormat.jm().format(item.scheduledAt),
+                            if (item.phone.isNotEmpty) item.phone,
+                            if (item.doctorFee + item.clinicFee > 0)
+                              _money(context, item.doctorFee + item.clinicFee),
+                            item.status,
+                          ].join(' • '),
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (action) =>
+                              _handleQueueAction(context, item, action),
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(
+                              value: 'confirmed',
+                              child: Text('Check in'),
+                            ),
+                            if (onStartPrescription != null)
+                              const PopupMenuItem(
+                                value: 'prescribe',
+                                child: Text('Start prescription'),
+                              ),
+                            const PopupMenuItem(
+                              value: 'completed',
+                              child: Text('Complete'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'cancelled',
+                              child: Text('Cancel'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                  );
+                }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleQueueAction(
+    BuildContext context,
+    AppointmentModel appointment,
+    String action,
+  ) async {
+    final service = context.read<FirebaseFireStore>();
+    if (action != 'prescribe') {
+      await service.updateAppointmentStatus(appointment.id, action);
+      return;
+    }
+    final patient =
+        appointment.patient ?? await service.getPatient(appointment.patientId);
+    if (patient == null || !context.mounted) {
+      if (context.mounted) {
+        _notice(context, 'Patient profile is missing for this queue entry.');
+      }
+      return;
+    }
+    onStartPrescription?.call(patient);
+  }
+
+  Future<void> _registerWalkIn(BuildContext context) async {
+    final billingEnabled = context.read<SessionController>().can(
+      AppFeature.billing,
+    );
+    final firstName = TextEditingController();
+    final middleName = TextEditingController();
+    final lastName = TextEditingController();
+    final phone = TextEditingController();
+    final address = TextEditingController();
+    final age = TextEditingController();
+    final reason = TextEditingController();
+    final doctorFee = TextEditingController();
+    final clinicFee = TextEditingController();
+    final amountPaid = TextEditingController();
+    String gender = '';
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Register reception patient'),
+          content: SizedBox(
+            width: 620,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _field(firstName, 'First name'),
+                  _field(middleName, 'Middle name'),
+                  _field(lastName, 'Last name'),
+                  _field(phone, 'Phone (optional)'),
+                  _field(address, 'Address'),
+                  _field(age, 'Age', number: true),
+                  DropdownButtonFormField<String>(
+                    initialValue: gender.isEmpty ? null : gender,
+                    decoration: const InputDecoration(labelText: 'Gender'),
+                    items: const [
+                      DropdownMenuItem(value: 'male', child: Text('Male')),
+                      DropdownMenuItem(value: 'female', child: Text('Female')),
+                      DropdownMenuItem(value: 'other', child: Text('Other')),
+                    ],
+                    onChanged: (value) => setState(() => gender = value ?? ''),
                   ),
-                );
-              }),
+                  _field(reason, 'Visit reason'),
+                  if (billingEnabled) ...[
+                    _field(doctorFee, 'Doctor fee', number: true),
+                    _field(clinicFee, 'Clinic / case fee', number: true),
+                    _field(amountPaid, 'Amount paid', number: true),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Add to queue'),
+            ),
           ],
         ),
-      );
-    },
-  );
+      ),
+    );
+    if (saved != true || !context.mounted) return;
+    if (firstName.text.trim().isEmpty) {
+      _notice(context, 'First name is required.');
+      return;
+    }
+    final patient = PatientModel(
+      firstName: firstName.text,
+      middleName: middleName.text,
+      lastName: lastName.text,
+      phone: phone.text,
+      address: address.text,
+      age: int.tryParse(age.text),
+      gender: gender,
+    );
+    final savedPatient = await context
+        .read<FirebaseFireStore>()
+        .saveReceptionVisit(
+          patient,
+          AppointmentModel(
+            patientName: patient.fullName,
+            phone: patient.phone,
+            scheduledAt: DateTime.now(),
+            patient: patient,
+            reason: reason.text,
+            status: 'confirmed',
+            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
+            doctorFee: double.tryParse(doctorFee.text) ?? 0,
+            clinicFee: double.tryParse(clinicFee.text) ?? 0,
+            amountPaid: double.tryParse(amountPaid.text) ?? 0,
+          ),
+        );
+    if (context.mounted) {
+      _notice(context, '${savedPatient.fullName} added to today’s queue.');
+    }
+  }
 }
 
 class BillingScreen extends StatelessWidget {

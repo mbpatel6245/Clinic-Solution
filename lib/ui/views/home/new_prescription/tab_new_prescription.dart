@@ -205,62 +205,90 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
                   _Section(
                     title: strings.patientDetails,
                     icon: Icons.person_outline,
-                    child: _ResponsiveFields(
-                      children: [
-                        _field(
-                          controller: _firstName,
-                          label: strings.firstName,
-                          requiredText: strings.requiredField,
-                        ),
-                        _field(
-                          controller: _middleName,
-                          label: strings.middleName,
-                        ),
-                        _field(controller: _lastName, label: strings.lastName),
-                        _field(
-                          controller: _phone,
-                          label: strings.phone,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        _field(
-                          controller: _age,
-                          label: strings.age,
-                          keyboardType: TextInputType.number,
-                          validator: (value) =>
-                              value != null &&
-                                  value.isNotEmpty &&
-                                  int.tryParse(value) == null
-                              ? strings.invalidNumber
-                              : null,
-                        ),
-                        DropdownButtonFormField<String>(
-                          initialValue: _gender.isEmpty ? null : _gender,
-                          decoration: InputDecoration(
-                            labelText: strings.gender,
+                    child:
+                        widget.initialPatient != null &&
+                            widget.initialPrescription == null
+                        ? ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              child: Text(
+                                widget.initialPatient!.firstName.isEmpty
+                                    ? '?'
+                                    : widget.initialPatient!.firstName[0]
+                                          .toUpperCase(),
+                              ),
+                            ),
+                            title: Text(widget.initialPatient!.fullName),
+                            subtitle: Text(
+                              [
+                                if (widget.initialPatient!.phone.isNotEmpty)
+                                  widget.initialPatient!.phone,
+                                if (widget.initialPatient!.age != null)
+                                  '${widget.initialPatient!.age} ${strings.age}',
+                                if (widget.initialPatient!.address.isNotEmpty)
+                                  widget.initialPatient!.address,
+                              ].join(' • '),
+                            ),
+                          )
+                        : _ResponsiveFields(
+                            children: [
+                              _field(
+                                controller: _firstName,
+                                label: strings.firstName,
+                                requiredText: strings.requiredField,
+                              ),
+                              _field(
+                                controller: _middleName,
+                                label: strings.middleName,
+                              ),
+                              _field(
+                                controller: _lastName,
+                                label: strings.lastName,
+                              ),
+                              _field(
+                                controller: _phone,
+                                label: strings.phone,
+                                keyboardType: TextInputType.phone,
+                              ),
+                              _field(
+                                controller: _age,
+                                label: strings.age,
+                                keyboardType: TextInputType.number,
+                                validator: (value) =>
+                                    value != null &&
+                                        value.isNotEmpty &&
+                                        int.tryParse(value) == null
+                                    ? strings.invalidNumber
+                                    : null,
+                              ),
+                              DropdownButtonFormField<String>(
+                                initialValue: _gender.isEmpty ? null : _gender,
+                                decoration: InputDecoration(
+                                  labelText: strings.gender,
+                                ),
+                                items: [
+                                  DropdownMenuItem(
+                                    value: 'male',
+                                    child: Text(strings.male),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'female',
+                                    child: Text(strings.female),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'other',
+                                    child: Text(strings.other),
+                                  ),
+                                ],
+                                onChanged: (value) => _gender = value ?? '',
+                              ),
+                              _field(
+                                controller: _address,
+                                label: strings.address,
+                                maxLines: 2,
+                              ),
+                            ],
                           ),
-                          items: [
-                            DropdownMenuItem(
-                              value: 'male',
-                              child: Text(strings.male),
-                            ),
-                            DropdownMenuItem(
-                              value: 'female',
-                              child: Text(strings.female),
-                            ),
-                            DropdownMenuItem(
-                              value: 'other',
-                              child: Text(strings.other),
-                            ),
-                          ],
-                          onChanged: (value) => _gender = value ?? '',
-                        ),
-                        _field(
-                          controller: _address,
-                          label: strings.address,
-                          maxLines: 2,
-                        ),
-                      ],
-                    ),
                   ),
                   const SizedBox(height: 16),
                   _Section(

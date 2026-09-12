@@ -84,6 +84,19 @@ class PatientModel {
         : Timestamp.fromDate(createdAt!),
     'updated_at': FieldValue.serverTimestamp(),
   };
+
+  PatientModel copyWith({String? id}) => PatientModel(
+    id: id ?? this.id,
+    firstName: firstName,
+    middleName: middleName,
+    lastName: lastName,
+    gender: gender,
+    phone: phone,
+    address: address,
+    age: age,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+  );
 }
 
 class MedicineLine {
@@ -239,6 +252,10 @@ class AppointmentModel {
     this.notes = '',
     this.status = 'booked',
     this.createdBy = '',
+    this.patient,
+    this.doctorFee = 0,
+    this.clinicFee = 0,
+    this.amountPaid = 0,
     this.createdAt,
   });
 
@@ -251,6 +268,10 @@ class AppointmentModel {
   final String notes;
   final String status;
   final String createdBy;
+  final PatientModel? patient;
+  final double doctorFee;
+  final double clinicFee;
+  final double amountPaid;
   final DateTime? createdAt;
 
   factory AppointmentModel.fromMap(Map<String, dynamic> data, String id) {
@@ -264,6 +285,15 @@ class AppointmentModel {
       notes: data['notes']?.toString() ?? '',
       status: data['status']?.toString() ?? 'booked',
       createdBy: data['created_by']?.toString() ?? '',
+      patient: data['patient'] is Map
+          ? PatientModel.fromMap(
+              Map<String, dynamic>.from(data['patient'] as Map),
+              data['patient_id']?.toString() ?? '',
+            )
+          : null,
+      doctorFee: _doubleFrom(data['doctor_fee']),
+      clinicFee: _doubleFrom(data['clinic_fee']),
+      amountPaid: _doubleFrom(data['amount_paid']),
       createdAt: _dateTimeFrom(data['created_at']),
     );
   }
@@ -278,6 +308,13 @@ class AppointmentModel {
     'notes': notes.trim(),
     'status': status,
     'created_by': createdBy,
+    if (patient != null)
+      'patient': patient!.toMap()
+        ..remove('created_at')
+        ..remove('updated_at'),
+    'doctor_fee': doctorFee,
+    'clinic_fee': clinicFee,
+    'amount_paid': amountPaid,
     'created_at': createdAt == null
         ? FieldValue.serverTimestamp()
         : Timestamp.fromDate(createdAt!),
@@ -294,6 +331,10 @@ class AppointmentModel {
     notes: notes,
     status: status ?? this.status,
     createdBy: createdBy,
+    patient: patient,
+    doctorFee: doctorFee,
+    clinicFee: clinicFee,
+    amountPaid: amountPaid,
     createdAt: createdAt,
   );
 }

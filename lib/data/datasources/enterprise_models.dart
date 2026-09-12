@@ -97,6 +97,42 @@ class ClinicProfile {
   );
 }
 
+class PlatformModuleSettings {
+  const PlatformModuleSettings({this.disabledModules = const {}});
+
+  final Set<ClinicModule> disabledModules;
+
+  Set<ClinicModule> get enabledModules =>
+      ClinicModule.values.toSet()..removeAll(disabledModules);
+
+  factory PlatformModuleSettings.fromMap(Map<String, dynamic> data) =>
+      PlatformModuleSettings(
+        disabledModules: (data['disabled_modules'] as Iterable? ?? const [])
+            .map((value) => ClinicModule.fromValue(value.toString()))
+            .whereType<ClinicModule>()
+            .toSet(),
+      );
+
+  Map<String, dynamic> toMap() => {
+    'disabled_modules': disabledModules
+        .map((module) => module.storageValue)
+        .toList(),
+    'updated_at': FieldValue.serverTimestamp(),
+  };
+}
+
+class PlatformModuleRecord {
+  const PlatformModuleRecord({
+    required this.id,
+    required this.clinicId,
+    required this.data,
+  });
+
+  final String id;
+  final String clinicId;
+  final Map<String, dynamic> data;
+}
+
 class ClinicMembership {
   const ClinicMembership({
     required this.clinicId,

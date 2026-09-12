@@ -27,6 +27,10 @@ class SessionController extends ChangeNotifier {
   _profileSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _clinicSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _platformModulesSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _ownerClinicsSubscription;
 
   AppRole _role = AppRole.doctor;
   Set<AppRole> _roles = {AppRole.doctor};
@@ -34,7 +38,10 @@ class SessionController extends ChangeNotifier {
   String _activeClinicId = 'default-clinic';
   String _clinicName = 'Clinic';
   Set<ClinicModule> _enabledModules = ClinicProfile.defaultModules;
+  Set<ClinicModule> _clinicEnabledModules = ClinicProfile.defaultModules;
+  Set<ClinicModule> _platformEnabledModules = ClinicModule.values.toSet();
   List<String> _clinicIds = const ['default-clinic'];
+  Map<String, String> _clinicNames = const {};
   bool _loading = true;
   bool _mustChangePassword = false;
 
@@ -44,7 +51,12 @@ class SessionController extends ChangeNotifier {
   String get activeClinicId => _activeClinicId;
   String get clinicName => _clinicName;
   Set<ClinicModule> get enabledModules => Set.unmodifiable(_enabledModules);
+  Set<ClinicModule> get platformEnabledModules =>
+      Set.unmodifiable(_platformEnabledModules);
   List<String> get clinicIds => List.unmodifiable(_clinicIds);
+  String clinicNameFor(String clinicId) =>
+      _clinicNames[clinicId] ??
+      (clinicId == allClinicsId ? 'All clinics' : clinicId);
   bool get isAllClinics =>
       _role == AppRole.platformOwner && _activeClinicId == allClinicsId;
   bool get isLoading => _loading;
@@ -56,7 +68,6 @@ class SessionController extends ChangeNotifier {
           feature == AppFeature.clinicSetup;
     }
     if (!_roles.any((role) => role.can(feature))) return false;
-    if (_role == AppRole.platformOwner) return true;
     final module = moduleForFeature(feature);
     return module == null || _enabledModules.contains(module);
   }
@@ -69,6 +80,8 @@ class SessionController extends ChangeNotifier {
   Future<void> _loadUser(User? user) async {
     await _profileSubscription?.cancel();
     await _clinicSubscription?.cancel();
+    await _platformModulesSubscription?.cancel();
+    await _ownerClinicsSubscription?.cancel();
     _loading = true;
     notifyListeners();
     final preferences = await SharedPreferences.getInstance();
@@ -141,6 +154,8 @@ class SessionController extends ChangeNotifier {
               if (_role == AppRole.platformOwner && clinicId.isEmpty) {
                 _activeClinicId = allClinicsId;
               }
+              _listenToPlatformModules();
+              _listenToOwnerClinics();
               await preferences.setString(_roleKey, _role.storageValue);
               await preferences.setString(_nameKey, _displayName);
               await preferences.setString(_clinicKey, _activeClinicId);
@@ -161,7 +176,8 @@ class SessionController extends ChangeNotifier {
     _clinicSubscription?.cancel();
     if (_activeClinicId == allClinicsId) {
       _clinicName = 'All clinics';
-      _enabledModules = ClinicModule.values.toSet();
+      _clinicEnabledModules = ClinicModule.values.toSet();
+      _refreshEffectiveModules();
       notifyListeners();
       return;
     }
@@ -173,14 +189,57 @@ class SessionController extends ChangeNotifier {
           final data = snapshot.data();
           if (data == null) {
             _clinicName = 'Clinic';
-            _enabledModules = ClinicProfile.defaultModules;
+            _clinicEnabledModules = ClinicProfile.defaultModules;
           } else {
             final clinic = ClinicProfile.fromMap(data, snapshot.id);
             _clinicName = clinic.name;
-            _enabledModules = clinic.enabledModules;
+            _clinicNames = {..._clinicNames, snapshot.id: clinic.name};
+            _clinicEnabledModules = clinic.enabledModules;
+          }
+          _refreshEffectiveModules();
+          notifyListeners();
+        });
+  }
+
+  void _listenToPlatformModules() {
+    _platformModulesSubscription?.cancel();
+    _platformModulesSubscription = _firestore
+        .collection('platform_settings')
+        .doc('modules')
+        .snapshots(includeMetadataChanges: true)
+        .listen((snapshot) {
+          _platformEnabledModules = PlatformModuleSettings.fromMap(
+            snapshot.data() ?? const {},
+          ).enabledModules;
+          _refreshEffectiveModules();
+          notifyListeners();
+        });
+  }
+
+  void _listenToOwnerClinics() {
+    _ownerClinicsSubscription?.cancel();
+    if (_role != AppRole.platformOwner) return;
+    _ownerClinicsSubscription = _firestore
+        .collection('clinics')
+        .snapshots()
+        .listen((snapshot) {
+          _clinicIds = snapshot.docs.map((doc) => doc.id).toList()..sort();
+          _clinicNames = {
+            for (final doc in snapshot.docs)
+              doc.id: doc.data()['name']?.toString() ?? doc.id,
+          };
+          if (_activeClinicId != allClinicsId &&
+              !_clinicIds.contains(_activeClinicId)) {
+            unawaited(showAllClinics());
           }
           notifyListeners();
         });
+  }
+
+  void _refreshEffectiveModules() {
+    _enabledModules = _clinicEnabledModules.intersection(
+      _platformEnabledModules,
+    );
   }
 
   Future<void> selectClinic(String clinicId) async {
@@ -222,6 +281,8 @@ class SessionController extends ChangeNotifier {
     _authSubscription?.cancel();
     _profileSubscription?.cancel();
     _clinicSubscription?.cancel();
+    _platformModulesSubscription?.cancel();
+    _ownerClinicsSubscription?.cancel();
     super.dispose();
   }
 }

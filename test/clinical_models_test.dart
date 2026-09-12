@@ -93,6 +93,24 @@ void main() {
     expect(appointment.toMap()['created_by'], 'patient-user-1');
   });
 
+  test('reception appointment preserves patient profile and fees', () {
+    final appointment = AppointmentModel.fromMap({
+      'patient_id': 'patient-1',
+      'patient_name': 'Asha Patel',
+      'phone': '',
+      'scheduled_at': DateTime(2027, 1, 5),
+      'patient': {'first_name': 'Asha', 'last_name': 'Patel', 'age': 34},
+      'doctor_fee': 500,
+      'clinic_fee': 100,
+      'amount_paid': 600,
+    }, 'appointment-1');
+
+    expect(appointment.patient?.fullName, 'Asha Patel');
+    expect(appointment.patient?.id, 'patient-1');
+    expect(appointment.doctorFee + appointment.clinicFee, 600);
+    expect(appointment.amountPaid, 600);
+  });
+
   test('FinanceEntry reads income and expense records', () {
     final entry = FinanceEntry.fromMap({
       'type': 'expense',
@@ -140,6 +158,7 @@ void main() {
       expect(AppRole.receptionist.can(AppFeature.inventory), isFalse);
       expect(AppRole.pharmacyOperator.can(AppFeature.inventory), isTrue);
       expect(AppRole.pharmacyOperator.can(AppFeature.finance), isFalse);
+      expect(AppRole.doctor.can(AppFeature.reception), isTrue);
     });
   });
 }

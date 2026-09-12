@@ -142,6 +142,7 @@ enum AppRole {
       AppFeature.dashboard,
       AppFeature.createPrescription,
       AppFeature.prescriptionList,
+      AppFeature.reception,
       AppFeature.appointments,
       AppFeature.vaccination,
       AppFeature.reminders,

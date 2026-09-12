@@ -46,6 +46,16 @@ void main() {
     expect(clinic.enabledModules, isNot(contains(ClinicModule.reception)));
   });
 
+  test('platform-disabled modules are removed from global availability', () {
+    final settings = PlatformModuleSettings.fromMap({
+      'disabled_modules': ['pharmacy', 'reminders'],
+    });
+
+    expect(settings.enabledModules, isNot(contains(ClinicModule.pharmacy)));
+    expect(settings.enabledModules, isNot(contains(ClinicModule.reminders)));
+    expect(settings.enabledModules, contains(ClinicModule.clinical));
+  });
+
   test('invoice calculates total and outstanding balance', () {
     final invoice = ClinicInvoice(
       patientName: 'Asha',
