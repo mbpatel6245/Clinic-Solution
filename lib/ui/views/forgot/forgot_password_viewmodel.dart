@@ -7,32 +7,41 @@ class ForgotPasswordViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _sent = false;
+  bool get sent => _sent;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
   // Method to send password reset email
-  Future<void> sendPasswordResetEmail(String email) async {
+  Future<void> sendPasswordResetEmail(
+    String email, {
+    String locale = 'en',
+  }) async {
     _isLoading = true;
     _errorMessage = null;
+    _sent = false;
     notifyListeners();
 
     try {
-      await _authService.sendPasswordResetEmail(email);
-    } on FirebaseAuthException catch (e,stacktrace) {
-      print(stacktrace.toString());
+      await _authService.sendPasswordResetEmail(email, locale: locale);
+      _sent = true;
+    } on FirebaseAuthException catch (e, stacktrace) {
+      debugPrint(stacktrace.toString());
       _handleAuthException(e);
-    } catch (e,stacktrace) {
-      print(stacktrace.toString());
+    } catch (e, stacktrace) {
+      debugPrint(stacktrace.toString());
       _errorMessage = 'An error occurred. Please try again.';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
+
   bool validateForm(GlobalKey<FormState> formKey) {
     return formKey.currentState?.validate() ?? false;
   }
+
   // Method to handle different Firebase Auth errors
   void _handleAuthException(FirebaseAuthException e) {
     switch (e.code) {

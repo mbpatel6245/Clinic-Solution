@@ -1,5 +1,4 @@
 // common_button.dart
-import 'package:clinic_solution/core/utils/size_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -31,16 +30,18 @@ class CommonButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    return SizedBox(
-      height: getSize(55),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 56),
       child: ElevatedButton(
         onPressed: isDisabled ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              isDisabled ? Colors.grey : backgroundColor ?? Colors.white70,
+          backgroundColor: isDisabled
+              ? Colors.grey
+              : backgroundColor ?? Colors.white70,
           padding: EdgeInsets.symmetric(
-              vertical: verticalPadding ?? 15.0,
-              horizontal: horizontalPadding ?? 40.0),
+            vertical: verticalPadding ?? 15.0,
+            horizontal: horizontalPadding ?? 40.0,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius ?? 8.0),
           ),

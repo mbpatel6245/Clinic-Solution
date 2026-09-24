@@ -61,6 +61,10 @@ Notification providers are configured globally by the Platform Owner, with
 MSG91/Twilio primary and optional fallback routing. Credentials remain
 server-side. See [NOTIFICATION_SETUP.md](NOTIFICATION_SETUP.md) for email, SMS,
 WhatsApp, templates, callbacks, and Secret Manager setup.
+The Platform Owner can edit event-specific SMS and email messages under
+**Clinic setup → SMS & email templates**. See
+[NOTIFICATION_TEMPLATES.md](NOTIFICATION_TEMPLATES.md) for supported events,
+language overrides, delivery behavior and backend rollout steps.
 
 Persistent offline caching is enabled on Web, Android, iOS, and macOS. Windows
 uses the connected Firestore client without persistent cache. The official

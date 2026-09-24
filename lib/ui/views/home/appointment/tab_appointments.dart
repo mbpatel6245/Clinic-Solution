@@ -370,6 +370,8 @@ class _AppointmentFormState extends State<_AppointmentForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
   late final TextEditingController _phone;
+  late final TextEditingController _email;
+  bool _notificationConsent = false;
   late final TextEditingController _reason;
   late final TextEditingController _notes;
   late DateTime _date;
@@ -382,6 +384,8 @@ class _AppointmentFormState extends State<_AppointmentForm> {
     final item = widget.appointment;
     _name = TextEditingController(text: item?.patientName ?? '');
     _phone = TextEditingController(text: item?.phone ?? '');
+    _email = TextEditingController(text: item?.email ?? '');
+    _notificationConsent = item?.notificationConsent ?? false;
     _reason = TextEditingController(text: item?.reason ?? '');
     _notes = TextEditingController(text: item?.notes ?? '');
     final scheduled =
@@ -394,6 +398,7 @@ class _AppointmentFormState extends State<_AppointmentForm> {
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _email.dispose();
     _reason.dispose();
     _notes.dispose();
     super.dispose();
@@ -416,6 +421,9 @@ class _AppointmentFormState extends State<_AppointmentForm> {
           patientId: widget.appointment?.patientId ?? '',
           patientName: _name.text,
           phone: _phone.text,
+          email: _email.text,
+          notificationConsent: _notificationConsent,
+          locale: Localizations.localeOf(context).languageCode,
           scheduledAt: scheduled,
           reason: _reason.text,
           notes: _notes.text,
@@ -465,6 +473,34 @@ class _AppointmentFormState extends State<_AppointmentForm> {
                   validator: (value) => value == null || value.trim().isEmpty
                       ? strings.requiredField
                       : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email for appointment updates (optional)',
+                  ),
+                  validator: (value) =>
+                      value != null &&
+                          value.trim().isNotEmpty &&
+                          !RegExp(
+                            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                          ).hasMatch(value.trim())
+                      ? 'Enter a valid email.'
+                      : null,
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    'Send appointment updates by SMS and email',
+                  ),
+                  subtitle: const Text(
+                    'The patient agrees to receive updates at these contact details.',
+                  ),
+                  value: _notificationConsent,
+                  onChanged: (value) =>
+                      setState(() => _notificationConsent = value ?? false),
                 ),
                 const SizedBox(height: 12),
                 Row(

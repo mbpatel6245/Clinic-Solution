@@ -7,6 +7,9 @@ export interface NotificationJob {
   patientName: string;
   clinicName: string;
   message: string;
+  subject?: string;
+  event?: string;
+  providerTemplateIds?: Partial<Record<NotificationProviderName, string>>;
   templateId?: string;
   templateLanguage?: string;
   templateVariables?: Record<string, string>;

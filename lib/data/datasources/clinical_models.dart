@@ -37,6 +37,9 @@ class PatientModel {
     this.createdAt,
     this.updatedAt,
     this.userId = '',
+    this.email,
+    this.notificationConsent,
+    this.locale,
   });
 
   final String id;
@@ -50,6 +53,9 @@ class PatientModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String userId;
+  final String? email;
+  final bool? notificationConsent;
+  final String? locale;
 
   String get fullName => [
     firstName,
@@ -70,6 +76,9 @@ class PatientModel {
       createdAt: _dateTimeFrom(data['created_at']),
       updatedAt: _dateTimeFrom(data['updated_at']),
       userId: data['user_id']?.toString() ?? '',
+      email: data['email'] as String?,
+      notificationConsent: data['notification_consent'] as bool?,
+      locale: data['locale'] as String?,
     );
   }
 
@@ -83,6 +92,10 @@ class PatientModel {
     'address': address.trim(),
     'age': age,
     'user_id': userId,
+    if (email != null) 'email': email!.trim(),
+    if (notificationConsent != null)
+      'notification_consent': notificationConsent,
+    if (locale != null) 'locale': locale,
     'created_at': createdAt == null
         ? FieldValue.serverTimestamp()
         : Timestamp.fromDate(createdAt!),
@@ -101,6 +114,9 @@ class PatientModel {
     createdAt: createdAt,
     updatedAt: updatedAt,
     userId: userId,
+    email: email,
+    notificationConsent: notificationConsent,
+    locale: locale,
   );
 }
 
@@ -277,6 +293,9 @@ class AppointmentModel {
     this.amountPaid = 0,
     this.createdAt,
     this.clinicId = '',
+    this.email = '',
+    this.notificationConsent = false,
+    this.locale = 'en',
   });
 
   final String id;
@@ -294,6 +313,9 @@ class AppointmentModel {
   final double amountPaid;
   final DateTime? createdAt;
   final String clinicId;
+  final String email;
+  final bool notificationConsent;
+  final String locale;
 
   factory AppointmentModel.fromMap(Map<String, dynamic> data, String id) {
     return AppointmentModel(
@@ -317,6 +339,9 @@ class AppointmentModel {
       amountPaid: _doubleFrom(data['amount_paid']),
       createdAt: _dateTimeFrom(data['created_at']),
       clinicId: data['_clinic_id']?.toString() ?? '',
+      email: data['email']?.toString() ?? '',
+      notificationConsent: data['notification_consent'] == true,
+      locale: data['locale']?.toString() ?? 'en',
     );
   }
 
@@ -325,6 +350,9 @@ class AppointmentModel {
     'patient_name': patientName.trim(),
     'patient_name_search': patientName.toLowerCase().trim(),
     'phone': phone.trim(),
+    'email': email.trim(),
+    'notification_consent': notificationConsent,
+    'locale': locale,
     'scheduled_at': Timestamp.fromDate(scheduledAt),
     'reason': reason.trim(),
     'notes': notes.trim(),
@@ -359,6 +387,9 @@ class AppointmentModel {
     amountPaid: amountPaid,
     createdAt: createdAt,
     clinicId: clinicId,
+    email: email,
+    notificationConsent: notificationConsent,
+    locale: locale,
   );
 }
 

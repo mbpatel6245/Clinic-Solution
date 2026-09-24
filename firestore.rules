@@ -213,6 +213,45 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    function validNotificationTemplate(templateId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['event', 'channel', 'locale', 'enabled', 'subject', 'body',
+        'msg91_template_id', 'twilio_template_id', 'revision', 'updated_at', 'updated_by']) &&
+        data.event in ['password_reset', 'account_created', 'account_pending', 'account_approved',
+          'member_invitation', 'member_approved', 'appointment_booked', 'appointment_confirmed',
+          'appointment_rescheduled', 'appointment_cancelled', 'appointment_completed',
+          'appointment_reminder', 'vaccination_reminder', 'follow_up_reminder', 'general_reminder',
+          'invoice_created', 'payment_received'] &&
+        data.channel in ['email', 'sms'] && data.locale in ['en', 'hi', 'gu'] &&
+        templateId == data.event + '_' + data.channel + '_' + data.locale &&
+        data.enabled is bool && data.subject is string && data.subject.size() <= 200 &&
+        (data.channel != 'email' || data.subject.size() > 0) &&
+        data.body is string && data.body.size() > 0 &&
+        data.body.size() <= (data.channel == 'sms' ? 1600 : 10000) &&
+        data.msg91_template_id is string && data.msg91_template_id.size() <= 200 &&
+        data.twilio_template_id is string && data.twilio_template_id.size() <= 200 &&
+        data.revision is int && data.updated_by == request.auth.uid && data.updated_at == request.time &&
+        (data.event != 'password_reset' || data.channel != 'email' || data.enabled);
+    }
+
+    match /notification_templates/{templateId} {
+      allow read: if isPlatformOwner();
+      allow create: if isPlatformOwner() && validNotificationTemplate(templateId) && request.resource.data.revision == 1;
+      allow update: if isPlatformOwner() && validNotificationTemplate(templateId) &&
+        request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+      match /history/{revisionId} {
+        allow read: if isPlatformOwner();
+        allow create: if isPlatformOwner() && request.resource.data ==
+          getAfter(/databases/$(database)/documents/notification_templates/$(templateId)).data;
+        allow update, delete: if false;
+      }
+    }
+
+    // Outbox entries may contain single-use reset links. They are server-only.
+    match /notification_outbox/{jobId} { allow read, write: if false; }
+    match /notification_rate_limits/{limitId} { allow read, write: if false; }
+
     match /clinic_name_keys/{keyId} {
       allow read, create, update, delete: if isPlatformOwner();
     }

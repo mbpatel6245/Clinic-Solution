@@ -102,6 +102,10 @@ class TeamRolesScreen extends StatelessWidget {
                                     [
                                       '${(invite.roles.isEmpty ? [invite.role] : invite.roles).map((role) => role.displayName).join(', ')} • ${clinicNames[invite.clinicId] ?? invite.clinicId}',
                                       'Email: ${invite.notificationStatus}',
+                                      if (invite
+                                          .notificationSmsStatus
+                                          .isNotEmpty)
+                                        'SMS: ${invite.notificationSmsStatus}',
                                       if (invite.approvalStatus != 'pending')
                                         'Approval: ${invite.approvalStatus}',
                                       if (invite.notificationError.isNotEmpty)
@@ -183,6 +187,7 @@ class TeamRolesScreen extends StatelessWidget {
     String activeClinicId,
   ) async {
     final email = TextEditingController();
+    final phone = TextEditingController();
     final roles = <AppRole>{AppRole.doctor};
     var clinicId = clinics.any((clinic) => clinic.id == activeClinicId)
         ? activeClinicId
@@ -201,6 +206,14 @@ class TeamRolesScreen extends StatelessWidget {
                   controller: email,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone for SMS invitation (optional)',
+                  ),
                 ),
                 if (isOwner) ...[
                   const SizedBox(height: AppSpacing.md),
@@ -270,12 +283,14 @@ class TeamRolesScreen extends StatelessWidget {
         roles.first,
         clinicId: clinicId,
         roles: roles.toList(),
+        phone: phone.text,
+        locale: Localizations.localeOf(context).languageCode,
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Invitation created. A one-time password will be emailed automatically.',
+              'Invitation created. A secure account setup link will be emailed automatically.',
             ),
           ),
         );

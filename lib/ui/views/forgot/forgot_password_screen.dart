@@ -28,57 +28,74 @@ class ForgotPasswordScreen extends StatelessWidget {
           ),
         ),
         body: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Center(
-              child: Consumer<ForgotPasswordViewModel>(
-                  builder: (context, viewModel, child) {
+          padding: const EdgeInsets.all(20.0),
+          child: Center(
+            child: Consumer<ForgotPasswordViewModel>(
+              builder: (context, viewModel, child) {
                 return Form(
                   key: _formKey,
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 400),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        // TextFormField(
-                        //     controller: _emailController,
-                        //     decoration: InputDecoration(labelText: 'Email'),
-                        //     keyboardType: TextInputType.emailAddress,
-                        //     validator: Validator().validateEmail),
-                        CommonTextField(
-                          controller: _emailController,
-                          labelText: AppLocalizations.of(context)!.email,
-                          isPassword: false,
-                          hintText: "",
-                          prefixIcon: Icons.email,
-                          validator: Validator().validateEmail,
-                        ),
-                        SizedBox(height: 20),
-                        if (viewModel.isLoading)
-                          CircularProgressIndicator()
-                        else
-                          CommonButton(
-                            text: AppLocalizations.of(context)!.sendResetEmail,
-                            onPressed: () {
-                              if (viewModel.validateForm(_formKey)) {
-                                viewModel.sendPasswordResetEmail(
-                                    _emailController.text.trim());
-                              }
-                            },
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          // TextFormField(
+                          //     controller: _emailController,
+                          //     decoration: InputDecoration(labelText: 'Email'),
+                          //     keyboardType: TextInputType.emailAddress,
+                          //     validator: Validator().validateEmail),
+                          CommonTextField(
+                            controller: _emailController,
+                            labelText: AppLocalizations.of(context)!.email,
+                            isPassword: false,
+                            hintText: "",
+                            prefixIcon: Icons.email,
+                            validator: Validator().validateEmail,
                           ),
-                        if (viewModel.errorMessage != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 20),
-                            child: CommonText(
-                              text:viewModel.errorMessage!,
-                              style: TextStyle(color: Colors.red),
+                          SizedBox(height: 20),
+                          if (viewModel.sent)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 16),
+                              child: Text(
+                                'If an account exists for this email, a password reset link will be sent shortly.',
+                              ),
                             ),
-                          ),
-                      ],
+                          if (viewModel.isLoading)
+                            CircularProgressIndicator()
+                          else
+                            CommonButton(
+                              text: AppLocalizations.of(
+                                context,
+                              )!.sendResetEmail,
+                              onPressed: () {
+                                if (viewModel.validateForm(_formKey)) {
+                                  viewModel.sendPasswordResetEmail(
+                                    _emailController.text.trim(),
+                                    locale: Localizations.localeOf(
+                                      context,
+                                    ).languageCode,
+                                  );
+                                }
+                              },
+                            ),
+                          if (viewModel.errorMessage != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20),
+                              child: CommonText(
+                                text: viewModel.errorMessage!,
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 );
-              }),
-            )),
+              },
+            ),
+          ),
+        ),
       ),
     );
   }

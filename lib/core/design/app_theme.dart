@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_typography.dart';
 
 abstract final class AppColors {
   static const ink = Color(0xFF111111);
@@ -40,6 +41,37 @@ abstract final class AppBreakpoints {
 }
 
 abstract final class AppTheme {
+  static ThemeData forLocale(Locale locale) {
+    final base = light;
+    final textTheme = base.textTheme.apply(
+      fontFamily: AppTypography.family(locale),
+    );
+    TextStyle? readable(TextStyle? style) => style?.copyWith(
+      height: 1.5,
+      leadingDistribution: TextLeadingDistribution.even,
+      fontFamilyFallback: AppTypography.fallback,
+    );
+    return base.copyWith(
+      textTheme: textTheme.copyWith(
+        displayLarge: readable(textTheme.displayLarge),
+        displayMedium: readable(textTheme.displayMedium),
+        displaySmall: readable(textTheme.displaySmall),
+        headlineLarge: readable(textTheme.headlineLarge),
+        headlineMedium: readable(textTheme.headlineMedium),
+        headlineSmall: readable(textTheme.headlineSmall),
+        titleLarge: readable(textTheme.titleLarge),
+        titleMedium: readable(textTheme.titleMedium),
+        titleSmall: readable(textTheme.titleSmall),
+        bodyLarge: readable(textTheme.bodyLarge),
+        bodyMedium: readable(textTheme.bodyMedium),
+        bodySmall: readable(textTheme.bodySmall),
+        labelLarge: readable(textTheme.labelLarge),
+        labelMedium: readable(textTheme.labelMedium),
+        labelSmall: readable(textTheme.labelSmall),
+      ),
+    );
+  }
+
   static ThemeData get light {
     const scheme = ColorScheme.light(
       primary: AppColors.ink,

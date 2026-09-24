@@ -89,7 +89,7 @@ async function sendMessage(
     } else {
       form.set("From", required(config.smsFrom, "Twilio SMS sender"));
     }
-    const contentSid = job.templateId || config.smsContentSid;
+    const contentSid = job.templateId || (job.event ? "" : config.smsContentSid);
     if (contentSid.trim()) {
       form.set("ContentSid", contentSid.trim());
       form.set("ContentVariables", JSON.stringify({"1": job.patientName, "2": job.clinicName, "3": job.message}));
@@ -130,7 +130,7 @@ async function sendEmail(
   config: TwilioConfig,
   fetcher: FetchLike,
 ): Promise<SendResult> {
-  const templateId = required(job.templateId || config.sendGridTemplateId, "SendGrid template ID");
+  const templateId = job.templateId || (job.event ? "" : required(config.sendGridTemplateId, "SendGrid template ID"));
   let response: Response;
   try {
     response = await fetcher("https://api.sendgrid.com/v3/mail/send", {
@@ -142,13 +142,16 @@ async function sendEmail(
       body: JSON.stringify({
         personalizations: [{
           to: [{email: validateEmail(job.recipient), name: job.patientName}],
-          dynamic_template_data: notificationVariables(job),
+          ...(templateId ? {dynamic_template_data: notificationVariables(job)} : {}),
         }],
         from: {
           email: required(config.sendGridFromEmail, "SendGrid sender email"),
           name: required(config.sendGridFromName, "SendGrid sender name"),
         },
-        template_id: templateId,
+        ...(templateId ? {template_id: templateId} : {
+          subject: required(job.subject ?? "", "Email subject"),
+          content: [{type: "text/plain", value: job.message}],
+        }),
       }),
       signal: AbortSignal.timeout(20_000),
     });

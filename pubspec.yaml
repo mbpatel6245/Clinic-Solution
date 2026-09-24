@@ -39,6 +39,7 @@ dependencies:
   intl: ^0.20.2
   provider: ^6.1.5+1
   go_router: ^17.3.0
+  http: ^1.2.2
 
   cloud_firestore: ^6.8.0
   firebase_core: ^4.13.0
@@ -69,6 +70,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   generate: true
+  assets:
+    - functions/src/template_catalog.json
   #assets:
   #  - web/index.html
   # To add assets to your application, add an assets section, like this:
@@ -88,6 +91,12 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   fonts:
+    - family: Noto Sans Devanagari
+      fonts:
+        - asset: assets/fonts/NotoSansDevanagari.ttf
+    - family: Noto Sans Gujarati
+      fonts:
+        - asset: assets/fonts/NotoSansGujarati.ttf
     - family: Noto Sans
       fonts:
         - asset: assets/fonts/NotoSansSemiBold.ttf

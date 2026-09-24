@@ -86,8 +86,9 @@ class FirebaseFireStore with ChangeNotifier {
     String name,
     String phone,
     String role,
-    String clinicName,
-  ) async {
+    String clinicName, {
+    String locale = 'en',
+  }) async {
     final userCredential = await _authService.createUserWithEmailAndPassword(
       email,
       password,
@@ -104,6 +105,7 @@ class FirebaseFireStore with ChangeNotifier {
         'email': email.trim(),
         'email_normalized': email.trim().toLowerCase(),
         'phone': phone.trim(),
+        'locale': locale,
         'role': role,
         if (!patient) 'requested_clinic_name': clinicName.trim(),
         'active_clinic_id': '',
@@ -765,6 +767,8 @@ class FirebaseFireStore with ChangeNotifier {
     AppRole role, {
     String? clinicId,
     List<AppRole>? roles,
+    String phone = '',
+    String locale = 'en',
   }) async {
     final targetClinicId = clinicId ?? _activeClinicId;
     final normalizedEmail = email.trim().toLowerCase();
@@ -796,6 +800,8 @@ class FirebaseFireStore with ChangeNotifier {
     await _queueWrite(
       document.set({
         'email': normalizedEmail,
+        'phone': phone.trim(),
+        'locale': locale,
         'role': selectedRoles.first.storageValue,
         'roles': selectedRoles.map((item) => item.storageValue).toList(),
         'status': 'pending',

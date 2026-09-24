@@ -8,6 +8,9 @@ global primary provider and optional fallback; that policy applies to every
 clinic. The retired Firebase Trigger Email extension is not used. Provider keys
 never enter Flutter, Firestore, source control, or a browser bundle.
 
+For the Product Owner's event-specific SMS/email editor, lifecycle messages,
+language overrides and deployment order, see [Notification templates](NOTIFICATION_TEMPLATES.md).
+
 ## Recommended provider policy
 
 For an India-first clinic product, MSG91 is currently the more economical
@@ -326,13 +329,17 @@ are never written to Firestore or logs.
 
 Creating a team invitation provisions its Firebase Authentication account and
 sends an email through the globally selected provider. The email template must
-support `patient_name`, `clinic_name`, `message`, `username`,
-`temporary_password`, `role`, and `approval_status` variables.
+render the edited `subject` and `message` variables. The invitation editor also
+supports `patient_name`, `clinic_name`, `roles`, `action_url`, and `approval_status`.
+The email action URL is a Firebase-generated password setup/reset link;
+passwords are never included in the message. Optional invitation SMS uses
+`CLINIC_APP_URL`, which defaults to `https://clinic.mobitab.co.in`.
 
 The invited account remains blocked from clinic data until the Platform Owner
-approves it. After approval, the member signs in with the one-time password and
-the app requires a new password immediately. Verify the global email template
-before inviting production users.
+approves it. Members establish their password through the emailed link, then
+sign in after approval. Existing accounts keep their password when an invitation
+is resent. The existing mandatory-password-change policy remains supported.
+Verify provider template mappings before inviting production users.
 
 The **Team & roles → Pending approvals** menu shows the current email state and
 provides **Approve member**, **Resend invitation email**, and **Reject &

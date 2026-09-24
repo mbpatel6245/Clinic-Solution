@@ -9,8 +9,7 @@ import '../../../core/constants/locale_key.dart';
 import '../../../core/utils/locale_provider.dart';
 import '../../../services/local/secure_data_viewmodel.dart';
 import '../../themes/text_styles.dart';
-import '../../widgets/common_button.dart';
-import '../../widgets/common_textfield.dart';
+import '../../widgets/auth_layout.dart';
 import 'login_viewmodel.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -32,30 +31,48 @@ class LoginScreen extends StatelessWidget {
               loginViewModel ?? LoginViewModel(secureDataViewModel),
         ),
       ],
-      child: Scaffold(
-        body: Center(
+      child: AuthLayout(
+        child: Center(
           child: Consumer<LoginViewModel>(
             builder: (context, viewModel, child) {
               return Form(
                 key: _formKey,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20.0),
+                  padding: EdgeInsets.zero,
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 450),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Icon(Icons.lock, size: 80, color: Colors.black38),
-                        const SizedBox(height: 20),
+                        const Text(
+                          'WELCOME BACK',
+                          style: TextStyle(
+                            color: authTeal,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         CommonText(
                           text: AppLocalizations.of(context)!.login,
                           style: AppTextStyles.getBoldTextStyle(
                             localeProvider.locale,
                           ).copyWith(fontSize: 32),
                         ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Sign in to continue to your clinic workspace.',
+                          style: TextStyle(
+                            color: Color(0xFF627C80),
+                            height: 1.5,
+                          ),
+                        ),
                         const SizedBox(height: 30),
-                        CommonTextField(
+                        AuthTextField(
                           controller: viewModel.emailController,
+                          keyboardType: TextInputType.emailAddress,
                           labelText: AppLocalizations.of(context)!.email,
                           isPassword: false,
                           hintText: "",
@@ -63,7 +80,7 @@ class LoginScreen extends StatelessWidget {
                           validator: Validator().validateEmail,
                         ),
                         const SizedBox(height: 20),
-                        CommonTextField(
+                        AuthTextField(
                           controller: viewModel.passwordController,
                           labelText: AppLocalizations.of(context)!.password,
                           isPassword: true,
@@ -71,13 +88,24 @@ class LoginScreen extends StatelessWidget {
                           prefixIcon: Icons.lock,
                           validator: Validator().validatePassword,
                         ),
-                        const SizedBox(height: 30),
-                        CommonButton(
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () =>
+                                context.go('/${Constants.navForgot}'),
+                            child: Text(
+                              AppLocalizations.of(context)!.forgotPassword,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        AuthButton(
                           text: AppLocalizations.of(context)!.login,
                           onPressed: () {
                             if (viewModel.validateForm(_formKey)) {
                               //
                               viewModel.signIn((user) {
+                                if (!context.mounted) return;
                                 context.go('/${Constants.navHome}');
                               });
                             }
@@ -91,7 +119,10 @@ class LoginScreen extends StatelessWidget {
                           icon: const Icon(Icons.add_business_outlined),
                           label: const Text('Request clinic access'),
                         ),
-                        const SizedBox(height: 12),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Divider(color: Color(0xFFE3ECEB)),
+                        ),
                         OutlinedButton.icon(
                           onPressed: () {
                             context.go('/${Constants.navAppointment}');
@@ -99,18 +130,6 @@ class LoginScreen extends StatelessWidget {
                           icon: const Icon(Icons.calendar_month_outlined),
                           label: Text(
                             AppLocalizations.of(context)!.bookAppointment,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        TextButton(
-                          onPressed: () {
-                            context.go('/${Constants.navForgot}');
-                          },
-                          child: CommonText(
-                            text: AppLocalizations.of(context)!.forgotPassword,
-                            style: AppTextStyles.getSemiBoldTextStyle(
-                              localeProvider.locale,
-                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -129,8 +148,9 @@ class LoginScreen extends StatelessWidget {
 
   Center languageBar(LocaleProvider localeProvider) {
     return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           GestureDetector(
             onTap: () {

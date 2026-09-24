@@ -5,12 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/locale_key.dart';
-import '../../../core/utils/locale_provider.dart';
-import '../../themes/text_styles.dart';
-import '../../widgets/common_button.dart';
-import '../../widgets/common_dropdown.dart';
-import '../../widgets/common_text.dart';
-import '../../widgets/common_textfield.dart';
+import '../../widgets/auth_layout.dart';
 import 'register_viewmodel.dart';
 
 class RegisterScreen extends StatelessWidget {
@@ -20,17 +15,10 @@ class RegisterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var localeProvider = Provider.of<LocaleProvider>(context, listen: false);
     return ChangeNotifierProvider(
       create: (_) => RegisterViewModel(),
-      child: Scaffold(
-        appBar: AppBar(
-          title: CommonText(
-            text: AppLocalizations.of(context)!.register,
-            style: AppTextStyles.getBoldTextStyle(localeProvider.locale),
-          ),
-        ),
-        body: SafeArea(
+      child: AuthLayout(
+        child: SafeArea(
           child: Center(
             child: Consumer<RegisterViewModel>(
               builder: (context, viewModel, child) {
@@ -39,22 +27,43 @@ class RegisterScreen extends StatelessWidget {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 480),
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
                       children: [
+                        const Text(
+                          'GET STARTED',
+                          style: TextStyle(
+                            color: authTeal,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         Text(
                           viewModel.isPatient
                               ? 'Create patient account'
                               : 'Request enterprise access',
-                          style: Theme.of(context).textTheme.headlineSmall,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: authInk,
+                            height: 1.2,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           viewModel.isPatient
                               ? 'Register immediately, choose a clinic and book appointments.'
                               : 'For clinic owners and independent doctors. Your workspace starts after Platform Owner approval.',
+                          style: const TextStyle(
+                            color: Color(0xFF627C80),
+                            height: 1.5,
+                          ),
                         ),
                         const SizedBox(height: 24),
-                        CommonTextField(
+                        AuthTextField(
                           controller: viewModel.nameController,
                           keyboardType: TextInputType.text,
                           labelText: AppLocalizations.of(context)!.name,
@@ -64,7 +73,7 @@ class RegisterScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 16.0),
 
-                        CommonTextField(
+                        AuthTextField(
                           controller: viewModel.emailController,
                           keyboardType: TextInputType.emailAddress,
                           labelText: AppLocalizations.of(context)!.email,
@@ -75,7 +84,7 @@ class RegisterScreen extends StatelessWidget {
                         const SizedBox(height: 16.0),
 
                         // Password Field
-                        CommonTextField(
+                        AuthTextField(
                           controller: viewModel.passwordController,
                           isPassword: true,
                           hintText: '',
@@ -86,7 +95,7 @@ class RegisterScreen extends StatelessWidget {
                         const SizedBox(height: 16.0),
 
                         // Phone Field
-                        CommonTextField(
+                        AuthTextField(
                           controller: viewModel.phoneController,
                           keyboardType: TextInputType.phone,
                           hintText: '',
@@ -95,18 +104,29 @@ class RegisterScreen extends StatelessWidget {
                           validator: Validator().validatePhone,
                         ),
                         const SizedBox(height: 16.0),
-                        CommonDropdown<String>(
-                          label: 'Request type',
-                          items: viewModel.roles,
+                        DropdownButtonFormField<String>(
+                          initialValue: viewModel.selectedRole,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Request type',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                          items: viewModel.roles
+                              .map(
+                                (role) => DropdownMenuItem(
+                                  value: role,
+                                  child: Text(role),
+                                ),
+                              )
+                              .toList(),
                           onChanged: viewModel.onRoleChanged,
                           validator: (value) => value == null
                               ? AppLocalizations.of(context)!.roleRequired
                               : null,
-                          prefixIcon: Icons.person,
                         ),
                         const SizedBox(height: 16.0),
                         if (!viewModel.isPatient)
-                          CommonTextField(
+                          AuthTextField(
                             controller: viewModel.clinicNameController,
                             keyboardType: TextInputType.text,
                             labelText: 'Clinic / practice name',
@@ -115,11 +135,15 @@ class RegisterScreen extends StatelessWidget {
                             validator: Validator().validateName,
                           ),
                         const SizedBox(height: 20.0),
-                        CommonButton(
+                        AuthButton(
                           onPressed: () async {
                             if (viewModel.validateForm(_formKey)) {
                               try {
-                                await viewModel.registerUser();
+                                await viewModel.registerUser(
+                                  locale: Localizations.localeOf(
+                                    context,
+                                  ).languageCode,
+                                );
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(

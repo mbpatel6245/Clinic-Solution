@@ -229,6 +229,7 @@ class TeamInvitation {
     this.createdAt,
     this.clinicId = '',
     this.notificationStatus = 'queued',
+    this.notificationSmsStatus = '',
     this.notificationError = '',
     this.approvalStatus = 'pending',
     this.approvalError = '',
@@ -242,6 +243,7 @@ class TeamInvitation {
   final DateTime? createdAt;
   final String clinicId;
   final String notificationStatus;
+  final String notificationSmsStatus;
   final String notificationError;
   final String approvalStatus;
   final String approvalError;
@@ -265,6 +267,7 @@ class TeamInvitation {
     createdAt: _date(data['created_at']),
     clinicId: clinicId,
     notificationStatus: data['notification_status']?.toString() ?? 'queued',
+    notificationSmsStatus: data['notification_sms_status']?.toString() ?? '',
     notificationError: data['notification_error']?.toString() ?? '',
     approvalStatus: data['approval_status']?.toString() ?? 'pending',
     approvalError: data['approval_error']?.toString() ?? '',

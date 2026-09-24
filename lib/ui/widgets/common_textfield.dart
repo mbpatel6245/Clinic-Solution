@@ -1,4 +1,3 @@
-import 'package:clinic_solution/core/utils/size_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -36,13 +35,14 @@ class CommonTextField extends StatelessWidget {
     this.suffixOnTap,
     this.validator,
     this.height,
-    this.fontSize
+    this.fontSize,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     var localeProvider = Provider.of<LocaleProvider>(context, listen: false);
-    return SizedBox(height: height??getSize(55),
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height ?? 56),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
@@ -51,16 +51,28 @@ class CommonTextField extends StatelessWidget {
         validator: validator,
         readOnly: isReadOnly,
         onTap: onTap,
-        style: AppTextStyles.getRegularTextStyle(localeProvider.locale,fontSize: fontSize??getSize(20)),
+        style: AppTextStyles.getRegularTextStyle(
+          localeProvider.locale,
+          fontSize: fontSize ?? 16,
+        ),
         decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 18,
+          ),
+          errorMaxLines: 3,
           labelText: labelText,
           hintText: hintText,
           filled: true,
           fillColor: Colors.transparent,
           // Background color with M3 surface variant
-          labelStyle: AppTextStyles.getRegularTextStyle(localeProvider.locale,fontSize: fontSize??getSize(20)),
-          hintStyle: AppTextStyles.getRegularTextStyle(localeProvider.locale)
-              .copyWith(color: Colors.white24),
+          labelStyle: AppTextStyles.getRegularTextStyle(
+            localeProvider.locale,
+            fontSize: fontSize ?? 16,
+          ),
+          hintStyle: AppTextStyles.getRegularTextStyle(
+            localeProvider.locale,
+          ).copyWith(color: Colors.white24),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.0),
             borderSide: const BorderSide(
@@ -80,11 +92,15 @@ class CommonTextField extends StatelessWidget {
               width: 2.0,
             ),
           ),
-          prefixIcon:
-              prefixIcon != null ? Icon(prefixIcon, color: Colors.black87) : null,
-          suffixIcon:
-              suffixIcon != null ? GestureDetector(onTap:suffixOnTap,child: Icon(suffixIcon, color: Colors.black87)) : null,
-
+          prefixIcon: prefixIcon != null
+              ? Icon(prefixIcon, color: Colors.black87)
+              : null,
+          suffixIcon: suffixIcon != null
+              ? GestureDetector(
+                  onTap: suffixOnTap,
+                  child: Icon(suffixIcon, color: Colors.black87),
+                )
+              : null,
         ),
       ),
     );

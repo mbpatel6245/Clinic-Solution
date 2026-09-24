@@ -14,6 +14,7 @@ import '../../../../data/datasources/enterprise_models.dart';
 import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
+import 'notification_templates_screen.dart';
 
 String _money(BuildContext context, double value) =>
     NumberFormat.simpleCurrency(name: 'INR').format(value);
@@ -63,6 +64,24 @@ class ClinicSetupScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.lg),
               if (isOwner) ...[
+                AppSection(
+                  title: 'SMS & email templates',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.edit_notifications_outlined),
+                    title: const Text('Manage message templates'),
+                    subtitle: const Text(
+                      'Account, invitation, appointment, reminder and billing messages',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const NotificationTemplatesScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 _PlatformModulesCard(
                   enabledModules: session.platformEnabledModules,
                 ),
@@ -1455,6 +1474,8 @@ class ReceptionScreen extends StatelessWidget {
     final middleName = TextEditingController();
     final lastName = TextEditingController();
     final phone = TextEditingController();
+    final notificationEmail = TextEditingController();
+    var notificationConsent = false;
     final address = TextEditingController();
     final age = TextEditingController();
     final reason = TextEditingController();
@@ -1477,6 +1498,19 @@ class ReceptionScreen extends StatelessWidget {
                   _field(middleName, 'Middle name'),
                   _field(lastName, 'Last name'),
                   _field(phone, 'Phone (optional)'),
+                  _field(
+                    notificationEmail,
+                    'Email for clinic updates (optional)',
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Patient agrees to SMS and email updates about appointments and billing',
+                    ),
+                    value: notificationConsent,
+                    onChanged: (value) =>
+                        setState(() => notificationConsent = value ?? false),
+                  ),
                   _field(address, 'Address'),
                   _field(age, 'Age', number: true),
                   DropdownButtonFormField<String>(
@@ -1523,6 +1557,9 @@ class ReceptionScreen extends StatelessWidget {
       lastName: lastName.text,
       phone: phone.text,
       address: address.text,
+      email: notificationEmail.text,
+      notificationConsent: notificationConsent,
+      locale: Localizations.localeOf(context).languageCode,
       age: int.tryParse(age.text),
       gender: gender,
     );
@@ -1533,6 +1570,9 @@ class ReceptionScreen extends StatelessWidget {
           AppointmentModel(
             patientName: patient.fullName,
             phone: patient.phone,
+            email: patient.email ?? '',
+            notificationConsent: notificationConsent,
+            locale: patient.locale ?? 'en',
             scheduledAt: DateTime.now(),
             patient: patient,
             reason: reason.text,

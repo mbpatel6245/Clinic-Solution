@@ -32,6 +32,8 @@ import {
   type TwilioConfig,
 } from "./twilio.js";
 import {randomBytes, timingSafeEqual} from "node:crypto";
+import {applyTemplate, defaultTemplate, type MessageTemplate} from "./notification_templates.js";
+import {createNotificationHandlers} from "./event_notifications.js";
 
 initializeApp();
 const db = getFirestore();
@@ -59,9 +61,18 @@ const SENDGRID_FROM_EMAIL = defineString("SENDGRID_FROM_EMAIL", {default: ""});
 const SENDGRID_FROM_NAME = defineString("SENDGRID_FROM_NAME", {default: "Clinic"});
 const SENDGRID_TEMPLATE_ID = defineString("SENDGRID_TEMPLATE_ID", {default: ""});
 const TWILIO_STATUS_CALLBACK_URL = defineString("TWILIO_STATUS_CALLBACK_URL", {default: ""});
+const CLINIC_APP_URL = defineString("CLINIC_APP_URL", {default: "https://clinic.mobitab.co.in"});
 
 const MAX_ATTEMPTS = 3;
 const REGION = "asia-south1";
+
+export const {
+  dispatchEventNotifications, notifyAccountCreated, notifyAccountApproved,
+  notifyMemberApproved, notifyAppointmentChanged, notifyInvoiceChanged, requestPasswordReset,
+} = createNotificationHandlers(
+  async (job) => sendNotification(job, await providerSelection()),
+  [MSG91_AUTH_KEY, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, SENDGRID_API_KEY],
+);
 
 interface ProviderSelection {
   primary: NotificationProviderName;
@@ -136,6 +147,9 @@ async function sendThroughProvider(
   job: NotificationJob,
   settings: ProviderSelection,
 ): Promise<SendResult> {
+  if (job.providerTemplateIds) {
+    job = {...job, templateId: job.providerTemplateIds[provider] || job.templateId || undefined};
+  }
   return provider === "twilio"
     ? sendWithTwilio(job, twilioConfig(settings))
     : sendWithMsg91(job, msg91Config(settings));
@@ -146,6 +160,14 @@ async function sendNotification(
   settings: ProviderSelection,
   providerOverride?: NotificationProviderName,
 ): Promise<SendResult> {
+  if (job.event && job.channel !== "whatsapp") {
+    const locale = ["hi", "gu"].includes(job.templateLanguage ?? "") ? job.templateLanguage! : "en";
+    let snapshot = await db.doc(`notification_templates/${job.event}_${job.channel}_${locale}`).get();
+    if (!snapshot.exists && locale !== "en") snapshot = await db.doc(`notification_templates/${job.event}_${job.channel}_en`).get();
+    const template = snapshot.exists ? snapshot.data() as unknown as MessageTemplate : defaultTemplate(job.event, job.channel);
+    if (template.enabled === false) return {provider: settings.primary, messageId: "", acceptedStatus: "disabled"};
+    job = applyTemplate(job, template);
+  }
   const providers = providerOverride
     ? [providerOverride]
     : [
@@ -198,6 +220,7 @@ function jobFromData(data: Record<string, unknown>, clinicName: string): Notific
     patientName: asString(data.patient_name, "Patient"),
     clinicName,
     message: asString(data.message),
+    event: data.channel === "whatsapp" ? undefined : ({appointment: "appointment_reminder", vaccination: "vaccination_reminder", follow_up: "follow_up_reminder", followup: "follow_up_reminder"}[asString(data.type).toLowerCase()] ?? "general_reminder"),
     templateId: asString(data.template_id) || undefined,
     templateLanguage: asString(data.template_language) || undefined,
     templateVariables,
@@ -243,7 +266,7 @@ async function deliver(
   try {
     const result = await sendNotification(claimed.job, settings);
     await ref.update({
-      status: "sent",
+      status: result.acceptedStatus === "disabled" ? "skipped" : "sent",
       provider: result.provider,
       provider_message_id: result.messageId,
       provider_status: result.acceptedStatus,
@@ -564,7 +587,6 @@ async function provisionInvitation(
 
     let account;
     let isNewAccount = false;
-    let sendTemporaryPassword = false;
     const temporaryPassword = `C!${randomBytes(9).toString("base64url")}9a`;
     try {
       try {
@@ -574,7 +596,6 @@ async function provisionInvitation(
       }
       if (!account) {
         isNewAccount = true;
-        sendTemporaryPassword = true;
         account = await getAuth().createUser({
           email,
           password: temporaryPassword,
@@ -583,15 +604,7 @@ async function provisionInvitation(
         });
       } else {
         const existingProfile = await db.collection("users").doc(account.uid).get();
-        if (
-          !existingProfile.exists ||
-          (existingProfile.data()?.status === "pending" &&
-            existingProfile.data()?.must_change_password === true)
-        ) {
-          await getAuth().updateUser(account.uid, {password: temporaryPassword});
-          sendTemporaryPassword = true;
-          isNewAccount = !existingProfile.exists;
-        }
+        isNewAccount = !existingProfile.exists;
       }
       if (isNewAccount) {
         await db.collection("users").doc(account.uid).set({
@@ -606,6 +619,7 @@ async function provisionInvitation(
           active_clinic_id: clinicId,
           status: "pending",
           must_change_password: true,
+          invited_account: true,
           createdAt: FieldValue.serverTimestamp(),
           updated_at: FieldValue.serverTimestamp(),
         }, {merge: true});
@@ -615,18 +629,16 @@ async function provisionInvitation(
       const clinicName = asString(clinic.data()?.name, "Clinic");
       const settings = await providerSelection();
       const result = await sendNotification({
+        event: "member_invitation",
         channel: "email",
         recipient: email,
         patientName: account.displayName ?? "Team member",
         clinicName,
-        message: sendTemporaryPassword
-          ? `You have been invited to ${clinicName}. Your account is pending platform approval. Sign in with the temporary password and change it immediately after approval.`
-          : `You have been invited to ${clinicName}. Your existing account will gain access after platform approval.`,
+        message: "",
+        templateLanguage: asString(data.locale, "en"),
         templateVariables: {
+          action_url: await getAuth().generatePasswordResetLink(email),
           username: email,
-          temporary_password: sendTemporaryPassword
-            ? temporaryPassword
-            : "Use your existing password",
           role,
           roles: invitationRoles.join(", "),
           approval_status: "pending",
@@ -634,16 +646,32 @@ async function provisionInvitation(
       }, settings);
       await invitation.ref.update({
         user_id: account.uid,
-        notification_status: "sent",
+        notification_status: result.acceptedStatus === "disabled" ? "skipped" : "sent",
         notification_provider: result.provider,
         notification_message_id: result.messageId,
         notification_sent_at: FieldValue.serverTimestamp(),
+        notification_error: FieldValue.delete(),
       });
+      if (asString(data.phone)) {
+        try {
+          const sms = await sendNotification({
+            event: "member_invitation", channel: "sms", recipient: asString(data.phone),
+            patientName: account.displayName ?? "Team member", clinicName, message: "",
+            templateLanguage: asString(data.locale, "en"),
+            // An invitation phone has not been verified: never send it a password reset token.
+            templateVariables: {roles: invitationRoles.join(", "), approval_status: "pending",
+              action_url: CLINIC_APP_URL.value()},
+          }, settings);
+          await invitation.ref.update({notification_sms_status: sms.acceptedStatus === "disabled" ? "skipped" : "sent"});
+        } catch {
+          await invitation.ref.update({notification_sms_status: "failed"});
+        }
+      }
     } catch (error) {
-      logger.error("Invited member provisioning failed", {clinicId, email, error});
+      logger.error("Invited member provisioning failed", {clinicId});
       await invitation.ref.update({
         notification_status: "failed",
-        notification_error: (error instanceof Error ? error.message : "Unknown error").slice(0, 500),
+        notification_error: "Invitation delivery failed. Check notification providers and template settings.",
       });
     }
 }

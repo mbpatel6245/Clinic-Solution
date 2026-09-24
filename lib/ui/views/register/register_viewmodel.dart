@@ -37,14 +37,16 @@ class RegisterViewModel with ChangeNotifier {
   }
 
   // Save data to Firestore
-  Future<void> registerUser() => _fireStoreService.registerUserData(
-    emailController.text.trim(),
-    passwordController.text.trim(),
-    nameController.text.trim(),
-    phoneController.text,
-    AppRole.fromValue(selectedRole).storageValue,
-    clinicNameController.text,
-  );
+  Future<void> registerUser({String locale = 'en'}) =>
+      _fireStoreService.registerUserData(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+        nameController.text.trim(),
+        phoneController.text,
+        AppRole.fromValue(selectedRole).storageValue,
+        clinicNameController.text,
+        locale: locale,
+      );
 
   // Dispose controllers
   @override

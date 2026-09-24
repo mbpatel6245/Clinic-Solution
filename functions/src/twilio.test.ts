@@ -23,6 +23,28 @@ const config: TwilioConfig = {
   statusCallbackUrl: "https://example.com/twilioDeliveryWebhook",
 };
 
+test("owner email content is sent directly when no event-specific SendGrid template is set", async () => {
+  let payload: Record<string, unknown> = {};
+  await sendWithTwilio({event: "account_created", channel: "email", recipient: "asha@example.com", patientName: "Asha", clinicName: "Clinic", subject: "Welcome Asha", message: "નમસ્તે Asha"}, config, async (_input, init) => {
+    payload = JSON.parse(String(init?.body));
+    return new Response(null, {status: 202});
+  });
+  assert.equal(payload.template_id, undefined);
+  assert.equal(payload.subject, "Welcome Asha");
+  assert.deepEqual(payload.content, [{type: "text/plain", value: "નમસ્તે Asha"}]);
+});
+
+test("event SMS does not silently use an unrelated global Content SID", async () => {
+  let payload = "";
+  await sendWithTwilio({event: "account_created", channel: "sms", recipient: "9876543210", patientName: "Asha", clinicName: "Clinic", message: "Owner edited message"}, {...config, smsContentSid: "HXglobal"}, async (_input, init) => {
+    payload = String(init?.body);
+    return new Response(JSON.stringify({sid: "SM1"}), {status: 201});
+  });
+  const form = new URLSearchParams(payload);
+  assert.equal(form.get("ContentSid"), null);
+  assert.equal(form.get("Body"), "Owner edited message");
+});
+
 test("builds a Twilio SMS request with E.164 recipient and callback", async () => {
   let requestBody = "";
   let authorization = "";
