@@ -64,7 +64,7 @@ class CommonTextField extends StatelessWidget {
           labelText: labelText,
           hintText: hintText,
           filled: true,
-          fillColor: Colors.transparent,
+
           // Background color with M3 surface variant
           labelStyle: AppTextStyles.getRegularTextStyle(
             localeProvider.locale,
@@ -72,33 +72,17 @@ class CommonTextField extends StatelessWidget {
           ),
           hintStyle: AppTextStyles.getRegularTextStyle(
             localeProvider.locale,
-          ).copyWith(color: Colors.white24),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            borderSide: const BorderSide(
-              color: Colors.black12, // Outline color matching M3
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            borderSide: const BorderSide(
-              color: Colors.black, // Border for enabled state
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            borderSide: const BorderSide(
-              color: Colors.black, // Border for focused state
-              width: 2.0,
-            ),
-          ),
+          ).copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           prefixIcon: prefixIcon != null
-              ? Icon(prefixIcon, color: Colors.black87)
+              ? Icon(prefixIcon, color: Theme.of(context).colorScheme.primary)
               : null,
           suffixIcon: suffixIcon != null
               ? GestureDetector(
                   onTap: suffixOnTap,
-                  child: Icon(suffixIcon, color: Colors.black87),
+                  child: Icon(
+                    suffixIcon,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 )
               : null,
         ),

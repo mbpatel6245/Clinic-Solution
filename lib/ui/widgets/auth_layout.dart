@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../core/design/app_theme.dart';
+import '../../core/design/clinic_brand.dart';
 
-const authTeal = Color(0xFF087F83);
-const authInk = Color(0xFF17383D);
+const authTeal = AppColors.primary;
+const authInk = AppColors.ink;
 
 /// Shared, scrollable authentication layout for phones, tablets and desktops.
 class AuthLayout extends StatelessWidget {
@@ -13,32 +15,7 @@ class AuthLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Theme(
-      data: theme.copyWith(
-        colorScheme: ColorScheme.fromSeed(seedColor: authTeal),
-        textTheme: theme.textTheme.apply(
-          bodyColor: authInk,
-          displayColor: authInk,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFFF7FAFA),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 18,
-          ),
-          prefixIconColor: authTeal,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFFD9E5E5)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: authTeal, width: 2),
-          ),
-          errorMaxLines: 3,
-        ),
-      ),
+      data: theme,
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F6F5),
         body: SafeArea(
@@ -112,18 +89,7 @@ class _Brand extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: inverse ? Colors.white24 : const Color(0xFFE4F3F0),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          Icons.local_hospital_rounded,
-          color: inverse ? Colors.white : authTeal,
-          size: 26,
-        ),
-      ),
+      ClinicLogo(size: 46, inverse: inverse),
       const SizedBox(width: 12),
       Expanded(
         child: Text(

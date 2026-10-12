@@ -1,3 +1,4 @@
+import '../../../core/design/clinic_brand.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -259,6 +260,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() => _selectedIndex = index);
               },
               children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(28, 24, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: ClinicLogo(size: 48),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(28, 24, 16, 12),
                   child: Text(
@@ -282,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            const Icon(Icons.local_hospital),
+            const ClinicLogo(size: 34),
             const SizedBox(width: AppSpacing.sm),
             Flexible(
               child: Text(session.clinicName, overflow: TextOverflow.ellipsis),

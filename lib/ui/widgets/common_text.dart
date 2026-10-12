@@ -33,11 +33,13 @@ class CommonText extends StatelessWidget {
       return Text(
         text,
         style:
-            style?.copyWith(color: color ?? Colors.black87) ??
+            style?.copyWith(
+              color: color ?? Theme.of(context).colorScheme.onSurface,
+            ) ??
             AppTextStyles.getRegularTextStyle(
               localeProvider.locale,
               fontSize: fontSize ?? 20,
-            ).copyWith(color: color ?? Colors.black87),
+            ).copyWith(color: color ?? Theme.of(context).colorScheme.onSurface),
         textAlign: textAlign,
         maxLines: maxLines,
         overflow: overflow ?? TextOverflow.ellipsis,
@@ -48,11 +50,15 @@ class CommonText extends StatelessWidget {
         child: Text(
           text,
           style:
-              style?.copyWith(color: color ?? Colors.black87) ??
+              style?.copyWith(
+                color: color ?? Theme.of(context).colorScheme.onSurface,
+              ) ??
               AppTextStyles.getRegularTextStyle(
                 localeProvider.locale,
                 fontSize: fontSize ?? 20,
-              ).copyWith(color: color ?? Colors.black87),
+              ).copyWith(
+                color: color ?? Theme.of(context).colorScheme.onSurface,
+              ),
           textAlign: textAlign,
           maxLines: maxLines,
           overflow: overflow ?? TextOverflow.ellipsis,

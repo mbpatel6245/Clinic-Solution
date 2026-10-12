@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'core/platform/firebase_runtime.dart';
 import 'core/design/app_theme.dart';
+import 'core/design/clinic_brand.dart';
 import 'core/utils/locale_provider.dart';
 import 'firebase_options.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -109,13 +110,16 @@ class _BootstrapScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      builder: (context, child) =>
+          BrandedAppFrame(child: child ?? const SizedBox.shrink()),
+      theme: AppTheme.light,
       home: Scaffold(
         body: Center(
           child: error == null
               ? const Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.local_hospital_outlined, size: 64),
+                    ClinicLogo(size: 72),
                     SizedBox(height: 20),
                     CircularProgressIndicator(),
                     SizedBox(height: 16),
@@ -146,8 +150,11 @@ class _UnsupportedLinuxApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
+      builder: (context, child) =>
+          BrandedAppFrame(child: child ?? const SizedBox.shrink()),
+      theme: AppTheme.light,
       home: Scaffold(
         body: Center(
           child: Padding(
@@ -178,6 +185,8 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
+      builder: (context, child) =>
+          BrandedAppFrame(child: child ?? const SizedBox.shrink()),
       locale: locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,

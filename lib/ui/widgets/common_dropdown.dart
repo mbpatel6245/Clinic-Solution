@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/locale_provider.dart';
-import '../../core/utils/size_utils.dart';
+
 import '../themes/text_styles.dart';
 
 class CommonDropdown<T> extends StatelessWidget {
@@ -38,44 +38,27 @@ class CommonDropdown<T> extends StatelessWidget {
           vertical: 8.0, // Adjusts the height
           horizontal: 12.0, // Padding inside the field
         ),
-        prefixIcon:
-            prefixIcon != null ? Icon(prefixIcon, color: Colors.black87) : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8.0),
-          borderSide: const BorderSide(
-            color: Colors.black12, // Border for enabled state
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8.0),
-          borderSide: const BorderSide(
-            color: Colors.black, // Border for enabled state
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8.0),
-          borderSide: const BorderSide(
-            color: Colors.black, // Border for focused state
-            width: 2.0,
-          ),
-        ),
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, color: Theme.of(context).colorScheme.primary)
+            : null,
       ),
       isExpanded: true,
       isDense: false,
       icon: const Icon(Icons.arrow_drop_down),
       style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
       items: items
-          .map((item) => DropdownMenuItem<T>(
-                value: item,
-                child: CommonText(
-                  text: displayItem != null
-                      ? displayItem!(item)
-                      : item.toString(),
-                  style: AppTextStyles.getRegularTextStyle(
-                      localeProvider.locale),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ))
+          .map(
+            (item) => DropdownMenuItem<T>(
+              value: item,
+              child: CommonText(
+                text: displayItem != null
+                    ? displayItem!(item)
+                    : item.toString(),
+                style: AppTextStyles.getRegularTextStyle(localeProvider.locale),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
           .toList(),
       onChanged: onChanged,
       validator: validator,

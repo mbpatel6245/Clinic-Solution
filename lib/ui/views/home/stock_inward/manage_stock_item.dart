@@ -1,3 +1,4 @@
+import 'package:clinic_solution/core/design/app_theme.dart';
 import 'package:clinic_solution/core/utils/toast_utils.dart';
 import 'package:clinic_solution/ui/views/home/stock_inward/stock_inward_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +44,7 @@ class _ManageStockItemState extends State<ManageStockItem> {
   bool isResetPOSList = true;
   var localeProvider = LocaleProvider();
   var previousAction = "";
-  String previousDocId="";
+  String previousDocId = "";
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +52,7 @@ class _ManageStockItemState extends State<ManageStockItem> {
       isResetPOSList = true;
       isPowerOfSizeListEmpty = false;
     }
-    if(previousDocId!=widget.docId){
+    if (previousDocId != widget.docId) {
       isResetPOSList = true;
       isPowerOfSizeListEmpty = false;
     }
@@ -65,9 +66,9 @@ class _ManageStockItemState extends State<ManageStockItem> {
     }
     previousAction = widget.actionValue ?? "";
     return ChangeNotifierProvider(
-        create: (_) => viewModel,
-        child: Consumer<StockInwardViewmodel>(
-            builder: (context, viewModel, child) {
+      create: (_) => viewModel,
+      child: Consumer<StockInwardViewmodel>(
+        builder: (context, viewModel, child) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             addDefaultPOS();
           });
@@ -75,19 +76,20 @@ class _ManageStockItemState extends State<ManageStockItem> {
           return Column(
             children: [
               Center(
-                  child: CommonText(
-                text: widget.actionValue == Constants.update
-                    ? AppLocalizations.of(context)!.updateStockOfData
-                    : AppLocalizations.of(context)!.addStockOfData,
-                color: Colors.lightBlue,
-                height: getSize(35),
-              )),
-              Expanded(
-                child: addOrUpdateItem(context),
+                child: CommonText(
+                  text: widget.actionValue == Constants.update
+                      ? AppLocalizations.of(context)!.updateStockOfData
+                      : AppLocalizations.of(context)!.addStockOfData,
+                  color: AppColors.primary,
+                  height: getSize(35),
+                ),
               ),
+              Expanded(child: addOrUpdateItem(context)),
             ],
           );
-        }));
+        },
+      ),
+    );
   }
 
   void setUpdateStockData() {
@@ -95,7 +97,7 @@ class _ManageStockItemState extends State<ManageStockItem> {
 
     print("DOCID: ${widget.docId}, STOCK DATA: ${stock.toString()}");
     if (stock != null && isResetPOSList) {
-      previousDocId=widget.docId;
+      previousDocId = widget.docId;
       viewModel.onVisibilityChanged(stock.visibility);
       viewModel.quntTabletCnt.text = stock.quantityTablets ?? "";
 
@@ -124,8 +126,9 @@ class _ManageStockItemState extends State<ManageStockItem> {
         clearPOS();
         for (var i = 0; i < (stock.posContentName!.length); i++) {
           addPowerOfSize(
-              name: stock.posContentName?[i] ?? "",
-              size: stock.posContentSize?[i] ?? "0");
+            name: stock.posContentName?[i] ?? "",
+            size: stock.posContentSize?[i] ?? "0",
+          );
         }
       }
     }
@@ -153,251 +156,250 @@ class _ManageStockItemState extends State<ManageStockItem> {
   Widget addOrUpdateItem(BuildContext context) {
     // var localeProvider = Provider.of<LocaleProvider>(context, listen: false);
     return Form(
-        key: _formKey,
-        child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 10),
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        children: [
+          CommonRadioGroup<String>(
+            title: AppLocalizations.of(context)!.typeOfStock,
+            options: const [Constants.medicine, Constants.others],
+            selectedValue: typeOfStock,
+            onChanged: (value) {
+              setState(() {
+                typeOfStock = value;
+              });
+            },
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.containsMedicineCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.containsOfMedicine,
+            prefixIcon: Icons.medication_outlined,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.brandNameCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.brandName,
+            prefixIcon: Icons.branding_watermark,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.shortNameCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.shortName,
+            prefixIcon: Icons.short_text,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.purchasePersonCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.purchasingPersonOrStockist,
+            prefixIcon: Icons.person,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.billNoCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.billNo,
+            prefixIcon: Icons.inventory_outlined,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.dateOfPurchaseController,
+            keyboardType: TextInputType.datetime,
+            hintText: '',
+            isReadOnly: true,
+            labelText: AppLocalizations.of(context)!.dateOfPurchase,
+            prefixIcon: Icons.date_range_rounded,
+            //validator: Validator().validatePhone,
+            onTap: () {
+              viewModel.selectDate(context, viewModel.dateOfPurchaseController);
+            },
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.manufacturerCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.manufacturerName,
+            prefixIcon: Icons.precision_manufacturing,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.expiryDateController,
+            keyboardType: TextInputType.datetime,
+            labelText: AppLocalizations.of(context)!.expiryDate,
+            hintText: '',
+            isReadOnly: true,
+            prefixIcon: Icons.calendar_today,
+            //validator: Validator().validateName,
+            onTap: () {
+              viewModel.selectDate(context, viewModel.expiryDateController);
+            },
+          ),
+          const SizedBox(height: 15.0),
+
+          CommonTextField(
+            controller: viewModel.minAvailCnt,
+            keyboardType: TextInputType.number,
+            labelText: AppLocalizations.of(context)!.minimumAvailability,
+            hintText: '',
+            prefixIcon: Icons.hourglass_empty,
+            //validator: Validator().validateEmail,
+          ),
+          const SizedBox(height: 15.0),
+
+          // Password Field
+          CommonTextField(
+            controller: viewModel.maxAvailCnt,
+            keyboardType: TextInputType.number,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.maximumAvailability,
+            prefixIcon: Icons.hourglass_empty,
+            //validator: Validator().validatePassword,
+          ),
+          const SizedBox(height: 15.0),
+
+          // Phone Field
+          CommonTextField(
+            controller: viewModel.nearestDurationDayController,
+            keyboardType: TextInputType.datetime,
+            hintText: '',
+            isReadOnly: true,
+            labelText: AppLocalizations.of(context)!.nearestDurationDays,
+            prefixIcon: Icons.calendar_month,
+            //validator: Validator().validatePhone,
+            onTap: () {
+              viewModel.selectDate(
+                context,
+                viewModel.nearestDurationDayController,
+              );
+            },
+          ),
+          const SizedBox(height: 15.0),
+
+          Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CommonRadioGroup<String>(
-                title: AppLocalizations.of(context)!.typeOfStock,
-                options: const [Constants.medicine, Constants.others],
-                selectedValue: typeOfStock,
-                onChanged: (value) {
-                  setState(() {
-                    typeOfStock = value;
-                  });
-                },
+              CommonText(
+                text: AppLocalizations.of(context)!.quantity,
+                fontSize: 16,
+                height: 30,
               ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.containsMedicineCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.containsOfMedicine,
-                prefixIcon: Icons.medication_outlined,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.brandNameCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.brandName,
-                prefixIcon: Icons.branding_watermark,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.shortNameCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.shortName,
-                prefixIcon: Icons.short_text,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.purchasePersonCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText:
-                AppLocalizations.of(context)!.purchasingPersonOrStockist,
-                prefixIcon: Icons.person,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.billNoCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.billNo,
-                prefixIcon: Icons.inventory_outlined,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.dateOfPurchaseController,
-                keyboardType: TextInputType.datetime,
-                hintText: '',
-                isReadOnly: true,
-                labelText: AppLocalizations.of(context)!.dateOfPurchase,
-                prefixIcon: Icons.date_range_rounded,
-                //validator: Validator().validatePhone,
-                onTap: () {
-                  viewModel.selectDate(
-                      context, viewModel.dateOfPurchaseController);
-                },
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.manufacturerCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.manufacturerName,
-                prefixIcon: Icons.precision_manufacturing,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.expiryDateController,
-                keyboardType: TextInputType.datetime,
-                labelText: AppLocalizations.of(context)!.expiryDate,
-                hintText: '',
-                isReadOnly: true,
-                prefixIcon: Icons.calendar_today,
-                //validator: Validator().validateName,
-                onTap: () {
-                  viewModel.selectDate(context, viewModel.expiryDateController);
-                },
-              ),
-              const SizedBox(height: 15.0),
-
-              CommonTextField(
-                controller: viewModel.minAvailCnt,
-                keyboardType: TextInputType.number,
-                labelText: AppLocalizations.of(context)!.minimumAvailability,
-                hintText: '',
-                prefixIcon: Icons.hourglass_empty,
-                //validator: Validator().validateEmail,
-              ),
-              const SizedBox(height: 15.0),
-
-              // Password Field
-              CommonTextField(
-                controller: viewModel.maxAvailCnt,
-                keyboardType: TextInputType.number,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.maximumAvailability,
-                prefixIcon: Icons.hourglass_empty,
-                //validator: Validator().validatePassword,
-              ),
-              const SizedBox(height: 15.0),
-
-              // Phone Field
-              CommonTextField(
-                controller: viewModel.nearestDurationDayController,
-                keyboardType: TextInputType.datetime,
-                hintText: '',
-                isReadOnly: true,
-                labelText: AppLocalizations.of(context)!.nearestDurationDays,
-                prefixIcon: Icons.calendar_month,
-                //validator: Validator().validatePhone,
-                onTap: () {
-                  viewModel.selectDate(
-                      context, viewModel.nearestDurationDayController);
-                },
-              ),
-              const SizedBox(height: 15.0),
-
-
-              Column(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CommonText(
-                    text: AppLocalizations.of(context)!.quantity,
-                    fontSize: 16,
-                    height: 30,
+                  Expanded(
+                    child: CommonTextField(
+                      controller: viewModel.quntMedicineCnt,
+                      keyboardType: TextInputType.text,
+                      hintText: '',
+                      labelText: AppLocalizations.of(context)!.medicine,
+                      //validator: Validator().validatePhone,
+                      height: getSize(40),
+                      fontSize: getSize(16),
+                    ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: CommonTextField(
-                          controller: viewModel.quntMedicineCnt,
-                          keyboardType: TextInputType.text,
-                          hintText: '',
-                          labelText: AppLocalizations.of(context)!.medicine,
-                          //validator: Validator().validatePhone,
-                          height: getSize(40),
-                          fontSize: getSize(16),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: CommonTextField(
-                          controller: viewModel.quntTabletCnt,
-                          keyboardType: TextInputType.text,
-                          hintText: '',
-                          labelText:
-                              AppLocalizations.of(context)!.tabletsOrStrips,
-                          //validator: Validator().validatePhone,
-                          height: getSize(40),
-                          fontSize: getSize(16),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Expanded(
-                        child: CommonTextField(
-                          controller: viewModel.quntBoxCnt,
-                          keyboardType: TextInputType.text,
-                          hintText: '',
-                          labelText: AppLocalizations.of(context)!.box,
-                          //validator: Validator().validatePhone,
-                          height: getSize(40),
-                          fontSize: getSize(16),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: CommonTextField(
+                      controller: viewModel.quntTabletCnt,
+                      keyboardType: TextInputType.text,
+                      hintText: '',
+                      labelText: AppLocalizations.of(context)!.tabletsOrStrips,
+                      //validator: Validator().validatePhone,
+                      height: getSize(40),
+                      fontSize: getSize(16),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: CommonTextField(
+                      controller: viewModel.quntBoxCnt,
+                      keyboardType: TextInputType.text,
+                      hintText: '',
+                      labelText: AppLocalizations.of(context)!.box,
+                      //validator: Validator().validatePhone,
+                      height: getSize(40),
+                      fontSize: getSize(16),
+                    ),
                   ),
                 ],
               ),
+            ],
+          ),
 
-              const SizedBox(height: 15.0),
+          const SizedBox(height: 15.0),
 
-              managePOSUI(context),
-              const SizedBox(height: 15.0),
-              CommonDropdown<String>(
-                label: AppLocalizations.of(context)!.formType,
-                selectedItem: viewModel.typeOfForm ?? "",
-                items: viewModel.formTypeList,
-                onChanged: viewModel.onTypeOfFormChanged,
-                validator: (value) => value == null
-                    ? AppLocalizations.of(context)!.formType
-                    : null,
-                prefixIcon: Icons.medical_information,
-              ),
-              const SizedBox(height: 15.0),
+          managePOSUI(context),
+          const SizedBox(height: 15.0),
+          CommonDropdown<String>(
+            label: AppLocalizations.of(context)!.formType,
+            selectedItem: viewModel.typeOfForm ?? "",
+            items: viewModel.formTypeList,
+            onChanged: viewModel.onTypeOfFormChanged,
+            validator: (value) =>
+                value == null ? AppLocalizations.of(context)!.formType : null,
+            prefixIcon: Icons.medical_information,
+          ),
+          const SizedBox(height: 15.0),
 
-              CommonTextField(
-                controller: viewModel.colorContentCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.colorOfContent,
-                prefixIcon: Icons.color_lens,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonDropdown<String>(
-                label: AppLocalizations.of(context)!.visibilityShowOrHide,
-                selectedItem: viewModel.stockVisibility ?? "",
-                items: viewModel.visibilityList,
-                onChanged: viewModel.onVisibilityChanged,
-                validator: (value) => value == null
-                    ? AppLocalizations.of(context)!.visibilityShowOrHide
-                    : null,
-                prefixIcon: Icons.visibility,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.ratePurchaseCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.rateOfPurchase,
-                prefixIcon: Icons.currency_rupee,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              CommonTextField(
-                controller: viewModel.mrpCnt,
-                keyboardType: TextInputType.text,
-                hintText: '',
-                labelText: AppLocalizations.of(context)!.mrp,
-                prefixIcon: Icons.currency_rupee,
-                //validator: Validator().validatePhone,
-              ),
-              const SizedBox(height: 15.0),
-              submitButton(context),
-            ]));
+          CommonTextField(
+            controller: viewModel.colorContentCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.colorOfContent,
+            prefixIcon: Icons.color_lens,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          CommonDropdown<String>(
+            label: AppLocalizations.of(context)!.visibilityShowOrHide,
+            selectedItem: viewModel.stockVisibility ?? "",
+            items: viewModel.visibilityList,
+            onChanged: viewModel.onVisibilityChanged,
+            validator: (value) => value == null
+                ? AppLocalizations.of(context)!.visibilityShowOrHide
+                : null,
+            prefixIcon: Icons.visibility,
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.ratePurchaseCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.rateOfPurchase,
+            prefixIcon: Icons.currency_rupee,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          CommonTextField(
+            controller: viewModel.mrpCnt,
+            keyboardType: TextInputType.text,
+            hintText: '',
+            labelText: AppLocalizations.of(context)!.mrp,
+            prefixIcon: Icons.currency_rupee,
+            //validator: Validator().validatePhone,
+          ),
+          const SizedBox(height: 15.0),
+          submitButton(context),
+        ],
+      ),
+    );
   }
 
   CommonButton submitButton(BuildContext context) {
@@ -405,21 +407,36 @@ class _ManageStockItemState extends State<ManageStockItem> {
       onPressed: () async {
         if (viewModel.validateForm(_formKey)) {
           if (widget.actionValue == Constants.update) {
-            await viewModel.updateStockData(typeOfStock!, widget.docId, () {
-              showToast(AppLocalizations.of(navigatorKey.currentContext!)!
-                  .stockUpdatedSuccessfully);
-              widget.completeCallback();
-            }, (e) {
-              showToast(e.toString());
-            });
+            await viewModel.updateStockData(
+              typeOfStock!,
+              widget.docId,
+              () {
+                showToast(
+                  AppLocalizations.of(
+                    navigatorKey.currentContext!,
+                  )!.stockUpdatedSuccessfully,
+                );
+                widget.completeCallback();
+              },
+              (e) {
+                showToast(e.toString());
+              },
+            );
           } else {
-            await viewModel.addNewStockData(typeOfStock!, () {
-              showToast(AppLocalizations.of(navigatorKey.currentContext!)!
-                  .stockSavedSuccessfully);
-              widget.completeCallback();
-            }, (e) {
-              showToast(e.toString());
-            });
+            await viewModel.addNewStockData(
+              typeOfStock!,
+              () {
+                showToast(
+                  AppLocalizations.of(
+                    navigatorKey.currentContext!,
+                  )!.stockSavedSuccessfully,
+                );
+                widget.completeCallback();
+              },
+              (e) {
+                showToast(e.toString());
+              },
+            );
           }
           isPowerOfSizeListEmpty = false;
           isResetPOSList = true;
@@ -455,14 +472,18 @@ class _ManageStockItemState extends State<ManageStockItem> {
                 child: CommonText(
                   text: AppLocalizations.of(context)!.addMoreContent,
                   style:
-                      AppTextStyles.getRegularTextStyle(localeProvider.locale)
-                          .copyWith(
-                              decoration: TextDecoration.underline,
-                              fontSize:
-                                  ResponsiveTextUtil.getResponsiveFontSize(
-                                      navigatorKey.currentContext!,
-                                      baseFontSize: AppTextStyles.getFontSize(
-                                          localeProvider.locale, 16))),
+                      AppTextStyles.getRegularTextStyle(
+                        localeProvider.locale,
+                      ).copyWith(
+                        decoration: TextDecoration.underline,
+                        fontSize: ResponsiveTextUtil.getResponsiveFontSize(
+                          navigatorKey.currentContext!,
+                          baseFontSize: AppTextStyles.getFontSize(
+                            localeProvider.locale,
+                            16,
+                          ),
+                        ),
+                      ),
                 ),
               ),
             ],
@@ -482,13 +503,16 @@ class _ManageStockItemState extends State<ManageStockItem> {
   void addPowerOfSize({String name = "", String size = "0"}) {
     setState(() {
       print(
-          "addPowerOfSize before clicked: posNameListController:${viewModel.posNameListController.length},posSizeListController:${viewModel.posSizeListController.length},powerOfSizeWidgetList:${viewModel.powerOfSizeWidgetList.length}");
+        "addPowerOfSize before clicked: posNameListController:${viewModel.posNameListController.length},posSizeListController:${viewModel.posSizeListController.length},powerOfSizeWidgetList:${viewModel.powerOfSizeWidgetList.length}",
+      );
       viewModel.posNameListController.add(TextEditingController(text: name));
       viewModel.posSizeListController.add(TextEditingController(text: size));
-      viewModel.powerOfSizeWidgetList
-          .add(buildPowerOfSize(viewModel.powerOfSizeWidgetList.length));
+      viewModel.powerOfSizeWidgetList.add(
+        buildPowerOfSize(viewModel.powerOfSizeWidgetList.length),
+      );
       print(
-          "addPowerOfSize after clicked: posNameListController:${viewModel.posNameListController.length},posSizeListController:${viewModel.posSizeListController.length},powerOfSizeWidgetList:${viewModel.powerOfSizeWidgetList.length}");
+        "addPowerOfSize after clicked: posNameListController:${viewModel.posNameListController.length},posSizeListController:${viewModel.posSizeListController.length},powerOfSizeWidgetList:${viewModel.powerOfSizeWidgetList.length}",
+      );
     });
   }
 
@@ -504,8 +528,9 @@ class _ManageStockItemState extends State<ManageStockItem> {
                 controller: viewModel.posNameListController[index],
                 keyboardType: TextInputType.text,
                 hintText: '',
-                labelText: AppLocalizations.of(navigatorKey.currentContext!)!
-                    .contentName,
+                labelText: AppLocalizations.of(
+                  navigatorKey.currentContext!,
+                )!.contentName,
                 //validator: Validator().validatePhone,
                 height: getSize(40),
                 fontSize: getSize(16),
@@ -517,8 +542,9 @@ class _ManageStockItemState extends State<ManageStockItem> {
                 controller: viewModel.posSizeListController[index],
                 keyboardType: TextInputType.text,
                 hintText: '',
-                labelText:
-                    AppLocalizations.of(navigatorKey.currentContext!)!.size,
+                labelText: AppLocalizations.of(
+                  navigatorKey.currentContext!,
+                )!.size,
                 //validator: Validator().validatePhone,
                 height: getSize(40),
                 fontSize: getSize(16),

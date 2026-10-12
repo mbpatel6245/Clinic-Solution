@@ -1,11 +1,11 @@
 {
-    "name": "clinic_solution",
-    "short_name": "clinic_solution",
+    "name": "Clinic Solution",
+    "short_name": "Clinic Solution",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Flutter Clinic Solution for Android, iOS, Linux, MacOS, Web and Windows platform complete solutions",
+    "background_color": "#087F83",
+    "theme_color": "#087F83",
+    "description": "Clinic Solution by ORBYTEZA TECH LLP — connected clinic management.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

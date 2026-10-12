@@ -1,3 +1,4 @@
+import 'package:clinic_solution/core/design/app_theme.dart';
 import 'package:clinic_solution/ui/views/home/stock_inward/stock_inward_viewmodel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -12,8 +13,12 @@ import '../../../themes/text_styles.dart';
 import '../../../widgets/common_text.dart';
 import '../../../widgets/common_textfield.dart';
 
-typedef StockSelectionCallback = void Function(
-    String selectedValue, String selectedDocId, StockModel selectedItem);
+typedef StockSelectionCallback =
+    void Function(
+      String selectedValue,
+      String selectedDocId,
+      StockModel selectedItem,
+    );
 
 class ListOfStocks extends StatefulWidget {
   final StockSelectionCallback onStockSelected;
@@ -60,9 +65,9 @@ class _ListOfStocksState extends State<ListOfStocks> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-        create: (_) => StockInwardViewmodel(),
-        child: Consumer<StockInwardViewmodel>(
-            builder: (context, viewModel, child) {
+      create: (_) => StockInwardViewmodel(),
+      child: Consumer<StockInwardViewmodel>(
+        builder: (context, viewModel, child) {
           return Column(
             children: [
               // Center(
@@ -90,89 +95,109 @@ class _ListOfStocksState extends State<ListOfStocks> {
               ),
               const SizedBox(height: 15.0),
               Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                stream: stockStream,
-                builder: (BuildContext context,
-                    AsyncSnapshot<QuerySnapshot> snapshot) {
-                  if (snapshot.hasError) {
-                    return CommonText(
-                      text: "Something went wrong!",
-                      style: AppTextStyles.getBoldTextStyle(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: stockStream,
+                  builder:
+                      (
+                        BuildContext context,
+                        AsyncSnapshot<QuerySnapshot> snapshot,
+                      ) {
+                        if (snapshot.hasError) {
+                          return CommonText(
+                            text: "Something went wrong!",
+                            style: AppTextStyles.getBoldTextStyle(
                               localeProvider.locale,
-                              fontSize: 16)
-                          .copyWith(color: Colors.deepOrange),
-                    );
-                  }
+                              fontSize: 16,
+                            ).copyWith(color: Colors.deepOrange),
+                          );
+                        }
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return CommonText(
-                      text: "Loading...",
-                      style: AppTextStyles.getBoldTextStyle(
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return CommonText(
+                            text: "Loading...",
+                            style: AppTextStyles.getBoldTextStyle(
                               localeProvider.locale,
-                              fontSize: 16)
-                          .copyWith(color: Colors.lightBlue),
-                    );
-                  }
+                              fontSize: 16,
+                            ).copyWith(color: AppColors.primary),
+                          );
+                        }
 
-                  // Filter results locally based on multiple fields
-                  final searchTerm =
-                      searchStockController.text.trim().toLowerCase();
-                  final documents = snapshot.data?.docs.where((document) {
-                    final stockData = document.data() as Map<String, dynamic>;
+                        // Filter results locally based on multiple fields
+                        final searchTerm = searchStockController.text
+                            .trim()
+                            .toLowerCase();
+                        final documents = snapshot.data?.docs.where((document) {
+                          final stockData =
+                              document.data() as Map<String, dynamic>;
 
-                    // Check each field for a match
-                    return (stockData['brand_name'] as String?)
-                                ?.toLowerCase()
-                                .contains(searchTerm) ==
-                            true ||
-                        (stockData['contains_medicine'] as String?)
-                                ?.toLowerCase()
-                                .contains(searchTerm) ==
-                            true ||
-                        (stockData['purchasing_person'] as String?)
-                                ?.toLowerCase()
-                                .contains(searchTerm) ==
-                            true ||
-                        (stockData['manufacturer_name'] as String?)
-                                ?.toLowerCase()
-                                .contains(searchTerm) ==
-                            true ||
-                        (stockData['short_name'] as String?)
-                                ?.toLowerCase()
-                                .contains(searchTerm) ==
-                            true ||
-                        (stockData['bill_number'] as String?)
-                                ?.toLowerCase()
-                                .contains(searchTerm) ==
-                            true;
-                  }).toList();
+                          // Check each field for a match
+                          return (stockData['brand_name'] as String?)
+                                      ?.toLowerCase()
+                                      .contains(searchTerm) ==
+                                  true ||
+                              (stockData['contains_medicine'] as String?)
+                                      ?.toLowerCase()
+                                      .contains(searchTerm) ==
+                                  true ||
+                              (stockData['purchasing_person'] as String?)
+                                      ?.toLowerCase()
+                                      .contains(searchTerm) ==
+                                  true ||
+                              (stockData['manufacturer_name'] as String?)
+                                      ?.toLowerCase()
+                                      .contains(searchTerm) ==
+                                  true ||
+                              (stockData['short_name'] as String?)
+                                      ?.toLowerCase()
+                                      .contains(searchTerm) ==
+                                  true ||
+                              (stockData['bill_number'] as String?)
+                                      ?.toLowerCase()
+                                      .contains(searchTerm) ==
+                                  true;
+                        }).toList();
 
-                  if (documents?.isEmpty == true) {
-                    return CommonText(
-                      text: "Stock not found!",
-                      style: AppTextStyles.getBoldTextStyle(
+                        if (documents?.isEmpty == true) {
+                          return CommonText(
+                            text: "Stock not found!",
+                            style: AppTextStyles.getBoldTextStyle(
                               localeProvider.locale,
-                              fontSize: 16)
-                          .copyWith(color: Colors.deepOrange),
-                    );
-                  }
-                  return ListView(
-                    children: documents!.map((DocumentSnapshot document) {
-                      StockModel stock = StockModel.fromFirestore(
-                          document as DocumentSnapshot<Map<String, dynamic>>,
-                          null);
-                      return stockListItem(stock, viewModel, context, document);
-                    }).toList(),
-                  );
-                },
-              ))
+                              fontSize: 16,
+                            ).copyWith(color: Colors.deepOrange),
+                          );
+                        }
+                        return ListView(
+                          children: documents!.map((DocumentSnapshot document) {
+                            StockModel stock = StockModel.fromFirestore(
+                              document
+                                  as DocumentSnapshot<Map<String, dynamic>>,
+                              null,
+                            );
+                            return stockListItem(
+                              stock,
+                              viewModel,
+                              context,
+                              document,
+                            );
+                          }).toList(),
+                        );
+                      },
+                ),
+              ),
             ],
           );
-        }));
+        },
+      ),
+    );
   }
 
-  Card stockListItem(StockModel stock, StockInwardViewmodel viewModel,
-      BuildContext context, DocumentSnapshot<Map<String, dynamic>> document) {
+  Card stockListItem(
+    StockModel stock,
+    StockInwardViewmodel viewModel,
+    BuildContext context,
+    DocumentSnapshot<Map<String, dynamic>> document,
+  ) {
     //var localeProvider = Provider.of<LocaleProvider>(context, listen: false);
     return Card(
       elevation: 2,
@@ -218,7 +243,9 @@ class _ListOfStocksState extends State<ListOfStocks> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               CommonText(
-                                text: AppLocalizations.of(context)!.containsOfMedicine,
+                                text: AppLocalizations.of(
+                                  context,
+                                )!.containsOfMedicine,
                                 style: AppTextStyles.getBoldTextStyle(
                                   localeProvider.locale,
                                   fontSize: 14,
@@ -252,7 +279,6 @@ class _ListOfStocksState extends State<ListOfStocks> {
                               ),
                             ],
                           ),
-
                         ],
                       ),
                       // Third row for Availability and Quantity
@@ -270,7 +296,7 @@ class _ListOfStocksState extends State<ListOfStocks> {
                               ),
                               CommonText(
                                 text:
-                                '${stock.quantityMedicine ?? '0'} Medicines | ${stock.quantityTablets ?? '0'} Tablets | ${stock.quantityBox ?? '0'} Boxes',
+                                    '${stock.quantityMedicine ?? '0'} Medicines | ${stock.quantityTablets ?? '0'} Tablets | ${stock.quantityBox ?? '0'} Boxes',
                                 style: AppTextStyles.getRegularTextStyle(
                                   localeProvider.locale,
                                   fontSize: 14,
@@ -282,15 +308,16 @@ class _ListOfStocksState extends State<ListOfStocks> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               CommonText(
-                                text: AppLocalizations.of(context)!.purchasingPerson,
+                                text: AppLocalizations.of(
+                                  context,
+                                )!.purchasingPerson,
                                 style: AppTextStyles.getBoldTextStyle(
                                   localeProvider.locale,
                                   fontSize: 14,
                                 ),
                               ),
                               CommonText(
-                                text:
-                                stock.purchasingPerson??"",
+                                text: stock.purchasingPerson ?? "",
                                 style: AppTextStyles.getRegularTextStyle(
                                   localeProvider.locale,
                                   fontSize: 14,
@@ -325,7 +352,7 @@ class _ListOfStocksState extends State<ListOfStocks> {
                 Column(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.lightBlue),
+                      icon: const Icon(Icons.edit, color: AppColors.primary),
                       onPressed: () {
                         handleSelection(Constants.update, document.id, stock);
                       },
@@ -337,7 +364,9 @@ class _ListOfStocksState extends State<ListOfStocks> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              AppLocalizations.of(context)!.stockDeletedSuccessfully,
+                              AppLocalizations.of(
+                                context,
+                              )!.stockDeletedSuccessfully,
                             ),
                           ),
                         );
@@ -350,7 +379,7 @@ class _ListOfStocksState extends State<ListOfStocks> {
             ),
             //const Divider(),
             // Final Row for Purchase and Type
-           /* Table(
+            /* Table(
               columnWidths: const {
                 0: FlexColumnWidth(1),
                 1: FlexColumnWidth(1),

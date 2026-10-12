@@ -21,7 +21,7 @@ class CommonButton extends StatelessWidget {
     required this.onPressed,
     this.backgroundColor,
     this.textColor,
-    this.borderRadius = 8.0,
+    this.borderRadius = 12.0,
     this.verticalPadding = 15.0,
     this.horizontalPadding = 40.0,
     this.isDisabled = false,
@@ -37,7 +37,8 @@ class CommonButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: isDisabled
               ? Colors.grey
-              : backgroundColor ?? Colors.white70,
+              : backgroundColor ?? Theme.of(context).colorScheme.primary,
+          foregroundColor: textColor ?? Theme.of(context).colorScheme.onPrimary,
           padding: EdgeInsets.symmetric(
             vertical: verticalPadding ?? 15.0,
             horizontal: horizontalPadding ?? 40.0,
@@ -48,7 +49,9 @@ class CommonButton extends StatelessWidget {
         ),
         child: Text(
           text,
-          style: AppTextStyles.getBoldTextStyle(localeProvider.locale),
+          style: AppTextStyles.getBoldTextStyle(localeProvider.locale).copyWith(
+            color: textColor ?? Theme.of(context).colorScheme.onPrimary,
+          ),
         ),
       ),
     );
