@@ -20,6 +20,12 @@
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  # Require HTTPS on the production hostname; allow certificate renewal.
+  RewriteCond %{HTTP_HOST} ^clinic\.orbyteza\.com(?::80)?$ [NC]
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+  RewriteRule ^ https://clinic.orbyteza.com%{REQUEST_URI} [R=301,L,NE]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ index.html [L]
