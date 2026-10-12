@@ -1,35 +1,31 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+  final FirebaseAuth _auth;
 
-  // Method to send password reset email
+  // Firebase owns authentication email delivery and its localized templates.
   Future<void> sendPasswordResetEmail(
     String email, {
     String locale = 'en',
   }) async {
-    final project = Firebase.app().options.projectId;
-    final response = await http
-        .post(
-          Uri.https(
-            'asia-south1-$project.cloudfunctions.net',
-            '/requestPasswordReset',
-          ),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'data': {'email': email.trim(), 'locale': locale},
-          }),
-        )
-        .timeout(const Duration(seconds: 30));
-    if (response.statusCode != 200) {
-      throw FirebaseAuthException(
-        code: 'reset-unavailable',
-        message: 'Unable to request a reset. Please try again later.',
-      );
+    await _auth.setLanguageCode(
+      ['en', 'hi', 'gu'].contains(locale) ? locale : 'en',
+    );
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (error) {
+      // Keep the same response for addresses that are not registered.
+      if (error.code != 'user-not-found') rethrow;
     }
+  }
+
+  Future<void> sendEmailVerification({String locale = 'en'}) async {
+    await _auth.setLanguageCode(
+      ['en', 'hi', 'gu'].contains(locale) ? locale : 'en',
+    );
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) await user.sendEmailVerification();
   }
 
   Future<UserCredential> createUserWithEmailAndPassword(

@@ -1,3 +1,5 @@
+> Current release: authentication emails use Firebase; clinic notifications use MSG91 with delivery disabled until setup. See [MESSAGING_CONFIGURATION.md](MESSAGING_CONFIGURATION.md) for current activation instructions. Older multi-provider and custom password-reset instructions below are historical.
+
 # Editable SMS and email templates
 
 Product Owners (the existing **Platform Owner** role) open **Clinic setup → SMS & email templates → Manage message templates**. Select English, Hindi or Gujarati, then edit the SMS or email for an event. The editor provides placeholder insertion, sample previews, channel enable/disable controls, provider mappings and a default-text reset. Saving writes a revision and immutable history entry. Concurrent edits are rejected rather than silently overwriting another owner's work.

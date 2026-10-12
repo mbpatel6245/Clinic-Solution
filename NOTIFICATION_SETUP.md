@@ -1,3 +1,5 @@
+> Current release: authentication emails use Firebase; clinic notifications use MSG91 with delivery disabled until setup. See [MESSAGING_CONFIGURATION.md](MESSAGING_CONFIGURATION.md) for current activation instructions. Older multi-provider and custom password-reset instructions below are historical.
+
 # MSG91 and Twilio notification setup
 
 Last verified: **11 September 2026**

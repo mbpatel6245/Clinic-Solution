@@ -83,10 +83,12 @@ class _NotificationTemplatesScreenState
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Hindi and Gujarati use the saved English message until you save a translation. Provider template IDs must match the language and approved content. Password reset SMS is sent only to a verified account phone.',
+                    'Hindi and Gujarati use the saved English message until you save a translation. Provider template IDs must match the language and approved content. Password reset and verification emails are delivered by Firebase. Configure their templates in Firebase Authentication. Clinic messages use MSG91 once activated.',
                   ),
                   const SizedBox(height: 20),
-                  for (final item in catalog.data!)
+                  for (final item in catalog.data!.where(
+                    (item) => item.id != 'password_reset',
+                  ))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Card(
@@ -350,7 +352,7 @@ class _TemplateEditorState extends State<_TemplateEditor> {
                   title: const Text('Provider template mapping'),
                   children: [
                     const Text(
-                      'MSG91 requires an approved provider template using the message and subject variables. Twilio SMS uses variables 1=name, 2=clinic, 3=message. A blank SendGrid ID sends the edited email directly; a custom SendGrid template must use subject and message variables. SMS charges may increase for long or Unicode messages.',
+                      'MSG91 requires an approved provider template using the message and subject variables. SMS charges may increase for long or Unicode messages.',
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -358,15 +360,6 @@ class _TemplateEditorState extends State<_TemplateEditor> {
                       maxLength: 200,
                       decoration: const InputDecoration(
                         labelText: 'MSG91 template ID (blank = global default)',
-                      ),
-                    ),
-                    TextFormField(
-                      controller: _twilio,
-                      maxLength: 200,
-                      decoration: InputDecoration(
-                        labelText: widget.channel == 'email'
-                            ? 'SendGrid template ID (optional)'
-                            : 'Twilio Content SID (optional)',
                       ),
                     ),
                   ],

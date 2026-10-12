@@ -115,6 +115,14 @@ class FirebaseFireStore with ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
       });
+      // A delivery failure must not delete a successfully registered account.
+      try {
+        await _authService.sendEmailVerification(locale: locale);
+      } on FirebaseAuthException {
+        debugPrint(
+          'Verification email could not be sent; account was retained.',
+        );
+      }
       await FirebaseAuth.instance.signOut();
     } catch (_) {
       await user.delete();

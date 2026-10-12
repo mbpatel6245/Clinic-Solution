@@ -7,7 +7,7 @@ import {
   type DocumentReference,
 } from "firebase-admin/firestore";
 import {logger} from "firebase-functions";
-import {defineSecret, defineString} from "firebase-functions/params";
+import {defineSecret, defineString, type SecretParam} from "firebase-functions/params";
 import {HttpsError, onCall, onRequest} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {
@@ -38,11 +38,18 @@ import {createNotificationHandlers} from "./event_notifications.js";
 initializeApp();
 const db = getFirestore();
 
-const MSG91_AUTH_KEY = defineSecret("MSG91_AUTH_KEY");
-const NOTIFICATION_WEBHOOK_SECRET = defineSecret("NOTIFICATION_WEBHOOK_SECRET");
-const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
-const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
-const SENDGRID_API_KEY = defineSecret("SENDGRID_API_KEY");
+// Enable only after MSG91 sender, templates and credentials are configured.
+const notificationsEnabled = process.env.CLINIC_NOTIFICATIONS_ENABLED === "true";
+const MSG91_AUTH_KEY = notificationsEnabled ? defineSecret("MSG91_AUTH_KEY") : undefined;
+const NOTIFICATION_WEBHOOK_SECRET = notificationsEnabled ? defineSecret("NOTIFICATION_WEBHOOK_SECRET") : undefined;
+// Optional legacy adapters are retained, but are not bound or selected in this deployment.
+const TWILIO_ACCOUNT_SID: SecretParam | undefined = undefined;
+const TWILIO_AUTH_TOKEN: SecretParam | undefined = undefined;
+const SENDGRID_API_KEY: SecretParam | undefined = undefined;
+function configuredSecrets(...values: (SecretParam | undefined)[]): SecretParam[] {
+  return values.filter((value): value is SecretParam => value !== undefined);
+}
+function credential(value: SecretParam | undefined): string { return value?.value() ?? ""; }
 const DEFAULT_COUNTRY_CODE = defineString("MSG91_DEFAULT_COUNTRY_CODE", {default: "91"});
 const SMS_TEMPLATE_ID = defineString("MSG91_SMS_TEMPLATE_ID", {default: ""});
 const WHATSAPP_TEMPLATE_NAME = defineString("MSG91_WHATSAPP_TEMPLATE_NAME", {default: ""});
@@ -68,10 +75,10 @@ const REGION = "asia-south1";
 
 export const {
   dispatchEventNotifications, notifyAccountCreated, notifyAccountApproved,
-  notifyMemberApproved, notifyAppointmentChanged, notifyInvoiceChanged, requestPasswordReset,
+  notifyMemberApproved, notifyAppointmentChanged, notifyInvoiceChanged,
 } = createNotificationHandlers(
   async (job) => sendNotification(job, await providerSelection()),
-  [MSG91_AUTH_KEY, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, SENDGRID_API_KEY],
+  configuredSecrets(MSG91_AUTH_KEY),
 );
 
 interface ProviderSelection {
@@ -98,9 +105,9 @@ async function providerSelection(): Promise<ProviderSelection> {
   const snapshot = await db.doc("platform_settings/notifications").get();
   const data = snapshot.data() ?? {};
   return {
-    primary: providerName(data.primary_provider, "msg91"),
+    primary: "msg91",
     fallback: providerName(data.fallback_provider, "twilio"),
-    fallbackEnabled: data.fallback_enabled === true,
+    fallbackEnabled: false,
     defaultCountryCode: asString(data.default_country_code, DEFAULT_COUNTRY_CODE.value()),
     msg91: stringMap(data.msg91),
     twilio: stringMap(data.twilio),
@@ -110,7 +117,7 @@ async function providerSelection(): Promise<ProviderSelection> {
 function msg91Config(settings: ProviderSelection): Msg91Config {
   const values = settings.msg91;
   return {
-    authKey: MSG91_AUTH_KEY.value(),
+    authKey: credential(MSG91_AUTH_KEY),
     defaultCountryCode: settings.defaultCountryCode,
     smsTemplateId: values.sms_template_id || SMS_TEMPLATE_ID.value(),
     whatsappTemplateName: values.whatsapp_template_name || WHATSAPP_TEMPLATE_NAME.value(),
@@ -126,9 +133,9 @@ function msg91Config(settings: ProviderSelection): Msg91Config {
 function twilioConfig(settings: ProviderSelection): TwilioConfig {
   const values = settings.twilio;
   return {
-    accountSid: TWILIO_ACCOUNT_SID.value(),
-    authToken: TWILIO_AUTH_TOKEN.value(),
-    sendGridApiKey: SENDGRID_API_KEY.value(),
+    accountSid: credential(TWILIO_ACCOUNT_SID),
+    authToken: credential(TWILIO_AUTH_TOKEN),
+    sendGridApiKey: credential(SENDGRID_API_KEY),
     defaultCountryCode: settings.defaultCountryCode,
     messagingServiceSid: values.messaging_service_sid || TWILIO_MESSAGING_SERVICE_SID.value(),
     smsFrom: values.sms_from || TWILIO_SMS_FROM.value(),
@@ -160,6 +167,8 @@ async function sendNotification(
   settings: ProviderSelection,
   providerOverride?: NotificationProviderName,
 ): Promise<SendResult> {
+  if (!notificationsEnabled) throw new ProviderError("MSG91 notifications are not configured yet", false);
+  if (providerOverride && providerOverride !== "msg91") throw new ProviderError("Only MSG91 is enabled", false);
   if (job.event && job.channel !== "whatsapp") {
     const locale = ["hi", "gu"].includes(job.templateLanguage ?? "") ? job.templateLanguage! : "en";
     let snapshot = await db.doc(`notification_templates/${job.event}_${job.channel}_${locale}`).get();
@@ -335,12 +344,7 @@ export const dispatchDueReminders = onSchedule(
     schedule: "every minute",
     timeZone: "Asia/Kolkata",
     region: REGION,
-    secrets: [
-      MSG91_AUTH_KEY,
-      TWILIO_ACCOUNT_SID,
-      TWILIO_AUTH_TOKEN,
-      SENDGRID_API_KEY,
-    ],
+    secrets: configuredSecrets(MSG91_AUTH_KEY),
     timeoutSeconds: 300,
     memory: "256MiB",
     maxInstances: 1,
@@ -379,14 +383,14 @@ function webhookValue(body: unknown, keys: string[]): string {
 }
 
 export const msg91DeliveryWebhook = onRequest(
-  {region: REGION, secrets: [NOTIFICATION_WEBHOOK_SECRET]},
+  {region: REGION, secrets: configuredSecrets(NOTIFICATION_WEBHOOK_SECRET)},
   async (request, response) => {
     if (request.method !== "POST") {
       response.status(405).send("Method not allowed");
       return;
     }
     const supplied = asString(request.get("x-webhook-secret")) || asString(request.query.secret);
-    const expectedSecret = NOTIFICATION_WEBHOOK_SECRET.value();
+    const expectedSecret = credential(NOTIFICATION_WEBHOOK_SECRET);
     if (!supplied || !expectedSecret || !safeEquals(supplied, expectedSecret)) {
       response.status(401).send("Unauthorized");
       return;
@@ -447,12 +451,7 @@ async function canManageClinic(uid: string, clinicId: string): Promise<boolean> 
 export const sendTestNotification = onCall(
   {
     region: REGION,
-    secrets: [
-      MSG91_AUTH_KEY,
-      TWILIO_ACCOUNT_SID,
-      TWILIO_AUTH_TOKEN,
-      SENDGRID_API_KEY,
-    ],
+    secrets: configuredSecrets(MSG91_AUTH_KEY),
   },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Sign in first");
@@ -489,7 +488,7 @@ export const sendTestNotification = onCall(
 );
 
 export const twilioDeliveryWebhook = onRequest(
-  {region: REGION, secrets: [TWILIO_AUTH_TOKEN]},
+  {region: REGION, secrets: configuredSecrets(TWILIO_AUTH_TOKEN)},
   async (request, response) => {
     if (request.method !== "POST") {
       response.status(405).send("Method not allowed");
@@ -502,7 +501,7 @@ export const twilioDeliveryWebhook = onRequest(
       !callbackUrl ||
       !signature ||
       !validateTwilioWebhook(
-        TWILIO_AUTH_TOKEN.value(),
+        credential(TWILIO_AUTH_TOKEN),
         signature,
         callbackUrl,
         request.body as Record<string, unknown>,
@@ -679,12 +678,7 @@ async function provisionInvitation(
 const invitationTriggerOptions = {
   document: "clinics/{clinicId}/team_invites/{inviteId}",
   region: REGION,
-  secrets: [
-    MSG91_AUTH_KEY,
-    TWILIO_ACCOUNT_SID,
-    TWILIO_AUTH_TOKEN,
-    SENDGRID_API_KEY,
-  ],
+  secrets: configuredSecrets(MSG91_AUTH_KEY),
 };
 
 export const provisionInvitedMember = onDocumentCreated(

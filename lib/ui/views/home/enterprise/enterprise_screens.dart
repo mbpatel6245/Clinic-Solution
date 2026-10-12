@@ -523,23 +523,8 @@ class _GlobalNotificationSettingsCard extends StatelessWidget {
       runSpacing: AppSpacing.sm,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Chip(
-          avatar: const Icon(Icons.send_outlined, size: 18),
-          label: Text('Primary: ${_providerLabel(settings.primaryProvider)}'),
-        ),
-        Chip(
-          avatar: Icon(
-            settings.fallbackEnabled
-                ? Icons.alt_route_outlined
-                : Icons.block_outlined,
-            size: 18,
-          ),
-          label: Text(
-            settings.fallbackEnabled
-                ? 'Fallback: ${_providerLabel(settings.fallbackProvider)}'
-                : 'Fallback disabled',
-          ),
-        ),
+        const Chip(label: Text('Clinic notifications: MSG91')),
+        const Chip(label: Text('Automatic fallback disabled')),
         const Text(
           'Applies to every clinic. Credentials stay in Secret Manager.',
         ),
@@ -547,12 +532,10 @@ class _GlobalNotificationSettingsCard extends StatelessWidget {
     ),
   );
 
-  String _providerLabel(String value) => value == 'twilio' ? 'Twilio' : 'MSG91';
-
   Future<void> _configure(BuildContext context) async {
-    var primary = settings.primaryProvider;
-    var fallback = settings.fallbackProvider;
-    var fallbackEnabled = settings.fallbackEnabled;
+    const primary = 'msg91';
+    const fallback = 'twilio';
+    const fallbackEnabled = false;
     final country = TextEditingController(text: settings.defaultCountryCode);
     final msg91Sms = TextEditingController(text: settings.msg91SmsTemplateId);
     final msg91WaTemplate = TextEditingController(
@@ -608,44 +591,12 @@ class _GlobalNotificationSettingsCard extends StatelessWidget {
             child: ListView(
               children: [
                 const Text(
-                  'Choose the platform-wide routing policy. API keys are intentionally configured through Firebase Secret Manager, not this screen.',
+                  'Configure MSG91 sender and template identifiers. API keys are configured through Firebase Secret Manager.',
                 ),
                 const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<String>(
-                  initialValue: primary,
-                  decoration: const InputDecoration(
-                    labelText: 'Primary provider',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'msg91', child: Text('MSG91')),
-                    DropdownMenuItem(value: 'twilio', child: Text('Twilio')),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => primary = value ?? primary),
+                const Text(
+                  'MSG91 handles clinic messages. Firebase handles authentication emails. Automatic fallback is disabled.',
                 ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Use automatic fallback'),
-                  subtitle: const Text(
-                    'If the primary provider rejects or cannot deliver the API request, try the other provider once.',
-                  ),
-                  value: fallbackEnabled,
-                  onChanged: (value) => setState(() => fallbackEnabled = value),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: fallback,
-                  decoration: const InputDecoration(
-                    labelText: 'Fallback provider',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'msg91', child: Text('MSG91')),
-                    DropdownMenuItem(value: 'twilio', child: Text('Twilio')),
-                  ],
-                  onChanged: fallbackEnabled
-                      ? (value) => setState(() => fallback = value ?? fallback)
-                      : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
                 _field(country, 'Default phone country code'),
                 const SizedBox(height: AppSpacing.md),
                 _providerFields(
@@ -663,27 +614,6 @@ class _GlobalNotificationSettingsCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _providerFields(
-                  context,
-                  title: 'Twilio and SendGrid identifiers',
-                  children: [
-                    _field(
-                      twilioService,
-                      'Messaging Service SID (recommended)',
-                    ),
-                    _field(
-                      twilioSmsFrom,
-                      'SMS From number/sender (if no service)',
-                    ),
-                    _field(twilioSmsContent, 'SMS Content SID (optional)'),
-                    _field(twilioWaFrom, 'WhatsApp sender number'),
-                    _field(twilioWaContent, 'WhatsApp Content SID'),
-                    _field(sendGridFrom, 'SendGrid verified sender email'),
-                    _field(sendGridName, 'SendGrid sender name'),
-                    _field(sendGridTemplate, 'SendGrid dynamic template ID'),
-                    _field(callbackUrl, 'Twilio status callback URL'),
-                  ],
-                ),
               ],
             ),
           ),
@@ -693,9 +623,7 @@ class _GlobalNotificationSettingsCard extends StatelessWidget {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: primary == fallback && fallbackEnabled
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
+              onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Apply to all clinics'),
             ),
           ],
