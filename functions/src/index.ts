@@ -61,7 +61,7 @@ const SENDGRID_FROM_EMAIL = defineString("SENDGRID_FROM_EMAIL", {default: ""});
 const SENDGRID_FROM_NAME = defineString("SENDGRID_FROM_NAME", {default: "Clinic"});
 const SENDGRID_TEMPLATE_ID = defineString("SENDGRID_TEMPLATE_ID", {default: ""});
 const TWILIO_STATUS_CALLBACK_URL = defineString("TWILIO_STATUS_CALLBACK_URL", {default: ""});
-const CLINIC_APP_URL = defineString("CLINIC_APP_URL", {default: "https://clinic.mobitab.co.in"});
+const CLINIC_APP_URL = defineString("CLINIC_APP_URL", {default: "https://clinic.orbyteza.com"});
 
 const MAX_ATTEMPTS = 3;
 const REGION = "asia-south1";

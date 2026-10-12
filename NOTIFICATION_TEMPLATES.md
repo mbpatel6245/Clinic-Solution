@@ -16,7 +16,7 @@ There are 17 event definitions and 34 English defaults in `functions/src/templat
 
 Appointment booking has an optional email and a separate appointment-update consent checkbox. Reception registration captures optional email and consent for appointment and billing updates. Old records do not receive new automatic appointment/billing notifications until consent is recorded. Billing also needs a linked patient ID. Empty contact channels are skipped. Existing scheduled reminders retain their existing consent requirement; use type `appointment`, `vaccination`, `follow_up`, or another type for the general reminder template.
 
-Invitations email a Firebase password setup/reset link. Resending no longer changes an existing account's password. The optional invitation SMS links to `CLINIC_APP_URL` (defaults to the existing production site, `https://clinic.mobitab.co.in`), never to an account reset token. Password reset SMS is only eligible when Firebase Auth has a verified `phoneNumber`; an ordinary profile phone is insufficient. Reset email is always enabled.
+Invitations email a Firebase password setup/reset link. Resending no longer changes an existing account's password. The optional invitation SMS links to `CLINIC_APP_URL` (defaults to the existing production site, `https://clinic.orbyteza.com`), never to an account reset token. Password reset SMS is only eligible when Firebase Auth has a verified `phoneNumber`; an ordinary profile phone is insufficient. Reset email is always enabled.
 
 ## Provider setup
 

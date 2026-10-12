@@ -333,7 +333,7 @@ render the edited `subject` and `message` variables. The invitation editor also
 supports `patient_name`, `clinic_name`, `roles`, `action_url`, and `approval_status`.
 The email action URL is a Firebase-generated password setup/reset link;
 passwords are never included in the message. Optional invitation SMS uses
-`CLINIC_APP_URL`, which defaults to `https://clinic.mobitab.co.in`.
+`CLINIC_APP_URL`, which defaults to `https://clinic.orbyteza.com`.
 
 The invited account remains blocked from clinic data until the Platform Owner
 approves it. Members establish their password through the emailed link, then

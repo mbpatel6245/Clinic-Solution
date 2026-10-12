@@ -2,7 +2,7 @@
 
 Every push to `main` builds the Flutter web application and deploys the
 contents of `build/web` to the cPanel document root for
-`https://clinic.mobitab.co.in`.
+`https://clinic.orbyteza.com`.
 
 The workflow uses a dedicated SSH key. Do not add the cPanel password or a
 private key to this repository.
@@ -39,7 +39,7 @@ private key to this repository.
 - Host: `sh016.hostgator.in`
 - SSH port: `22`
 - User: `mobituvx`
-- Domain: `clinic.mobitab.co.in`
+- Domain: `clinic.orbyteza.com`
 - Server directory: detected over SFTP by matching the deployed production
   JavaScript bundle, then restricted to known locations inside the account
   home directory.
@@ -94,3 +94,36 @@ data synchronization on those two native platforms.
 Revert the problematic commit on `main`, or select an older commit and run the
 workflow manually after temporarily creating a branch from that commit. A new
 successful deployment replaces the generated production files with that build.
+
+## Domain migration to clinic.orbyteza.com
+
+Repository settings target the new domain. Complete hosting setup before running
+this deployment: document-root discovery requires the new HTTPS site to already
+serve the existing app's main.dart.js.
+
+1. At the authoritative DNS provider for orbyteza.com, create the clinic A record
+   pointing to the hosting account's verified website IP. Check for conflicting
+   AAAA or CNAME records. The cPanel login IP alone does not verify the website IP.
+2. In cPanel, add clinic.orbyteza.com with the same document root as
+   clinic.mobitab.co.in. Preserve existing app files and data. If cPanel requires
+   a separate root, seed it with the existing app and include its verified path
+   in the workflow's allowed document-root candidates before deployment.
+3. Issue and verify an SSL certificate for the new hostname, then verify the app
+   loads over HTTPS. Keep the old domain's certificate valid for redirects.
+4. In Firebase Authentication, add clinic.orbyteza.com to authorized domains.
+   Review authentication email action URLs and any OAuth provider redirect
+   settings. Keep the Firebase authDomain unchanged unless a separate Firebase
+   custom authentication domain has been configured.
+5. Set the deployed Functions CLINIC_APP_URL parameter to
+   https://clinic.orbyteza.com and deploy Functions; changing its source default
+   does not override an existing deployed parameter value. Review provider-side
+   SMS/email templates for hard-coded links to the old domain.
+6. Run the web deployment and verify login, registration, password reset,
+   invitations, appointment links, and deployment.txt on the new hostname.
+7. Only after verification, configure a host-specific permanent redirect from
+   clinic.mobitab.co.in to https://clinic.orbyteza.com, preserving paths and query
+   strings and exempting /.well-known/acme-challenge/ for certificate renewal.
+   Do not redirect other domains sharing this account or document root.
+
+The workflow retains the old hostname's possible directory paths because changing
+an attached domain does not require renaming the existing document root.
