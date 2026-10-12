@@ -49,6 +49,7 @@ void main() {
   test('export app brand assets from the shared vector', () async {
     await save('assets/brand/clinic-solution.png', 512);
     await save('web/favicon.png', 32);
+    await save('web/favicon-orbyteza.png', 32);
     for (final size in [192, 512]) {
       await save('web/icons/Icon-$size.png', size);
       await save('web/icons/Icon-maskable-$size.png', size, maskable: true);

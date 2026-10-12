@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.mobitab.clinic" "\0"
+            VALUE "CompanyName", "ORBYTEZA TECH LLP" "\0"
             VALUE "FileDescription", "clinic_solution" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "clinic_solution" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2024 com.mobitab.clinic. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 ORBYTEZA TECH LLP. All rights reserved." "\0"
             VALUE "OriginalFilename", "clinic_solution.exe" "\0"
             VALUE "ProductName", "clinic_solution" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
