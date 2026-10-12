@@ -288,15 +288,20 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : null,
       appBar: AppBar(
-        title: Row(
-          children: [
-            const ClinicLogo(size: 34),
-            const SizedBox(width: AppSpacing.sm),
-            Flexible(
-              child: Text(session.clinicName, overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
+        title: compact
+            ? const ClinicLogo(size: 28)
+            : Row(
+                children: [
+                  const ClinicLogo(size: 34),
+                  const SizedBox(width: AppSpacing.sm),
+                  Flexible(
+                    child: Text(
+                      session.clinicName,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
         actions: [
           if (session.role == AppRole.platformOwner ||
               session.clinicIds.length > 1)
