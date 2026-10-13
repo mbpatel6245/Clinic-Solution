@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/auth/app_role.dart';
+import '../../../../core/auth/team_directory.dart';
 import '../../../../core/design/app_theme.dart';
 import '../../../../data/datasources/enterprise_models.dart';
 import '../../../../data/datasources/user_model.dart';
@@ -39,7 +40,13 @@ class TeamRolesScreen extends StatelessWidget {
               final invitations =
                   inviteSnapshot.data ?? const <TeamInvitation>[];
               final pending = invitations
-                  .where((invite) => invite.status == 'pending')
+                  .where(
+                    (invite) =>
+                        invite.status == 'pending' &&
+                        !users.any(
+                          (user) => invitationMatchesMember(invite, user),
+                        ),
+                  )
                   .toList();
               final loading =
                   (userSnapshot.connectionState == ConnectionState.waiting &&
@@ -88,62 +95,11 @@ class TeamRolesScreen extends StatelessWidget {
                         child: Column(
                           children: pending
                               .map(
-                                (invite) => ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: CircleAvatar(
-                                    child: Text(
-                                      invite.email.isEmpty
-                                          ? '?'
-                                          : invite.email[0].toUpperCase(),
-                                    ),
-                                  ),
-                                  title: Text(invite.email),
-                                  subtitle: Text(
-                                    [
-                                      '${(invite.roles.isEmpty ? [invite.role] : invite.roles).map((role) => role.displayName).join(', ')} • ${clinicNames[invite.clinicId] ?? invite.clinicId}',
-                                      'Email: ${invite.notificationStatus}',
-                                      if (invite
-                                          .notificationSmsStatus
-                                          .isNotEmpty)
-                                        'SMS: ${invite.notificationSmsStatus}',
-                                      if (invite.approvalStatus != 'pending')
-                                        'Approval: ${invite.approvalStatus}',
-                                      if (invite.notificationError.isNotEmpty)
-                                        invite.notificationError,
-                                      if (invite.approvalError.isNotEmpty)
-                                        invite.approvalError,
-                                    ].join('\n'),
-                                  ),
-                                  trailing: isOwner
-                                      ? PopupMenuButton<String>(
-                                          tooltip: 'Manage pending invitation',
-                                          onSelected: (action) {
-                                            if (action == 'approve') {
-                                              _approveInvite(context, invite);
-                                            } else if (action == 'resend') {
-                                              _resendInvite(context, invite);
-                                            } else if (action == 'reject') {
-                                              _deleteInvite(context, invite);
-                                            }
-                                          },
-                                          itemBuilder: (_) => const [
-                                            PopupMenuItem(
-                                              value: 'approve',
-                                              child: Text('Approve member'),
-                                            ),
-                                            PopupMenuItem(
-                                              value: 'resend',
-                                              child: Text(
-                                                'Resend invitation email',
-                                              ),
-                                            ),
-                                            PopupMenuItem(
-                                              value: 'reject',
-                                              child: Text('Reject & remove'),
-                                            ),
-                                          ],
-                                        )
-                                      : const Chip(label: Text('Pending')),
+                                (invite) => _invitationTile(
+                                  context,
+                                  invite,
+                                  clinicNames,
+                                  isOwner,
                                 ),
                               )
                               .toList(),
@@ -167,6 +123,26 @@ class TeamRolesScreen extends StatelessWidget {
                             clinics: clinics,
                             isOwner: isOwner,
                             activeClinicId: session.activeClinicId,
+                            invitationDetails: invitations
+                                .where(
+                                  (invite) =>
+                                      invite.status == 'pending' &&
+                                      invitationMatchesMember(invite, user),
+                                )
+                                .map(
+                                  (invite) => _invitationTile(
+                                    context,
+                                    invite,
+                                    clinicNames,
+                                    isOwner,
+                                    linked: true,
+                                    accessActive: invitationAccessIsActive(
+                                      invite,
+                                      user,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ),
                       ),
@@ -177,6 +153,81 @@ class TeamRolesScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _invitationTile(
+    BuildContext context,
+    TeamInvitation invite,
+    Map<String, String> clinicNames,
+    bool isOwner, {
+    bool linked = false,
+    bool accessActive = false,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: linked
+          ? null
+          : CircleAvatar(
+              child: Text(
+                invite.email.isEmpty ? '?' : invite.email[0].toUpperCase(),
+              ),
+            ),
+      title: Text(
+        linked
+            ? 'Invitation · ${clinicNames[invite.clinicId] ?? invite.clinicId}'
+            : invite.email,
+      ),
+      subtitle: Text(
+        [
+          if (accessActive)
+            'Clinic access already approved. Invitation delivery is separate.'
+          else
+            '${(invite.roles.isEmpty ? [invite.role] : invite.roles).map((role) => role.displayName).join(', ')} · Awaiting approval',
+          if (!linked) clinicNames[invite.clinicId] ?? invite.clinicId,
+          'Email: ${invite.notificationStatus}',
+          if (invite.notificationSmsStatus.isNotEmpty)
+            'SMS: ${invite.notificationSmsStatus}',
+          if (!accessActive && invite.approvalStatus != 'pending')
+            'Approval: ${invite.approvalStatus}',
+          if (invite.notificationError.isNotEmpty) invite.notificationError,
+          if (!accessActive && invite.approvalError.isNotEmpty)
+            invite.approvalError,
+        ].join('\n'),
+      ),
+      trailing: isOwner
+          ? PopupMenuButton<String>(
+              tooltip: 'Manage invitation',
+              onSelected: (action) {
+                if (action == 'approve') {
+                  _approveInvite(context, invite);
+                } else if (action == 'resend') {
+                  _resendInvite(context, invite);
+                } else if (action == 'reject') {
+                  _deleteInvite(context, invite, accessActive: accessActive);
+                }
+              },
+              itemBuilder: (_) => [
+                if (!accessActive)
+                  const PopupMenuItem(
+                    value: 'approve',
+                    child: Text('Approve member'),
+                  ),
+                const PopupMenuItem(
+                  value: 'resend',
+                  child: Text('Resend invitation email'),
+                ),
+                PopupMenuItem(
+                  value: 'reject',
+                  child: Text(
+                    accessActive
+                        ? 'Remove invitation record'
+                        : 'Reject & remove',
+                  ),
+                ),
+              ],
+            )
+          : Chip(label: Text(accessActive ? 'Active' : 'Pending')),
     );
   }
 
@@ -326,11 +377,14 @@ class TeamRolesScreen extends StatelessWidget {
 
   Future<void> _deleteInvite(
     BuildContext context,
-    TeamInvitation invite,
-  ) async {
+    TeamInvitation invite, {
+    bool accessActive = false,
+  }) async {
     final confirmed = await _confirm(
       context,
-      'Reject and remove this pending invitation?',
+      accessActive
+          ? 'Remove this invitation record? Existing member access will remain unchanged.'
+          : 'Reject and remove this pending invitation?',
     );
     if (confirmed && context.mounted) {
       await context.read<FirebaseFireStore>().deleteTeamInvitation(invite);
@@ -357,6 +411,7 @@ class _TeamMemberCard extends StatelessWidget {
     required this.clinics,
     required this.isOwner,
     required this.activeClinicId,
+    this.invitationDetails = const [],
   });
 
   final UserModel user;
@@ -364,6 +419,7 @@ class _TeamMemberCard extends StatelessWidget {
   final List<ClinicProfile> clinics;
   final bool isOwner;
   final String activeClinicId;
+  final List<Widget> invitationDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -377,100 +433,118 @@ class _TeamMemberCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            CircleAvatar(
-              backgroundColor: AppColors.ink,
-              foregroundColor: AppColors.inverse,
-              child: Text(user.name.isEmpty ? '?' : user.name[0].toUpperCase()),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user.name.isEmpty ? user.email : user.name,
-                    style: Theme.of(context).textTheme.titleSmall,
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.ink,
+                  foregroundColor: AppColors.inverse,
+                  child: Text(
+                    user.name.isEmpty ? '?' : user.name[0].toUpperCase(),
                   ),
-                  Text(user.email, overflow: TextOverflow.ellipsis),
-                  if (user.phone.isNotEmpty) Text(user.phone),
-                  Text(
-                    user.status == 'pending'
-                        ? 'Access: awaiting owner approval'
-                        : 'Access: ${user.status}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: user.status == 'pending'
-                          ? const Color(0xFF805300)
-                          : AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    memberships.join(' • '),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.inkMuted),
-                  ),
-                ],
-              ),
-            ),
-            if (isOwner && user.status == 'pending') ...[
-              IconButton(
-                tooltip: 'Approve request',
-                onPressed: () => _approveRegistration(context, user, clinics),
-                icon: const Icon(Icons.check_circle_outline),
-              ),
-              IconButton(
-                tooltip: 'Reject request',
-                onPressed: currentUser
-                    ? null
-                    : () => _deleteMember(
-                        context,
-                        user,
-                        isOwner: true,
-                        clinicId: activeClinicId,
-                        pendingRequest: true,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.name.isEmpty ? user.email : user.name,
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
-                icon: const Icon(Icons.cancel_outlined),
-              ),
-            ],
-            if (!(isOwner && user.status == 'pending'))
-              PopupMenuButton<String>(
-                tooltip: 'Manage member',
-                enabled: !currentUser,
-                onSelected: (action) {
-                  if (action == 'details') {
-                    _editMember(context, user);
-                  } else if (action == 'roles') {
-                    _editRole(context, user, clinics, isOwner, activeClinicId);
-                  } else if (action == 'delete') {
-                    _deleteMember(
-                      context,
-                      user,
-                      isOwner: isOwner,
-                      clinicId: activeClinicId,
-                    );
-                  }
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'details',
-                    child: Text('Edit member details'),
+                      Text(user.email, overflow: TextOverflow.ellipsis),
+                      if (user.phone.isNotEmpty) Text(user.phone),
+                      Text(
+                        user.status == 'pending'
+                            ? 'Access: awaiting owner approval'
+                            : 'Access: ${user.status}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: user.status == 'pending'
+                              ? const Color(0xFF805300)
+                              : AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        memberships.join(' • '),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.inkMuted,
+                        ),
+                      ),
+                    ],
                   ),
-                  const PopupMenuItem(
-                    value: 'roles',
-                    child: Text('Manage clinic roles'),
+                ),
+                if (isOwner && user.status == 'pending') ...[
+                  IconButton(
+                    tooltip: 'Approve request',
+                    onPressed: () =>
+                        _approveRegistration(context, user, clinics),
+                    icon: const Icon(Icons.check_circle_outline),
                   ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text(
-                      isOwner ? 'Delete member' : 'Remove from this clinic',
-                    ),
+                  IconButton(
+                    tooltip: 'Reject request',
+                    onPressed: currentUser
+                        ? null
+                        : () => _deleteMember(
+                            context,
+                            user,
+                            isOwner: true,
+                            clinicId: activeClinicId,
+                            pendingRequest: true,
+                          ),
+                    icon: const Icon(Icons.cancel_outlined),
                   ),
                 ],
-              ),
+                if (!(isOwner && user.status == 'pending'))
+                  PopupMenuButton<String>(
+                    tooltip: 'Manage member',
+                    enabled: !currentUser,
+                    onSelected: (action) {
+                      if (action == 'details') {
+                        _editMember(context, user);
+                      } else if (action == 'roles') {
+                        _editRole(
+                          context,
+                          user,
+                          clinics,
+                          isOwner,
+                          activeClinicId,
+                        );
+                      } else if (action == 'delete') {
+                        _deleteMember(
+                          context,
+                          user,
+                          isOwner: isOwner,
+                          clinicId: activeClinicId,
+                        );
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'details',
+                        child: Text('Edit member details'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'roles',
+                        child: Text('Manage clinic roles'),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text(
+                          isOwner ? 'Delete member' : 'Remove from this clinic',
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+            if (invitationDetails.isNotEmpty) ...[
+              const Divider(),
+              ...invitationDetails,
+            ],
           ],
         ),
       ),

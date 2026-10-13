@@ -226,6 +226,7 @@ class TeamInvitation {
     required this.role,
     this.roles = const [],
     this.status = 'pending',
+    this.userId = '',
     this.createdAt,
     this.clinicId = '',
     this.notificationStatus = 'queued',
@@ -240,6 +241,7 @@ class TeamInvitation {
   final AppRole role;
   final List<AppRole> roles;
   final String status;
+  final String userId;
   final DateTime? createdAt;
   final String clinicId;
   final String notificationStatus;
@@ -264,6 +266,7 @@ class TeamInvitation {
             .toSet()
             .toList(),
     status: data['status']?.toString() ?? 'pending',
+    userId: data['user_id']?.toString() ?? '',
     createdAt: _date(data['created_at']),
     clinicId: clinicId,
     notificationStatus: data['notification_status']?.toString() ?? 'queued',
