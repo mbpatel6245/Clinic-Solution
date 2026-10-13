@@ -381,6 +381,16 @@ service cloud.firestore {
       }
     }
 
+    // Collection-group queries cannot rely on a fixed clinic ancestor.
+    // This grants only owner list access; deletes still use clinic-scoped rules.
+    match /{parent=**}/{moduleCollection}/{recordId} {
+      allow list: if isPlatformOwner() && moduleCollection in [
+        'patients', 'prescriptions', 'appointments', 'stocks',
+        'finance_entries', 'invoices', 'vaccinations', 'reminders',
+        'laboratory', 'team_invites'
+      ];
+    }
+
     // Legacy top-level clinical collections are intentionally read-only for
     // platform owners while data is migrated into /clinics/{clinicId}/....
     match /{legacyCollection}/{documentId} {

@@ -973,7 +973,7 @@ class _PlatformDataExplorerState extends State<_PlatformDataExplorer> {
       trailing: TextButton.icon(
         onPressed: _deleting ? null : () => _deleteAll(context),
         icon: const Icon(Icons.delete_sweep_outlined),
-        label: const Text('Delete all shown module data'),
+        label: const Text('Delete module data across clinics'),
       ),
       child: Column(
         children: [
@@ -1144,7 +1144,7 @@ class _PlatformDataExplorerState extends State<_PlatformDataExplorer> {
       builder: (dialogContext) => AlertDialog(
         title: Text('Delete all ${_module.displayName} data?'),
         content: const Text(
-          'This permanently deletes this module’s records from every clinic. This action cannot be undone.',
+          'This permanently deletes this module’s records from every clinic, including records hidden by search. Legacy records, user accounts, settings and audit logs are not deleted. This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -1164,7 +1164,25 @@ class _PlatformDataExplorerState extends State<_PlatformDataExplorer> {
       final count = await context.read<FirebaseFireStore>().deleteModuleData(
         _module,
       );
-      if (context.mounted) _notice(context, 'Deleted $count records.');
+      if (context.mounted) {
+        _notice(context, 'Deleted $count clinic module records.');
+      }
+    } on FirebaseException catch (error) {
+      if (context.mounted) {
+        _notice(
+          context,
+          error.code == 'permission-denied'
+              ? 'Deletion was denied. Sign out and back in with Product Owner access. Refresh records before retrying; earlier batches may have completed.'
+              : 'Deletion could not finish. Check your connection and refresh records before retrying; earlier batches may have completed.',
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        _notice(
+          context,
+          'Deletion could not finish. Refresh records before retrying; earlier batches may have completed.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _deleting = false);
     }

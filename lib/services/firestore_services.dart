@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
 
 import '../core/auth/app_role.dart';
+import '../core/utils/module_record_path.dart';
 import '../data/datasources/stock_model.dart';
 import '../data/datasources/clinical_models.dart';
 import '../data/datasources/enterprise_models.dart';
@@ -624,6 +625,9 @@ class FirebaseFireStore with ChangeNotifier {
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
+              .where(
+                (doc) => isClinicModuleRecordPath(doc.reference.path, path),
+              )
               .map(
                 (doc) => PlatformModuleRecord(
                   id: doc.id,
@@ -653,14 +657,17 @@ class FirebaseFireStore with ChangeNotifier {
     final snapshot = clinicId == null
         ? await _db.collectionGroup(path).get()
         : await _db.collection('clinics').doc(clinicId).collection(path).get();
-    for (var offset = 0; offset < snapshot.docs.length; offset += 400) {
+    final records = snapshot.docs
+        .where((doc) => isClinicModuleRecordPath(doc.reference.path, path))
+        .toList();
+    for (var offset = 0; offset < records.length; offset += 400) {
       final batch = _db.batch();
-      for (final doc in snapshot.docs.skip(offset).take(400)) {
+      for (final doc in records.skip(offset).take(400)) {
         batch.delete(doc.reference);
       }
       await batch.commit();
     }
-    return snapshot.docs.length;
+    return records.length;
   }
 
   Stream<List<TeamInvitation>> streamTeamInvitations({
