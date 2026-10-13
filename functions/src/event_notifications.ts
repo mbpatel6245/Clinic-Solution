@@ -1,3 +1,4 @@
+import {deliveryDiagnostic} from "./delivery_diagnostics.js";
 import {createHash} from "node:crypto";
 import {getAuth} from "firebase-admin/auth";
 import {FieldValue, Timestamp, getFirestore, type DocumentReference} from "firebase-admin/firestore";
@@ -55,14 +56,15 @@ async function dispatch(ref: DocumentReference, send: Send): Promise<void> {
     const result = await send(claimed.job);
     await ref.update({status: result.acceptedStatus === "disabled" ? "skipped" : "sent", provider: result.provider,
       message_id: result.messageId, sent_at: FieldValue.serverTimestamp(), job: FieldValue.delete(),
-      event: claimed.job.event, channel: claimed.job.channel, error: FieldValue.delete()});
+      event: claimed.job.event, channel: claimed.job.channel, error: FieldValue.delete(), error_code: FieldValue.delete()});
   } catch (error) {
     const retry = (!(error instanceof ProviderError) || error.retryable) && claimed.attempts < 3;
-    // Provider responses can include sensitive reset links; store a generic failure only.
-    await ref.update({status: retry ? "retry" : "failed", error: "Notification delivery failed. Check provider settings and template variables.",
+    const diagnostic = deliveryDiagnostic(error);
+    // Provider responses can include sensitive reset links; store classified errors only.
+    await ref.update({status: retry ? "retry" : "failed", error: diagnostic.message, error_code: diagnostic.code,
       next_attempt_at: Timestamp.fromMillis(Date.now() + 2 ** claimed.attempts * 60_000),
       ...(retry ? {} : {job: FieldValue.delete()}), event: claimed.job.event, channel: claimed.job.channel});
-    logger.warn("Event notification failed", {event: claimed.job.event, channel: claimed.job.channel, retry});
+    logger.warn("Event notification failed", {event: claimed.job.event, channel: claimed.job.channel, retry, errorCode: diagnostic.code});
   }
 }
 

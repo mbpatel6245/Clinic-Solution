@@ -40,6 +40,14 @@ class LoginViewModel with ChangeNotifier {
             .collection('users')
             .doc(user.uid)
             .get();
+        if (!profile.exists) {
+          await FirebaseAuth.instance.signOut();
+          throw FirebaseAuthException(
+            code: 'profile-missing',
+            message:
+                'Your sign-in account exists, but its clinic profile is missing. Contact the Product Owner to restore access.',
+          );
+        }
         if (profile.data()?['status'] == 'pending') {
           await FirebaseAuth.instance.signOut();
           throw FirebaseAuthException(
@@ -69,7 +77,9 @@ class LoginViewModel with ChangeNotifier {
     } catch (e, stacktrace) {
       debugPrint(stacktrace.toString());
 
-      final message = e is FirebaseAuthException && e.code == 'approval-pending'
+      final message =
+          e is FirebaseAuthException &&
+              ['approval-pending', 'profile-missing'].contains(e.code)
           ? e.message!
           : AppLocalizations.of(
               navigatorKey.currentContext!,

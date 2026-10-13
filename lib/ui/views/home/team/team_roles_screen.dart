@@ -75,7 +75,7 @@ class TeamRolesScreen extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       isOwner
-                          ? 'Platform view of every member, clinic allocation, role and pending approval.'
+                          ? 'Approve pending requests with the check icon, then choose a clinic and role. Account approval grants workspace access; email verification is completed through the Firebase email link.'
                           : strings.roleHelp,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.inkMuted,
@@ -395,6 +395,17 @@ class _TeamMemberCard extends StatelessWidget {
                   ),
                   Text(user.email, overflow: TextOverflow.ellipsis),
                   if (user.phone.isNotEmpty) Text(user.phone),
+                  Text(
+                    user.status == 'pending'
+                        ? 'Access: awaiting owner approval'
+                        : 'Access: ${user.status}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: user.status == 'pending'
+                          ? const Color(0xFF805300)
+                          : AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     memberships.join(' • '),

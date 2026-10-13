@@ -15,7 +15,7 @@ class CommonText extends StatelessWidget {
   final double? fontSize;
 
   const CommonText({
-    Key? key,
+    super.key,
     required this.text,
     this.style,
     this.color,
@@ -24,7 +24,7 @@ class CommonText extends StatelessWidget {
     this.overflow,
     this.fontSize,
     this.height,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,10 @@ class CommonText extends StatelessWidget {
         text,
         style:
             style?.copyWith(
-              color: color ?? Theme.of(context).colorScheme.onSurface,
+              color:
+                  color ??
+                  style?.color ??
+                  Theme.of(context).colorScheme.onSurface,
             ) ??
             AppTextStyles.getRegularTextStyle(
               localeProvider.locale,
@@ -51,13 +54,19 @@ class CommonText extends StatelessWidget {
           text,
           style:
               style?.copyWith(
-                color: color ?? Theme.of(context).colorScheme.onSurface,
+                color:
+                    color ??
+                    style?.color ??
+                    Theme.of(context).colorScheme.onSurface,
               ) ??
               AppTextStyles.getRegularTextStyle(
                 localeProvider.locale,
                 fontSize: fontSize ?? 20,
               ).copyWith(
-                color: color ?? Theme.of(context).colorScheme.onSurface,
+                color:
+                    color ??
+                    style?.color ??
+                    Theme.of(context).colorScheme.onSurface,
               ),
           textAlign: textAlign,
           maxLines: maxLines,

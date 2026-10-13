@@ -1,3 +1,4 @@
+import {deliveryDiagnostic} from "./delivery_diagnostics.js";
 import {initializeApp} from "firebase-admin/app";
 import {getAuth} from "firebase-admin/auth";
 import {
@@ -58,7 +59,7 @@ const WHATSAPP_NUMBER = defineString("MSG91_WHATSAPP_INTEGRATED_NUMBER", {defaul
 const EMAIL_TEMPLATE_ID = defineString("MSG91_EMAIL_TEMPLATE_ID", {default: ""});
 const EMAIL_DOMAIN = defineString("MSG91_EMAIL_DOMAIN", {default: ""});
 const EMAIL_FROM = defineString("MSG91_EMAIL_FROM", {default: ""});
-const EMAIL_FROM_NAME = defineString("MSG91_EMAIL_FROM_NAME", {default: "Clinic"});
+const EMAIL_FROM_NAME = defineString("MSG91_EMAIL_FROM_NAME", {default: "orByteza Clinic Solution"});
 const TWILIO_MESSAGING_SERVICE_SID = defineString("TWILIO_MESSAGING_SERVICE_SID", {default: ""});
 const TWILIO_SMS_FROM = defineString("TWILIO_SMS_FROM", {default: ""});
 const TWILIO_SMS_CONTENT_SID = defineString("TWILIO_SMS_CONTENT_SID", {default: ""});
@@ -282,6 +283,7 @@ async function deliver(
       sent_at: FieldValue.serverTimestamp(),
       lease_expires_at: FieldValue.delete(),
       failure_reason: FieldValue.delete(),
+      error_code: FieldValue.delete(),
       updated_at: FieldValue.serverTimestamp(),
     });
   } catch (error) {
@@ -293,7 +295,8 @@ async function deliver(
     const retryMinutes = 2 ** claimed.attempts;
     await ref.update({
       status: shouldRetry ? "retry" : "failed",
-      failure_reason: providerError.message.slice(0, 500),
+      failure_reason: deliveryDiagnostic(providerError).message,
+      error_code: deliveryDiagnostic(providerError).code,
       next_attempt_at: shouldRetry
         ? Timestamp.fromMillis(Date.now() + retryMinutes * 60_000)
         : FieldValue.delete(),
