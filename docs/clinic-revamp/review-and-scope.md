@@ -29,7 +29,7 @@ The user authorized dummy records and enabling the Treatment Plan Tab. Created o
 | AI | Paid scan, translation, consultation-assistance controls | Disabled Google Vertex backend and authenticated Flutter adapter prepared; review UI, uploads and production configuration remain |
 | Certificates | Medical/fitness/referral/letter, editable preview, PDF/share | Dialog inspected without issuing; implementation remains |
 | Old records | Import/history entry | Existing data exchange retained; patient document ingestion and chronological import remain |
-| Vaccination | DOB-aware/custom schedule, given/pending, print | Existing records/reminders/due list retained; configurable schedule engine and print schedule remain |
+| Vaccination | DOB-aware/custom schedule, given/refused/elsewhere/postponed records, brand/batch/notes, revised due date and print | Administration/postponement forms inspected without saving. Existing records/reminders/due list retained; configurable schedules, non-given statuses and print schedule remain |
 | Staff entry | Separate route, doctor-created username/password | Separate email/password route and clinic role checks implemented; username mapping remains |
 | Doctor entry | Google sign-in and phone linking | Existing Firebase email/password/recovery retained; Google/phone flows and native OAuth setup remain |
 | Staff access | Operational queue/patients/vitals/today billing; no clinical editor/settings | Reception workspace and protected clinical collections implemented. Today-only billing is UI filtering, not a backend query restriction |
@@ -53,6 +53,8 @@ New rules protect private notes separately from shared prescriptions, forbid ide
 Prescription printing uses an explicit patient-facing field whitelist; private visit notes, ABHA, account identifiers and email are excluded. Each page repeats clinic letterhead, patient name/date and page count. Clinical text is shaped by Flutter into high-resolution images to preserve Indic typography. The resulting clinical text is not searchable/copyable yet. Language selection changes document labels/dates only; it never silently translates medicines or instructions. Oversized documents fail instead of truncating clinical content. Saved letterheads are clinic-scoped and writable only by administrators; viewing a preview does not send a message. Printing/share actions require the application user's explicit action.
 
 Sitting logs save progress and history atomically after re-reading the plan, using one log ID per sitting to prevent duplicate completion. Work/date/private notes are retained on save failure. Logs cannot be rewritten by clients, and front desk/patient/other-clinic access is denied. Closed/cancelled plans can be reopened without erasing previous work. This does not yet implement payments or an amendment workflow for signed-off notes.
+
+Dependency maintenance updates `proxy-addr` to 2.0.8, `brace-expansion` to 2.1.7 and gRPC to 1.14.6. A gRPC override also supplies the patched transport to the development Firebase SDK, which pins an older vulnerable version. Remove that override once the SDK's own dependency is patched and compatibility is verified. Full and production-only npm audits reported zero vulnerabilities on the review date. Backend tests and a local demo Firestore Admin SDK round trip passed with the patched production dependencies. CI checks high-severity advisories. Default-branch alerts remain open until these changes are merged there; branch work does not dismiss alerts or deploy production.
 
 ## Google AI decision
 

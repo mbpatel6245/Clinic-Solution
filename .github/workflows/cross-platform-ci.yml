@@ -31,6 +31,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm ci --prefix functions
+      - run: npm audit --prefix functions --audit-level=high
       - run: npm test --prefix functions
       - run: npx --yes firebase-tools@14.18.0 emulators:exec --only firestore --project demo-clinic-revamp --config firebase.rules-test.json "node --test functions/test/revamp_rules.test.mjs"
 
