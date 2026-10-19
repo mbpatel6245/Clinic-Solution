@@ -1,7 +1,7 @@
 {
     "name": "Clinic Solution",
     "short_name": "Clinic Solution",
-    "start_url": ".",
+    "start_url": "./login",
     "display": "standalone",
     "background_color": "#087F83",
     "theme_color": "#087F83",

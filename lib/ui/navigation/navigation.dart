@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,6 +10,7 @@ import '../views/home/home_screen.dart';
 import '../views/home/appointment/tab_appointments.dart';
 import '../views/login/login_screen.dart';
 import '../views/register/register_screen.dart';
+import 'initial_location.dart';
 
 NoTransitionPage<void> _page(GoRouterState state, Widget child) {
   return NoTransitionPage<void>(key: state.pageKey, child: child);
@@ -16,7 +18,8 @@ NoTransitionPage<void> _page(GoRouterState state, Widget child) {
 
 final GoRouter router = GoRouter(
   navigatorKey: navigatorKey,
-  initialLocation: '/${Constants.navLogin}',
+  initialLocation: initialClinicLocation(web: kIsWeb, uri: Uri.base),
+  overridePlatformDefaultLocation: kIsWeb,
   redirect: (context, state) {
     final isLoggedIn = FirebaseAuth.instance.currentUser != null;
     final isAuthenticationRoute = <String>{

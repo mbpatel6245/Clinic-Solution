@@ -10,7 +10,7 @@
 </IfModule>
 
 <IfModule mod_headers.c>
-  <FilesMatch "\.(js|mjs|wasm|json)$">
+  <FilesMatch "\.(css|js|mjs|wasm|json)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
   <FilesMatch "^(index\.html|deployment\.txt)$">
