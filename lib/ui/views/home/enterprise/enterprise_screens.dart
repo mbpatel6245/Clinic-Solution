@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/auth/app_role.dart';
+import '../../../../core/auth/login_portal.dart';
 import '../../../../core/design/app_theme.dart';
 import '../../../../data/datasources/clinical_models.dart';
 import '../../../../data/datasources/enterprise_models.dart';
@@ -15,6 +16,7 @@ import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
 import 'notification_templates_screen.dart';
+import '../revamp/queue_workspace.dart';
 
 String _money(BuildContext context, double value) =>
     NumberFormat.simpleCurrency(name: 'INR').format(value);
@@ -1290,7 +1292,7 @@ IconData _moduleIcon(ClinicModule module) => switch (module) {
 class ReceptionScreen extends StatelessWidget {
   const ReceptionScreen({super.key, this.onStartPrescription});
 
-  final ValueChanged<PatientModel>? onStartPrescription;
+  final void Function(PatientModel, AppointmentModel)? onStartPrescription;
 
   @override
   Widget build(BuildContext context) {
@@ -1304,90 +1306,14 @@ class ReceptionScreen extends StatelessWidget {
     );
     return StreamBuilder<List<AppointmentModel>>(
       stream: context.read<FirebaseFireStore>().streamAppointments(),
-      builder: (context, snapshot) {
-        final today = DateTime.now();
-        final items = (snapshot.data ?? const <AppointmentModel>[])
-            .where(
-              (item) =>
-                  item.scheduledAt.year == today.year &&
-                  item.scheduledAt.month == today.month &&
-                  item.scheduledAt.day == today.day,
-            )
-            .toList();
-        return AppPage(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _heading(
-                context,
-                'Reception & queue',
-                'Manage today’s check-ins and visit status.',
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              if (canRegister) ...[
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: () => _registerWalkIn(context),
-                    icon: const Icon(Icons.person_add_alt_1_outlined),
-                    label: const Text('Register patient'),
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-              if (items.isEmpty)
-                const AppSection(
-                  child: Text('No patients are scheduled today.'),
-                )
-              else
-                ...items.indexed.map((entry) {
-                  final (index, item) = entry;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Card(
-                      child: ListTile(
-                        leading: CircleAvatar(child: Text('${index + 1}')),
-                        title: Text(item.patientName),
-                        subtitle: Text(
-                          [
-                            DateFormat.jm().format(item.scheduledAt),
-                            if (item.phone.isNotEmpty) item.phone,
-                            if (item.doctorFee + item.clinicFee > 0)
-                              _money(context, item.doctorFee + item.clinicFee),
-                            item.status,
-                          ].join(' • '),
-                        ),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (action) =>
-                              _handleQueueAction(context, item, action),
-                          itemBuilder: (_) => [
-                            const PopupMenuItem(
-                              value: 'confirmed',
-                              child: Text('Check in'),
-                            ),
-                            if (onStartPrescription != null)
-                              const PopupMenuItem(
-                                value: 'prescribe',
-                                child: Text('Start prescription'),
-                              ),
-                            const PopupMenuItem(
-                              value: 'completed',
-                              child: Text('Complete'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'cancelled',
-                              child: Text('Cancel'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-            ],
-          ),
-        );
-      },
+      builder: (context, snapshot) => QueueWorkspace(
+        items: snapshot.data ?? const [],
+        loading: !snapshot.hasData && !snapshot.hasError,
+        hasError: snapshot.hasError,
+        onRegister: canRegister ? () => _registerWalkIn(context) : null,
+        canPrescribe: onStartPrescription != null,
+        onAction: (item, action) => _handleQueueAction(context, item, action),
+      ),
     );
   }
 
@@ -1409,7 +1335,7 @@ class ReceptionScreen extends StatelessWidget {
       }
       return;
     }
-    onStartPrescription?.call(patient);
+    onStartPrescription?.call(patient, appointment);
   }
 
   Future<void> _registerWalkIn(BuildContext context) async {
@@ -1542,7 +1468,19 @@ class BillingScreen extends StatelessWidget {
   Widget build(BuildContext context) => StreamBuilder<List<ClinicInvoice>>(
     stream: context.read<FirebaseFireStore>().streamInvoices(),
     builder: (context, snapshot) {
-      final invoices = snapshot.data ?? const <ClinicInvoice>[];
+      final frontDesk = isFrontDeskOnly(
+        context.watch<SessionController>().roles,
+      );
+      final today = DateTime.now();
+      final invoices = (snapshot.data ?? const <ClinicInvoice>[])
+          .where(
+            (invoice) =>
+                !frontDesk ||
+                (invoice.issuedAt.year == today.year &&
+                    invoice.issuedAt.month == today.month &&
+                    invoice.issuedAt.day == today.day),
+          )
+          .toList();
       final billed = invoices.fold<double>(
         0,
         (total, item) => total + item.total,
@@ -1572,25 +1510,26 @@ class BillingScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-            ResponsiveGrid(
-              children: [
-                AppMetricCard(
-                  label: 'Billed',
-                  value: _money(context, billed),
-                  icon: Icons.receipt_long_outlined,
-                ),
-                AppMetricCard(
-                  label: 'Collected',
-                  value: _money(context, collected),
-                  icon: Icons.payments_outlined,
-                ),
-                AppMetricCard(
-                  label: 'Outstanding',
-                  value: _money(context, billed - collected),
-                  icon: Icons.pending_actions_outlined,
-                ),
-              ],
-            ),
+            if (!frontDesk)
+              ResponsiveGrid(
+                children: [
+                  AppMetricCard(
+                    label: 'Billed',
+                    value: _money(context, billed),
+                    icon: Icons.receipt_long_outlined,
+                  ),
+                  AppMetricCard(
+                    label: 'Collected',
+                    value: _money(context, collected),
+                    icon: Icons.payments_outlined,
+                  ),
+                  AppMetricCard(
+                    label: 'Outstanding',
+                    value: _money(context, billed - collected),
+                    icon: Icons.pending_actions_outlined,
+                  ),
+                ],
+              ),
             const SizedBox(height: AppSpacing.lg),
             if (invoices.isEmpty)
               const AppSection(child: Text('No invoices found.'))

@@ -6,6 +6,9 @@ import '../../../../data/datasources/clinical_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
+import '../../../../data/datasources/workflow_models.dart';
+import '../../../../core/design/revamp_labels.dart';
+import '../../../../core/auth/app_role.dart';
 
 class TabNewPrescription extends StatefulWidget {
   const TabNewPrescription({
@@ -13,11 +16,15 @@ class TabNewPrescription extends StatefulWidget {
     this.initialPatient,
     this.initialPrescription,
     this.onSaved,
+    this.initialTemplate,
+    this.queueAppointmentId = '',
   });
 
   final PatientModel? initialPatient;
   final PrescriptionModel? initialPrescription;
   final VoidCallback? onSaved;
+  final PrescriptionTemplate? initialTemplate;
+  final String queueAppointmentId;
 
   @override
   State<TabNewPrescription> createState() => _TabNewPrescriptionState();
@@ -36,6 +43,9 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
   final _vitals = TextEditingController();
   final _investigation = TextEditingController();
   final _advice = TextEditingController();
+  final _privateNotes = TextEditingController();
+  bool _notesLoaded = true;
+  PrescriptionTemplate? _activeTemplate;
   final List<_MedicineControllers> _medicines = [_MedicineControllers()];
   String _gender = '';
   DateTime _visitDate = DateTime.now();
@@ -63,6 +73,21 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
       _gender = sourcePatient.gender;
     }
     if (existing != null) {
+      _notesLoaded = false;
+      context
+          .read<FirebaseFireStore>()
+          .getPrivateVisitNotes(existing.id)
+          .then((notes) {
+            if (mounted) {
+              setState(() {
+                _privateNotes.text = notes;
+                _notesLoaded = true;
+              });
+            }
+          })
+          .catchError((Object _) {
+            if (mounted) setState(() => _notesLoaded = false);
+          });
       _draftPrescriptionId = existing.id;
       _diagnosis.text = existing.diagnoses.join(', ');
       _complaints.text = existing.complaints;
@@ -80,6 +105,123 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
               : existing.medicines.map(_MedicineControllers.fromModel),
         );
     }
+    if (widget.initialTemplate != null) _applyTemplate(widget.initialTemplate!);
+  }
+
+  void _applyTemplate(PrescriptionTemplate value) {
+    _activeTemplate = value;
+    _diagnosis.text = {
+      ..._diagnosis.text
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty),
+      ...value.diagnoses,
+    }.join(', ');
+    void append(TextEditingController c, String text) {
+      if (text.trim().isEmpty) return;
+      if (c.text.trim().isEmpty) {
+        c.text = text;
+      } else if (!c.text.contains(text)) {
+        c.text = '${c.text}\n$text';
+      }
+    }
+
+    append(_complaints, value.complaints);
+    append(_investigation, value.investigation);
+    append(_advice, value.advice);
+    final keys = _medicines
+        .map((e) => e.toModel().toMap().values.join('|'))
+        .toSet();
+    if (_medicines.length == 1 &&
+        _medicines.first.toModel().isEmpty &&
+        value.medicines.isNotEmpty) {
+      _medicines.removeLast().dispose();
+    }
+    for (final medicine in value.medicines) {
+      if (keys.add(medicine.toMap().values.join('|'))) {
+        _medicines.add(_MedicineControllers.fromModel(medicine));
+      }
+    }
+  }
+
+  Future<void> _useTemplate() async {
+    final l = RevampLabels.of(context);
+    final selected = await showDialog<PrescriptionTemplate>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l.text('useTemplate')),
+        content: SizedBox(
+          width: 500,
+          child: StreamBuilder<List<PrescriptionTemplate>>(
+            stream: context
+                .read<FirebaseFireStore>()
+                .streamPrescriptionTemplates(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return Text(l.text('loadError'));
+              if (!snapshot.hasData) return const LinearProgressIndicator();
+              if (snapshot.data!.isEmpty) return Text(l.text('noTemplates'));
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final item in snapshot.data!)
+                      ListTile(
+                        title: Text(item.name),
+                        subtitle: Text(item.diagnoses.join(', ')),
+                        onTap: () => Navigator.pop(dialogContext, item),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+        ],
+      ),
+    );
+    if (selected != null && mounted) setState(() => _applyTemplate(selected));
+  }
+
+  Future<void> _saveTemplate({bool update = false}) async {
+    final l = RevampLabels.of(context);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => TemplateNamePrompt(
+        initialName: update ? _activeTemplate?.name ?? '' : '',
+      ),
+    );
+    if (name == null || !mounted) return;
+    try {
+      await context.read<FirebaseFireStore>().savePrescriptionTemplate(
+        PrescriptionTemplate(
+          id: update ? _activeTemplate?.id ?? '' : '',
+          name: name,
+          diagnoses: _diagnosis.text
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+          complaints: _complaints.text,
+          investigation: _investigation.text,
+          advice: _advice.text,
+          medicines: _medicines
+              .map((e) => e.toModel())
+              .where((e) => !e.isEmpty)
+              .toList(),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.text('saveError'))));
+      }
+    }
   }
 
   @override
@@ -96,6 +238,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
       _vitals,
       _investigation,
       _advice,
+      _privateNotes,
     ]) {
       controller.dispose();
     }
@@ -153,11 +296,40 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
             widget.initialPrescription?.patient.userId ??
             widget.initialPatient?.userId ??
             '',
-        createdAt: widget.initialPatient?.createdAt,
+        createdAt:
+            (widget.initialPrescription?.patient ?? widget.initialPatient)
+                ?.createdAt,
+        email: (widget.initialPrescription?.patient ?? widget.initialPatient)
+            ?.email,
+        notificationConsent:
+            (widget.initialPrescription?.patient ?? widget.initialPatient)
+                ?.notificationConsent,
+        locale: (widget.initialPrescription?.patient ?? widget.initialPatient)
+            ?.locale,
+        dateOfBirth:
+            (widget.initialPrescription?.patient ?? widget.initialPatient)
+                ?.dateOfBirth,
+        ageUnit:
+            (widget.initialPrescription?.patient ?? widget.initialPatient)
+                ?.ageUnit ??
+            'years',
+        abhaId:
+            (widget.initialPrescription?.patient ?? widget.initialPatient)
+                ?.abhaId ??
+            '',
+        allergies:
+            (widget.initialPrescription?.patient ?? widget.initialPatient)
+                ?.allergies ??
+            const [],
       );
       await service.savePrescription(
         PrescriptionModel(
           id: _draftPrescriptionId!,
+          createdAt: widget.initialPrescription?.createdAt,
+          status: widget.initialPrescription?.status ?? 'pending',
+          appointmentId:
+              widget.initialPrescription?.appointmentId ??
+              widget.queueAppointmentId,
           patient: patient,
           diagnoses: _diagnosis.text
               .split(',')
@@ -178,6 +350,10 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
           visitDate: _visitDate,
           followUpDate: _followUpDate,
         ),
+        privateNotes: _notesLoaded ? _privateNotes.text : null,
+        completeQueueVisit:
+            widget.initialPrescription == null &&
+            widget.queueAppointmentId.isNotEmpty,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -217,6 +393,35 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
                   Text(
                     strings.newPrescription,
                     style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _useTemplate,
+                        icon: const Icon(Icons.snippet_folder_outlined),
+                        label: Text(
+                          RevampLabels.of(context).text('useTemplate'),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _saveTemplate,
+                        icon: const Icon(Icons.bookmark_add_outlined),
+                        label: Text(
+                          RevampLabels.of(context).text('saveTemplate'),
+                        ),
+                      ),
+                      if (_activeTemplate?.id.isNotEmpty == true)
+                        OutlinedButton.icon(
+                          onPressed: () => _saveTemplate(update: true),
+                          icon: const Icon(Icons.edit_outlined),
+                          label: Text(
+                            RevampLabels.of(context).text('updateTemplate'),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   _Section(
@@ -390,6 +595,31 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  _Section(
+                    title: RevampLabels.of(context).text('privateNotes'),
+                    icon: Icons.lock_outline,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(RevampLabels.of(context).text('privateNotesHint')),
+                        const SizedBox(height: 12),
+                        if (!_notesLoaded)
+                          Text(RevampLabels.of(context).text('loadError')),
+                        TextFormField(
+                          controller: _privateNotes,
+                          enabled: _notesLoaded,
+                          maxLines: 4,
+                          maxLength: 20000,
+                          decoration: InputDecoration(
+                            labelText: RevampLabels.of(
+                              context,
+                            ).text('privateNotes'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   if (context
                       .watch<SessionController>()
                       .sharePrescriptionsWithPatients)
@@ -444,6 +674,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
       _vitals,
       _investigation,
       _advice,
+      _privateNotes,
     ]) {
       controller.clear();
     }
@@ -501,6 +732,65 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
         ),
         child: Text(value.isEmpty ? '—' : value),
       ),
+    );
+  }
+}
+
+class TemplateNamePrompt extends StatefulWidget {
+  const TemplateNamePrompt({super.key, this.initialName = ''});
+  final String initialName;
+  @override
+  State<TemplateNamePrompt> createState() => _TemplateNamePromptState();
+}
+
+class _TemplateNamePromptState extends State<TemplateNamePrompt> {
+  final _form = GlobalKey<FormState>();
+  late final _name = TextEditingController(text: widget.initialName);
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = RevampLabels.of(context);
+    final s = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l.text('saveTemplate')),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l.text('templateHint')),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _name,
+                maxLength: 120,
+                decoration: InputDecoration(labelText: l.text('templateName')),
+                validator: (v) =>
+                    v?.trim().isNotEmpty == true ? null : s.requiredField,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(s.cancel),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_form.currentState!.validate()) {
+              Navigator.pop(context, _name.text.trim());
+            }
+          },
+          child: Text(s.save),
+        ),
+      ],
     );
   }
 }
@@ -582,7 +872,12 @@ class _MedicineRow extends StatelessWidget {
             _ResponsiveFields(
               children: [
                 StreamBuilder<List<InventoryItem>>(
-                  stream: context.read<FirebaseFireStore>().streamInventory(),
+                  stream:
+                      context.watch<SessionController>().can(
+                        AppFeature.inventory,
+                      )
+                      ? context.read<FirebaseFireStore>().streamInventory()
+                      : Stream.value(const <InventoryItem>[]),
                   builder: (context, snapshot) => Autocomplete<InventoryItem>(
                     initialValue: TextEditingValue(text: controllers.name.text),
                     displayStringForOption: (item) => item.name,

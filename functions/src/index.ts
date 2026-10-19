@@ -35,6 +35,7 @@ import {
 import {randomBytes, timingSafeEqual} from "node:crypto";
 import {applyTemplate, defaultTemplate, type MessageTemplate} from "./notification_templates.js";
 import {createNotificationHandlers} from "./event_notifications.js";
+export {prepareClinicalAiDraft} from "./clinical_ai_callable.js";
 
 initializeApp();
 const db = getFirestore();

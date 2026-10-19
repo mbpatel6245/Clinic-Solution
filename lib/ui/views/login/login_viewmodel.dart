@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import '../../../core/utils/locale_provider.dart';
 import '../../../main.dart';
 import '../../../services/auth_services.dart';
+import '../../../core/auth/login_portal.dart';
+import '../../../core/design/revamp_labels.dart';
 import '../../../services/local/secure_data_viewmodel.dart';
 import '../../themes/text_styles.dart';
 import '../../widgets/common_text.dart';
@@ -20,7 +22,17 @@ class LoginViewModel with ChangeNotifier {
 
   LoginViewModel(this._secureDataViewModel);
 
-  Future<void> signIn(Function(User?) signInCallback) async {
+  bool _signingIn = false;
+  bool _disposed = false;
+  bool get signingIn => _signingIn;
+
+  Future<void> signIn(
+    Function(User?) signInCallback, {
+    bool staffPortal = false,
+  }) async {
+    if (_signingIn) return;
+    _signingIn = true;
+    notifyListeners();
     var localeProvider = Provider.of<LocaleProvider>(
       navigatorKey.currentContext!,
       listen: false,
@@ -28,7 +40,7 @@ class LoginViewModel with ChangeNotifier {
     try {
       UserCredential userCredential = await _authService.login(
         emailController.text.trim(),
-        passwordController.text.trim(),
+        passwordController.text,
       );
       // await _secureDataViewModel.saveData(jsonEncode(userCredential.user));
       // signInCallback(userCredential.user);
@@ -48,11 +60,19 @@ class LoginViewModel with ChangeNotifier {
                 'Your sign-in account exists, but its clinic profile is missing. Contact the Product Owner to restore access.',
           );
         }
-        if (profile.data()?['status'] == 'pending') {
+        if ((profile.data()?['status'] ?? 'approved') != 'approved') {
           await FirebaseAuth.instance.signOut();
           throw FirebaseAuthException(
             code: 'approval-pending',
             message: 'Your account is waiting for platform owner approval.',
+          );
+        }
+        if (staffPortal && !acceptsStaffProfile(profile.data()!)) {
+          await FirebaseAuth.instance.signOut();
+          throw FirebaseAuthException(
+            code: 'wrong-portal',
+            message:
+                'Use the clinic login for this account. Staff access is assigned by your clinic administrator.',
           );
         }
         if (user.email != null && profile.data()?['email'] != user.email) {
@@ -76,11 +96,22 @@ class LoginViewModel with ChangeNotifier {
       }
     } catch (e, stacktrace) {
       debugPrint(stacktrace.toString());
+      await FirebaseAuth.instance.signOut();
+      await _secureDataViewModel.clearData();
+      if (_disposed || navigatorKey.currentContext?.mounted != true) return;
 
       final message =
           e is FirebaseAuthException &&
-              ['approval-pending', 'profile-missing'].contains(e.code)
-          ? e.message!
+              [
+                'approval-pending',
+                'profile-missing',
+                'wrong-portal',
+              ].contains(e.code)
+          ? RevampLabels.of(navigatorKey.currentContext!).text(switch (e.code) {
+              'wrong-portal' => 'wrongPortal',
+              'profile-missing' => 'profileMissing',
+              _ => 'approvalPending',
+            })
           : AppLocalizations.of(
               navigatorKey.currentContext!,
             )!.userAuthenticationFailed;
@@ -103,6 +134,9 @@ class LoginViewModel with ChangeNotifier {
           ),
         ),
       );
+    } finally {
+      _signingIn = false;
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -112,6 +146,7 @@ class LoginViewModel with ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     emailController.dispose();
     passwordController.dispose();
     //_errorController.close();

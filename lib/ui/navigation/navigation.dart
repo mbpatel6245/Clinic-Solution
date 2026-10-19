@@ -24,6 +24,7 @@ final GoRouter router = GoRouter(
     final isLoggedIn = FirebaseAuth.instance.currentUser != null;
     final isAuthenticationRoute = <String>{
       '/${Constants.navLogin}',
+      '/staff',
       '/${Constants.navRegister}',
       '/${Constants.navForgot}',
       '/${Constants.navAppointment}',
@@ -33,13 +34,19 @@ final GoRouter router = GoRouter(
       return '/${Constants.navLogin}';
     }
 
-    if (isLoggedIn && state.matchedLocation == '/${Constants.navLogin}') {
+    if (isLoggedIn &&
+        ['/${Constants.navLogin}', '/staff'].contains(state.matchedLocation)) {
       return '/${Constants.navHome}';
     }
 
     return null;
   },
   routes: <RouteBase>[
+    GoRoute(
+      path: '/staff',
+      pageBuilder: (context, state) =>
+          _page(state, LoginScreen(staffPortal: true)),
+    ),
     GoRoute(
       path: '/${Constants.navLogin}',
       pageBuilder: (context, state) => _page(state, LoginScreen()),

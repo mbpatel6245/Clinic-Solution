@@ -11,11 +11,15 @@ import '../data/datasources/stock_model.dart';
 import '../data/datasources/clinical_models.dart';
 import '../data/datasources/enterprise_models.dart';
 import '../data/datasources/user_model.dart';
+import '../data/datasources/workflow_models.dart';
 import 'auth_services.dart';
 
 class FirebaseFireStore with ChangeNotifier {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final AuthService _authService = AuthService();
+  FirebaseFireStore({FirebaseFirestore? firestore, AuthService? authService})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _authService = authService ?? AuthService();
+  final FirebaseFirestore _db;
+  final AuthService _authService;
   bool _isLoading = true;
 
   static const String pathUser = "users";
@@ -286,7 +290,82 @@ class FirebaseFireStore with ChangeNotifier {
     });
   }
 
-  Future<String> savePrescription(PrescriptionModel prescription) async {
+  Stream<List<PrescriptionTemplate>> streamPrescriptionTemplates() =>
+      _collection('prescription_templates')
+          .orderBy('name')
+          .snapshots()
+          .map(
+            (s) => s.docs
+                .map((d) => PrescriptionTemplate.fromMap(d.data(), d.id))
+                .toList(),
+          );
+  Future<void> savePrescriptionTemplate(PrescriptionTemplate value) =>
+      _queueWrite(
+        (value.id.isEmpty
+                ? _collection('prescription_templates').doc()
+                : _collection('prescription_templates').doc(value.id))
+            .set(value.toMap()),
+      );
+  Stream<List<TreatmentPlan>> streamTreatmentPlans() =>
+      _collection('treatment_plans').snapshots().map(
+        (s) =>
+            s.docs.map((d) => TreatmentPlan.fromMap(d.data(), d.id)).toList(),
+      );
+  Future<void> saveTreatmentPlan(TreatmentPlan value) => _queueWrite(
+    (value.id.isEmpty
+            ? _collection('treatment_plans').doc()
+            : _collection('treatment_plans').doc(value.id))
+        .set(value.toMap()),
+  );
+  Stream<List<LabObservation>> streamLabObservations() =>
+      _collection('laboratory')
+          .where('record_type', isEqualTo: 'observation')
+          .snapshots()
+          .map(
+            (s) =>
+                s.docs
+                    .map((d) => LabObservation.fromMap(d.data(), d.id))
+                    .toList()
+                  ..sort((a, b) => b.reportedAt.compareTo(a.reportedAt)),
+          );
+  Future<void> saveLabObservation(LabObservation value) => _queueWrite(
+    (value.id.isEmpty
+            ? _collection('laboratory').doc()
+            : _collection('laboratory').doc(value.id))
+        .set({...value.toMap(), 'record_type': 'observation'}),
+  );
+  Stream<List<StaffMessage>> streamStaffMessages() =>
+      _collection('staff_messages')
+          .orderBy('sent_at', descending: true)
+          .limit(50)
+          .snapshots()
+          .map(
+            (s) => s.docs
+                .map((d) => StaffMessage.fromMap(d.data(), d.id))
+                .toList(),
+          );
+  Future<void> sendStaffMessage(String text, String senderName) => _queueWrite(
+    _collection('staff_messages').doc().set({
+      'text': text.trim(),
+      'sender_name': senderName,
+      'sender_id': FirebaseAuth.instance.currentUser!.uid,
+      'sent_at': FieldValue.serverTimestamp(),
+    }),
+  );
+
+  /// Register a profile without creating a visit, invoice or queue entry.
+  Future<void> savePatientProfile(PatientModel patient) => _queueWrite(
+    (patient.id.isEmpty
+            ? _collection(pathPatients).doc()
+            : _collection(pathPatients).doc(patient.id))
+        .set(patient.toMap(), SetOptions(merge: true)),
+  );
+
+  Future<String> savePrescription(
+    PrescriptionModel prescription, {
+    String? privateNotes,
+    bool completeQueueVisit = false,
+  }) async {
     final patientReference = prescription.patient.id.isEmpty
         ? _collection(pathPatients).doc()
         : _collection(pathPatients).doc(prescription.patient.id);
@@ -296,7 +375,12 @@ class FirebaseFireStore with ChangeNotifier {
     final batch = _db.batch();
     batch.set(
       patientReference,
-      prescription.patient.toMap(),
+      prescription.patient.toMap()..removeWhere(
+        (key, value) =>
+            key == 'created_at' &&
+            prescription.patient.id.isNotEmpty &&
+            prescription.patient.createdAt == null,
+      ),
       SetOptions(merge: true),
     );
     batch.set(
@@ -304,9 +388,34 @@ class FirebaseFireStore with ChangeNotifier {
       prescription.toMap(patientReference.id),
       SetOptions(merge: true),
     );
+    if (privateNotes != null) {
+      batch.set(_collection('clinical_notes').doc(prescriptionReference.id), {
+        'patient_id': patientReference.id,
+        'body': privateNotes.trim(),
+        'author_id': FirebaseAuth.instance.currentUser?.uid ?? '',
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    }
+    if (completeQueueVisit && prescription.appointmentId.isNotEmpty) {
+      batch.update(
+        _collection(pathAppointments).doc(prescription.appointmentId),
+        {
+          'status': 'completed',
+          'completed_at': FieldValue.serverTimestamp(),
+          'prescription_id': prescriptionReference.id,
+          'updated_at': FieldValue.serverTimestamp(),
+        },
+      );
+    }
     await _queueWrite(batch.commit());
     return prescriptionReference.id;
   }
+
+  Future<String> getPrivateVisitNotes(String prescriptionId) async =>
+      (await _collection(
+        'clinical_notes',
+      ).doc(prescriptionId).get()).data()?['body']?.toString() ??
+      '';
 
   String createPrescriptionId() => _collection(pathPrescriptions).doc().id;
 

@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/auth/app_role.dart';
+import '../../../core/auth/login_portal.dart';
 import '../../../core/constants/locale_key.dart';
 import '../../../core/design/app_theme.dart';
 import '../../../core/utils/locale_provider.dart';
 import '../../../data/datasources/clinical_models.dart';
+import '../../../data/datasources/workflow_models.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../services/local/secure_data_viewmodel.dart';
 import '../../../services/firestore_services.dart';
@@ -22,6 +24,11 @@ import 'stock_inward/tab_stock_inward_screen.dart';
 import 'team/team_roles_screen.dart';
 import 'enterprise/enterprise_screens.dart';
 import 'sync_status_banner.dart';
+import '../../../core/design/revamp_labels.dart';
+import 'revamp/practice_dashboard.dart';
+import 'revamp/patient_registry.dart';
+import 'revamp/workspace_navigation.dart';
+import 'revamp/clinical_workspaces.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,6 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   PatientModel? _prescriptionPatient;
   PrescriptionModel? _prescriptionToEdit;
+  PrescriptionTemplate? _prescriptionTemplate;
+  String _queueAppointmentId = '';
   int _prescriptionFormVersion = 0;
   String? _lastClinicId;
   final _secureData = SecureDataViewModel();
@@ -54,9 +63,13 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
       if (feature == AppFeature.createPrescription &&
-          (_prescriptionPatient != null || _prescriptionToEdit != null)) {
+          (_prescriptionPatient != null ||
+              _prescriptionToEdit != null ||
+              _prescriptionTemplate != null)) {
         _prescriptionPatient = null;
         _prescriptionToEdit = null;
+        _prescriptionTemplate = null;
+        _queueAppointmentId = '';
         _prescriptionFormVersion++;
       }
     });
@@ -65,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context)!;
+    final labels = RevampLabels.of(context);
     final session = context.watch<SessionController>();
     if (session.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -74,6 +88,8 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIndex = 0;
       _prescriptionPatient = null;
       _prescriptionToEdit = null;
+      _prescriptionTemplate = null;
+      _queueAppointmentId = '';
       _prescriptionFormVersion++;
     }
     if (session.mustChangePassword && !_passwordDialogShown) {
@@ -92,6 +108,8 @@ class _HomeScreenState extends State<HomeScreen> {
       if (index < 0) return;
       setState(() {
         _prescriptionPatient = patient;
+        _queueAppointmentId = '';
+        _prescriptionTemplate = null;
         _prescriptionToEdit = null;
         _prescriptionFormVersion++;
         _selectedIndex = index;
@@ -106,13 +124,15 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _prescriptionPatient = null;
         _prescriptionToEdit = prescription;
+        _queueAppointmentId = '';
+        _prescriptionTemplate = null;
         _prescriptionFormVersion++;
         _selectedIndex = index;
       });
     }
 
     destinations = [
-      if (session.can(AppFeature.dashboard))
+      if (session.can(AppFeature.dashboard) && !isFrontDeskOnly(session.roles))
         _WorkspaceDestination(
           feature: AppFeature.dashboard,
           label: strings.overview,
@@ -122,7 +142,21 @@ class _HomeScreenState extends State<HomeScreen> {
               ? const PlatformOverviewScreen()
               : session.role == AppRole.patient
               ? const PatientPortalScreen()
-              : ClinicOverview(showFinance: session.can(AppFeature.finance)),
+              : PracticeDashboard(
+                  onOpen: (feature) => _selectFeature(destinations, feature),
+                ),
+        ),
+      if (session.can(AppFeature.patients))
+        _WorkspaceDestination(
+          feature: AppFeature.patients,
+          label: labels.text('patients'),
+          icon: Icons.people_outline,
+          selectedIcon: Icons.people,
+          page: PatientRegistry(
+            onNewVisit: session.can(AppFeature.createPrescription)
+                ? startNewVisit
+                : null,
+          ),
         ),
       if (session.can(AppFeature.createPrescription))
         _WorkspaceDestination(
@@ -134,9 +168,13 @@ class _HomeScreenState extends State<HomeScreen> {
             key: ValueKey(_prescriptionFormVersion),
             initialPatient: _prescriptionPatient,
             initialPrescription: _prescriptionToEdit,
+            initialTemplate: _prescriptionTemplate,
+            queueAppointmentId: _queueAppointmentId,
             onSaved: () {
               _prescriptionPatient = null;
               _prescriptionToEdit = null;
+              _prescriptionTemplate = null;
+              _queueAppointmentId = '';
               _prescriptionFormVersion++;
               _selectFeature(destinations, AppFeature.prescriptionList);
             },
@@ -166,46 +204,49 @@ class _HomeScreenState extends State<HomeScreen> {
       if (session.can(AppFeature.reception))
         _WorkspaceDestination(
           feature: AppFeature.reception,
-          label: 'Reception',
+          label: labels.text('queue'),
           icon: Icons.how_to_reg_outlined,
           selectedIcon: Icons.how_to_reg,
           page: ReceptionScreen(
             onStartPrescription: session.can(AppFeature.createPrescription)
-                ? startNewVisit
+                ? (patient, appointment) {
+                    startNewVisit(patient);
+                    setState(() => _queueAppointmentId = appointment.id);
+                  }
                 : null,
           ),
         ),
       if (session.can(AppFeature.inventory))
         _WorkspaceDestination(
           feature: AppFeature.inventory,
-          label: 'Pharmacy / Medical Store',
+          label: labels.text('pharmacy'),
           icon: Icons.inventory_2_outlined,
           selectedIcon: Icons.inventory_2,
           page: const TabStockInward(),
         ),
       if (session.can(AppFeature.vaccination))
-        const _WorkspaceDestination(
+        _WorkspaceDestination(
           feature: AppFeature.vaccination,
-          label: 'Vaccination',
+          label: labels.text('vaccines'),
           icon: Icons.vaccines_outlined,
           selectedIcon: Icons.vaccines,
-          page: VaccinationScreen(),
+          page: const VaccinationScreen(),
         ),
       if (session.can(AppFeature.reminders))
-        const _WorkspaceDestination(
+        _WorkspaceDestination(
           feature: AppFeature.reminders,
-          label: 'Reminders',
+          label: labels.text('reminders'),
           icon: Icons.notifications_active_outlined,
           selectedIcon: Icons.notifications_active,
-          page: RemindersScreen(),
+          page: const RemindersScreen(),
         ),
       if (session.can(AppFeature.billing))
-        const _WorkspaceDestination(
+        _WorkspaceDestination(
           feature: AppFeature.billing,
-          label: 'Billing',
+          label: labels.text('billing'),
           icon: Icons.receipt_long_outlined,
           selectedIcon: Icons.receipt_long,
-          page: BillingScreen(),
+          page: const BillingScreen(),
         ),
       if (session.can(AppFeature.finance))
         _WorkspaceDestination(
@@ -216,20 +257,20 @@ class _HomeScreenState extends State<HomeScreen> {
           page: const FinanceLedgerScreen(),
         ),
       if (session.can(AppFeature.reports))
-        const _WorkspaceDestination(
+        _WorkspaceDestination(
           feature: AppFeature.reports,
-          label: 'Reports',
+          label: labels.text('reports'),
           icon: Icons.query_stats_outlined,
           selectedIcon: Icons.query_stats,
-          page: ReportsScreen(),
+          page: const ReportsScreen(),
         ),
       if (session.can(AppFeature.dataExchange))
-        const _WorkspaceDestination(
+        _WorkspaceDestination(
           feature: AppFeature.dataExchange,
-          label: 'Import / Export',
+          label: labels.text('exchange'),
           icon: Icons.import_export_outlined,
           selectedIcon: Icons.import_export,
-          page: DataExchangeScreen(),
+          page: const DataExchangeScreen(),
         ),
       if (session.can(AppFeature.team))
         _WorkspaceDestination(
@@ -240,16 +281,93 @@ class _HomeScreenState extends State<HomeScreen> {
           page: const TeamRolesScreen(),
         ),
       if (session.can(AppFeature.clinicSetup))
-        const _WorkspaceDestination(
+        _WorkspaceDestination(
           feature: AppFeature.clinicSetup,
-          label: 'Clinic setup',
+          label: labels.text('setup'),
           icon: Icons.settings_suggest_outlined,
           selectedIcon: Icons.settings_suggest,
-          page: ClinicSetupScreen(),
+          page: const ClinicSetupScreen(),
+        ),
+      if (session.can(AppFeature.prescriptionTemplates))
+        _WorkspaceDestination(
+          feature: AppFeature.prescriptionTemplates,
+          label: labels.text('templates'),
+          icon: Icons.snippet_folder_outlined,
+          selectedIcon: Icons.snippet_folder,
+          page: TemplateLibraryScreen(
+            onUse: (template) {
+              final index = destinations.indexWhere(
+                (d) => d.feature == AppFeature.createPrescription,
+              );
+              if (index < 0) return;
+              setState(() {
+                _prescriptionPatient = null;
+                _prescriptionToEdit = null;
+                _prescriptionTemplate = template;
+                _prescriptionFormVersion++;
+                _selectedIndex = index;
+              });
+            },
+          ),
+        ),
+      if (session.can(AppFeature.treatmentPlans))
+        _WorkspaceDestination(
+          feature: AppFeature.treatmentPlans,
+          label: labels.text('plans'),
+          icon: Icons.route_outlined,
+          selectedIcon: Icons.route,
+          page: const TreatmentPlansScreen(),
+        ),
+      if (session.can(AppFeature.laboratory))
+        _WorkspaceDestination(
+          feature: AppFeature.laboratory,
+          label: labels.text('laboratory'),
+          icon: Icons.science_outlined,
+          selectedIcon: Icons.science,
+          page: const LaboratoryScreen(),
+        ),
+      if (session.can(AppFeature.staffMessages))
+        _WorkspaceDestination(
+          feature: AppFeature.staffMessages,
+          label: labels.text('messages'),
+          icon: Icons.forum_outlined,
+          selectedIcon: Icons.forum,
+          page: const StaffMessagesScreen(),
         ),
     ];
+    if (isFrontDeskOnly(session.roles)) {
+      const priority = [
+        AppFeature.reception,
+        AppFeature.appointments,
+        AppFeature.patients,
+        AppFeature.billing,
+        AppFeature.reminders,
+        AppFeature.staffMessages,
+      ];
+      destinations.sort(
+        (a, b) =>
+            priority.indexOf(a.feature).compareTo(priority.indexOf(b.feature)),
+      );
+    }
+    if (destinations.isEmpty) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final selectedIndex = _selectedIndex.clamp(0, destinations.length - 1);
-    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.compact;
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.medium;
+    final features = destinations.map((d) => d.feature).toList();
+    final primary = [
+      AppFeature.dashboard,
+      AppFeature.reception,
+      AppFeature.appointments,
+      AppFeature.patients,
+    ].where(features.contains).take(3).toList();
+    final selectedFeature = destinations[selectedIndex].feature;
+    final pages = LazyWorkspacePages(
+      key: ValueKey('${session.activeClinicId}:${features.join(',')}'),
+      features: features,
+      selected: selectedFeature,
+      pages: destinations.map((d) => d.page).toList(),
+    );
 
     return Scaffold(
       drawer: compact
@@ -399,61 +517,52 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: AppSpacing.xs),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < AppBreakpoints.compact) {
-                  return IndexedStack(
-                    index: selectedIndex,
-                    children: destinations.map((item) => item.page).toList(),
-                  );
-                }
-                return Row(
-                  children: [
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: SingleChildScrollView(
-                        child: NavigationRail(
-                          selectedIndex: selectedIndex,
-                          groupAlignment: -1,
-                          onDestinationSelected: (index) =>
-                              setState(() => _selectedIndex = index),
-                          extended:
-                              constraints.maxWidth >= AppBreakpoints.expanded,
-                          labelType:
-                              constraints.maxWidth >= AppBreakpoints.expanded
-                              ? NavigationRailLabelType.none
-                              : NavigationRailLabelType.all,
-                          destinations: destinations
-                              .map(
-                                (item) => NavigationRailDestination(
-                                  icon: Icon(item.icon),
-                                  selectedIcon: Icon(item.selectedIcon),
-                                  label: Text(item.label),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
+      bottomNavigationBar: compact
+          ? Builder(
+              builder: (scaffoldContext) => NavigationBar(
+                labelBehavior:
+                    NavigationDestinationLabelBehavior.onlyShowSelected,
+                selectedIndex: primary.contains(selectedFeature)
+                    ? primary.indexOf(selectedFeature)
+                    : primary.length,
+                onDestinationSelected: (index) {
+                  if (index == primary.length) {
+                    Scaffold.of(scaffoldContext).openDrawer();
+                  } else {
+                    _selectFeature(destinations, primary[index]);
+                  }
+                },
+                destinations: [
+                  for (final feature in primary)
+                    NavigationDestination(
+                      icon: Icon(destinations[features.indexOf(feature)].icon),
+                      label: destinations[features.indexOf(feature)].label,
                     ),
-                    const VerticalDivider(width: 1),
-                    Expanded(
-                      child: IndexedStack(
-                        index: selectedIndex,
-                        children: destinations
-                            .map((item) => item.page)
-                            .toList(),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  NavigationDestination(
+                    icon: const Icon(Icons.menu),
+                    label: labels.text('more'),
+                  ),
+                ],
+              ),
+            )
+          : null,
+      body: compact
+          ? pages
+          : Row(
+              children: [
+                WorkspaceSidebar(
+                  links: destinations
+                      .map((d) => WorkspaceLink(d.feature, d.label, d.icon))
+                      .toList(),
+                  selected: selectedFeature,
+                  onSelected: (feature) =>
+                      _selectFeature(destinations, feature),
+                  clinicName: session.clinicName,
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(child: pages),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 

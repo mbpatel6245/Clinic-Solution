@@ -379,6 +379,44 @@ service cloud.firestore {
           (isClinicAdmin(clinicId) || isClinical(clinicId));
         allow delete: if moduleAvailable('laboratory') && isClinicAdmin(clinicId);
       }
+
+      match /prescription_templates/{templateId} {
+        allow read: if moduleAvailable('clinical') &&
+          (isClinicAdmin(clinicId) || hasClinicRole(clinicId, ['doctor', 'Doctor', 'physician']));
+        allow create, update: if moduleAvailable('clinical') &&
+          (isClinicAdmin(clinicId) || hasClinicRole(clinicId, ['doctor', 'Doctor', 'physician'])) &&
+          request.resource.data.keys().hasOnly(['name','diagnoses','complaints','investigation','advice','medicines','updated_at']) &&
+          request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120 &&
+          request.resource.data.medicines is list && request.resource.data.medicines.size() <= 50;
+        allow delete: if isClinicAdmin(clinicId);
+      }
+      match /clinical_notes/{prescriptionId} {
+        allow read: if moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician']));
+        allow create, update: if moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician'])) &&
+          request.resource.data.keys().hasOnly(['patient_id','body','author_id','updated_at']) &&
+          request.resource.data.author_id == request.auth.uid && request.resource.data.body is string && request.resource.data.body.size() <= 20000;
+        allow delete: if isClinicAdmin(clinicId);
+      }
+      match /treatment_plans/{planId} {
+        allow read: if moduleAvailable('clinical') &&
+          (isClinicAdmin(clinicId) || hasClinicRole(clinicId, ['doctor', 'Doctor', 'physician']));
+        allow create, update: if moduleAvailable('clinical') &&
+          (isClinicAdmin(clinicId) || hasClinicRole(clinicId, ['doctor', 'Doctor', 'physician'])) &&
+          request.resource.data.patient_id is string && request.resource.data.patient_id.size() > 0 &&
+          request.resource.data.name is string && request.resource.data.name.size() > 0 &&
+          request.resource.data.sittings is list && request.resource.data.sittings.size() <= 100;
+        allow delete: if isClinicAdmin(clinicId);
+      }
+      match /staff_messages/{messageId} {
+        function staffMember() { return isClinicAdmin(clinicId) || hasClinicRole(clinicId,
+          ['doctor','Doctor','physician','reception','receptionist','vaccinator','nurse','pharmacy_operator','pharmacist','accountant','accounts']); }
+        allow read: if staffMember();
+        allow create: if staffMember() && request.resource.data.keys().hasOnly(['text','sender_name','sender_id','sent_at']) &&
+          request.resource.data.sender_id == request.auth.uid && request.resource.data.sent_at == request.time &&
+          request.resource.data.sender_name is string && request.resource.data.sender_name.size() <= 160 &&
+          request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000;
+        allow update, delete: if false;
+      }
     }
 
     // Collection-group queries cannot rely on a fixed clinic ancestor.

@@ -40,6 +40,10 @@ class PatientModel {
     this.email,
     this.notificationConsent,
     this.locale,
+    this.dateOfBirth,
+    this.ageUnit = 'years',
+    this.abhaId = '',
+    this.allergies = const [],
   });
 
   final String id;
@@ -56,6 +60,30 @@ class PatientModel {
   final String? email;
   final bool? notificationConsent;
   final String? locale;
+  final DateTime? dateOfBirth;
+  final String ageUnit;
+  final String abhaId;
+  final List<String> allergies;
+
+  double? ageInYearsAt(DateTime now) {
+    final birth = dateOfBirth;
+    if (birth != null) {
+      if (birth.isAfter(now)) return null;
+      var years = now.year - birth.year;
+      if (now.month < birth.month ||
+          (now.month == birth.month && now.day < birth.day)) {
+        years--;
+      }
+      return years.toDouble();
+    }
+    if (age == null) return null;
+    return switch (ageUnit) {
+      'months' => age! / 12,
+      'weeks' => age! / 52.1775,
+      'days' => age! / 365.25,
+      _ => age!.toDouble(),
+    };
+  }
 
   String get fullName => [
     firstName,
@@ -79,6 +107,14 @@ class PatientModel {
       email: data['email'] as String?,
       notificationConsent: data['notification_consent'] as bool?,
       locale: data['locale'] as String?,
+      dateOfBirth: _dateTimeFrom(data['date_of_birth']),
+      ageUnit: ['years', 'months', 'weeks', 'days'].contains(data['age_unit'])
+          ? data['age_unit'].toString()
+          : 'years',
+      abhaId: data['abha_id']?.toString() ?? '',
+      allergies: (data['allergies'] as Iterable? ?? const [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 
@@ -91,6 +127,12 @@ class PatientModel {
     'phone': phone.trim(),
     'address': address.trim(),
     'age': age,
+    'age_unit': ageUnit,
+    'date_of_birth': dateOfBirth == null
+        ? null
+        : Timestamp.fromDate(dateOfBirth!),
+    'abha_id': abhaId.trim(),
+    'allergies': allergies,
     'user_id': userId,
     if (email != null) 'email': email!.trim(),
     if (notificationConsent != null)
@@ -117,6 +159,10 @@ class PatientModel {
     email: email,
     notificationConsent: notificationConsent,
     locale: locale,
+    dateOfBirth: dateOfBirth,
+    ageUnit: ageUnit,
+    abhaId: abhaId,
+    allergies: allergies,
   );
 }
 
@@ -172,6 +218,7 @@ class PrescriptionModel {
     this.sharedWithPatient = false,
     this.patientUserId = '',
     this.clinicId = '',
+    this.appointmentId = '',
   });
 
   final String id;
@@ -190,6 +237,7 @@ class PrescriptionModel {
   final bool sharedWithPatient;
   final String patientUserId;
   final String clinicId;
+  final String appointmentId;
 
   DateTime get visitTimestamp => createdAt ?? visitDate ?? DateTime.now();
 
@@ -243,11 +291,13 @@ class PrescriptionModel {
           patientData['user_id']?.toString() ??
           '',
       clinicId: data['_clinic_id']?.toString() ?? '',
+      appointmentId: data['appointment_id']?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toMap(String patientId) => {
     'patient_id': patientId,
+    'appointment_id': appointmentId,
     'patient': patient.toMap()
       ..remove('created_at')
       ..remove('updated_at'),

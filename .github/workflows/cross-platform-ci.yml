@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - clinic-revamp
   pull_request:
   workflow_dispatch:
 
@@ -14,6 +15,41 @@ env:
   FLUTTER_VERSION: 3.47.0
 
 jobs:
+  access-rules:
+    name: Clinic and staff access rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci --prefix functions
+      - run: npm test --prefix functions
+      - run: npx --yes firebase-tools@14.18.0 emulators:exec --only firestore --project demo-clinic-revamp --config firebase.rules-test.json "node --test functions/test/revamp_rules.test.mjs"
+
+  flutter-checks:
+    name: Flutter tests and web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter analyze lib/ui/views/home/revamp lib/ui/views/home/home_screen.dart lib/ui/views/home/new_prescription/tab_new_prescription.dart lib/ui/views/login lib/core/design/revamp_labels.dart lib/core/auth lib/data/datasources/workflow_models.dart lib/data/datasources/clinical_models.dart lib/services/clinical_ai_service.dart test/clinical_workflows_test.dart test/clinical_workspaces_widget_test.dart test/clinical_ai_service_test.dart test/practice_metrics_test.dart test/practice_workspace_test.dart
+      - run: flutter build web --release --no-wasm-dry-run
+
   desktop-and-ios:
     name: ${{ matrix.target }} build
     strategy:
@@ -36,6 +72,10 @@ jobs:
             os: macos-latest
             command: flutter build ios --release --no-codesign
             enable_command: echo "iOS target is enabled by default"
+          - target: Android
+            os: ubuntu-latest
+            command: flutter build apk --release
+            enable_command: echo "Android target is enabled by default"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
 
@@ -53,6 +93,13 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+
+      - name: Set up Android Java
+        if: matrix.target == 'Android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
       - name: Enable desktop targets
         run: ${{ matrix.enable_command }}

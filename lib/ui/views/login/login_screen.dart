@@ -11,11 +11,13 @@ import '../../../services/local/secure_data_viewmodel.dart';
 import '../../themes/text_styles.dart';
 import '../../widgets/auth_layout.dart';
 import 'login_viewmodel.dart';
+import '../../../core/design/revamp_labels.dart';
 
 class LoginScreen extends StatelessWidget {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  LoginScreen({super.key});
+  LoginScreen({super.key, this.staffPortal = false});
+  final bool staffPortal;
 
   @override
   Widget build(BuildContext context) {
@@ -56,20 +58,45 @@ class LoginScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         CommonText(
-                          text: AppLocalizations.of(context)!.login,
+                          text: RevampLabels.of(
+                            context,
+                          ).text(staffPortal ? 'staffLogin' : 'clinicLogin'),
                           style: AppTextStyles.getBoldTextStyle(
                             localeProvider.locale,
                           ).copyWith(fontSize: 32),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Sign in to continue to your clinic workspace.',
+                        Text(
+                          RevampLabels.of(context).text(
+                            staffPortal ? 'staffLoginHint' : 'clinicLoginHint',
+                          ),
                           style: TextStyle(
                             color: Color(0xFF627C80),
                             height: 1.5,
                           ),
                         ),
                         const SizedBox(height: 30),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: Text(
+                                RevampLabels.of(context).text('clinicLogin'),
+                              ),
+                              selected: !staffPortal,
+                              onSelected: (_) => context.go('/login'),
+                            ),
+                            ChoiceChip(
+                              label: Text(
+                                RevampLabels.of(context).text('staffLogin'),
+                              ),
+                              selected: staffPortal,
+                              onSelected: (_) => context.go('/staff'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
                         AuthTextField(
                           controller: viewModel.emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -100,25 +127,36 @@ class LoginScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         AuthButton(
-                          text: AppLocalizations.of(context)!.login,
+                          text: viewModel.signingIn
+                              ? RevampLabels.of(context).text('signingIn')
+                              : AppLocalizations.of(context)!.login,
                           onPressed: () {
+                            if (viewModel.signingIn) return;
                             if (viewModel.validateForm(_formKey)) {
                               //
                               viewModel.signIn((user) {
                                 if (!context.mounted) return;
                                 context.go('/${Constants.navHome}');
-                              });
+                              }, staffPortal: staffPortal);
                             }
                           },
                         ),
                         const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: () {
-                            context.go('/${Constants.navRegister}');
-                          },
-                          icon: const Icon(Icons.add_business_outlined),
-                          label: const Text('Request clinic access'),
-                        ),
+                        if (!staffPortal)
+                          TextButton.icon(
+                            onPressed: () {
+                              context.go('/${Constants.navRegister}');
+                            },
+                            icon: const Icon(Icons.add_business_outlined),
+                            label: const Text('Request clinic access'),
+                          ),
+                        if (staffPortal)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: Text(
+                              RevampLabels.of(context).text('staffInviteHint'),
+                            ),
+                          ),
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
                           child: Divider(color: Color(0xFFE3ECEB)),

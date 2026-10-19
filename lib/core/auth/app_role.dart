@@ -43,6 +43,7 @@ enum ClinicModule {
 
 enum AppFeature {
   dashboard,
+  patients,
   createPrescription,
   prescriptionList,
   appointments,
@@ -56,6 +57,10 @@ enum AppFeature {
   dataExchange,
   team,
   clinicSetup,
+  prescriptionTemplates,
+  treatmentPlans,
+  laboratory,
+  staffMessages,
 }
 
 enum AppPermission {
@@ -139,7 +144,12 @@ enum AppRole {
         ..remove(AppFeature.clinicSetup)
         ..remove(AppFeature.team),
     doctor => {
+      AppFeature.prescriptionTemplates,
+      AppFeature.treatmentPlans,
+      AppFeature.laboratory,
+      AppFeature.staffMessages,
       AppFeature.dashboard,
+      AppFeature.patients,
       AppFeature.createPrescription,
       AppFeature.prescriptionList,
       AppFeature.reception,
@@ -148,7 +158,9 @@ enum AppRole {
       AppFeature.reminders,
     },
     receptionist => {
+      AppFeature.staffMessages,
       AppFeature.dashboard,
+      AppFeature.patients,
       AppFeature.reception,
       AppFeature.appointments,
       AppFeature.billing,
@@ -160,18 +172,22 @@ enum AppRole {
       AppFeature.reminders,
     },
     pharmacyOperator => {
+      AppFeature.staffMessages,
       AppFeature.dashboard,
       AppFeature.prescriptionList,
       AppFeature.inventory,
       AppFeature.billing,
     },
     vaccinator => {
+      AppFeature.laboratory,
+      AppFeature.staffMessages,
       AppFeature.dashboard,
       AppFeature.appointments,
       AppFeature.vaccination,
       AppFeature.reminders,
     },
     accountant => {
+      AppFeature.staffMessages,
       AppFeature.dashboard,
       AppFeature.billing,
       AppFeature.finance,
@@ -217,7 +233,14 @@ enum AppRole {
 }
 
 ClinicModule? moduleForFeature(AppFeature feature) => switch (feature) {
-  AppFeature.dashboard || AppFeature.team || AppFeature.clinicSetup => null,
+  AppFeature.dashboard ||
+  AppFeature.team ||
+  AppFeature.clinicSetup ||
+  AppFeature.staffMessages => null,
+  AppFeature.prescriptionTemplates ||
+  AppFeature.treatmentPlans => ClinicModule.clinical,
+  AppFeature.laboratory => ClinicModule.laboratory,
+  AppFeature.patients => ClinicModule.patients,
   AppFeature.createPrescription ||
   AppFeature.prescriptionList => ClinicModule.clinical,
   AppFeature.appointments => ClinicModule.appointments,
