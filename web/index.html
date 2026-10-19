@@ -15,12 +15,12 @@
   <link rel="icon" type="image/png" href="favicon-orbyteza.png">
   <link rel="icon" type="image/svg+xml" sizes="any" href="clinic-solution.svg?v=orbyteza-2026">
   <link rel="manifest" href="manifest.json">
-  <title>orByteza Clinic Solution — More time for care</title>
+  <title>orByteza Clinic Solution — Simple clinic management</title>
   <link rel="stylesheet" href="marketing.css">
   <script src="marketing.js" defer></script>
 </head>
 <body>
-  <svg aria-hidden="true" class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2"/></symbol>
     <symbol id="i-record" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8m-8 4h5"/></symbol>
     <symbol id="i-team" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m3-16a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 4v2"/></symbol>
@@ -34,47 +34,106 @@
   </svg>
   <main id="marketing">
     <a class="skip-link" href="#content">Skip to content</a>
-    <header class="site-header wrap">
-      <a class="brand" href="./" aria-label="Clinic Solution by orByteza, homepage"><img src="clinic-solution.svg" width="42" height="42" alt=""><span>Clinic Solution<small>by <b>orByteza</b></small></span></a>
-      <nav class="desktop-nav" aria-label="Main navigation"><a href="#features">Features</a><a href="#your-team">For your team</a><a href="#questions">FAQs</a></nav>
-      <div class="header-actions"><a class="login-link" href="login">Log in</a><a class="button small" href="register">Get started <span aria-hidden="true">↗</span></a></div>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="./" aria-label="Clinic Solution by orByteza, homepage">
+          <img src="clinic-solution.svg" width="38" height="38" alt="">
+          <span>Clinic Solution<small>by <b>orByteza</b></small></span>
+        </a>
+        <nav class="desktop-nav" aria-label="Main navigation">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How it works</a>
+        </nav>
+        <div class="header-actions">
+          <a class="login-link" href="login">Log in</a>
+          <a class="button small" href="register">Get started</a>
+        </div>
+      </div>
     </header>
-    <section class="hero wrap" id="content" aria-labelledby="hero-title">
-      <div class="hero-copy"><div class="eyebrow"><span class="status-dot"></span> MADE FOR THE PEOPLE WHO CARE</div><h1 id="hero-title">Less admin.<br>More time<br>for <em>care.</em></h1><p class="hero-description">Your patients deserve your attention. Bring appointments, records and your team together in one thoughtfully connected clinic workspace.</p><div class="hero-actions"><a class="button" href="register">Start your clinic journey <svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></a><a class="text-link" href="#features">Explore the features <span aria-hidden="true">↓</span></a></div><div class="hero-note"><svg aria-hidden="true" class="icon"><use href="#i-heart"/></svg> Built around doctors. Designed for the whole team.</div></div>
-      <div class="hero-visual" aria-label="Illustrative clinic workspace with sample appointments">
-        <div class="visual-caption"><span class="status-dot"></span> A LITTLE CALMER. A LOT MORE CONNECTED.</div>
-        <div class="workspace-preview"><aside class="preview-sidebar" aria-hidden="true"><img src="clinic-solution.svg" width="32" height="32" alt=""><svg aria-hidden="true" class="icon selected"><use href="#i-clinic"/></svg><svg aria-hidden="true" class="icon"><use href="#i-calendar"/></svg><svg aria-hidden="true" class="icon"><use href="#i-team"/></svg><svg aria-hidden="true" class="icon"><use href="#i-record"/></svg><svg aria-hidden="true" class="icon"><use href="#i-bill"/></svg><span class="sidebar-bottom">CS</span></aside><div class="preview-main">
-          <div class="preview-top"><span>YOUR CLINIC, AT A GLANCE</span><span class="avatar">DR</span></div><div class="preview-greeting"><div><h2>A good day for care.</h2><p>Here’s how your day is shaping up.</p></div><svg aria-hidden="true" class="icon sun"><use href="#i-heart"/></svg></div>
-          <div class="preview-stats"><div><small>Appointments</small><strong>24 <span>today</span></strong><i class="mini-bars" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b><b></b><b></b></i></div><div><small>Your care team</small><strong>One <span>workspace</span></strong><div class="mini-avatars" aria-hidden="true"><span>DR</span><span>RE</span><span>PH</span></div></div></div>
-          <div class="schedule-heading"><h3>Today’s appointments</h3><span>Sample day</span></div>
-          <div class="appointment"><span class="appointment-time">09:00</span><span class="patient-avatar mint">A</span><div><strong>Patient A</strong><small>Follow-up consultation</small></div><span class="pill ready">Checked in</span></div>
-          <div class="appointment"><span class="appointment-time">09:30</span><span class="patient-avatar peach">B</span><div><strong>Patient B</strong><small>General consultation</small></div><span class="pill">Confirmed</span></div>
-          <div class="appointment"><span class="appointment-time">10:00</span><span class="patient-avatar lilac">C</span><div><strong>Patient C</strong><small>First visit</small></div><span class="pill">Confirmed</span></div>
-          <div class="preview-bottom"><span class="status-dot"></span> From the front desk to the consultation room.</div>
-        </div></div>
-        <div class="care-note"><span class="care-note-icon"><svg aria-hidden="true" class="icon"><use href="#i-check"/></svg></span><div>Everyone on the same page.<small>Every step of the patient journey.</small></div></div><p class="sample-label">Illustrative workspace · sample data</p>
+
+    <section class="hero" id="content" aria-labelledby="hero-title">
+      <div class="wrap">
+        <span class="badge">For doctors and clinic teams</span>
+        <h1 id="hero-title">Manage your clinic.<br><span>Focus on your patients.</span></h1>
+        <p class="hero-description">Appointments, patient records, prescriptions, billing and inventory.<br class="desktop-break"> One simple workspace for your whole team.</p>
+        <div class="hero-actions">
+          <a class="button" href="register">Create clinic account <svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></a>
+          <a class="button secondary" href="login">Log in to your clinic</a>
+        </div>
+        <p class="hero-note">English · हिन्दी · ગુજરાતી <span aria-hidden="true">&nbsp; • &nbsp;</span> Web and supported mobile apps</p>
+        <p class="patient-link">Here for an appointment? <a href="appointment">Book a visit <span aria-hidden="true">→</span></a></p>
       </div>
     </section>
-    <section class="principles wrap" aria-label="Product highlights"><span>A more connected way to practise.</span><div><svg aria-hidden="true" class="icon"><use href="#i-clinic"/></svg> One clinic or many</div><div><svg aria-hidden="true" class="icon"><use href="#i-team"/></svg> Access by role</div><div><svg aria-hidden="true" class="icon"><use href="#i-record"/></svg> English · हिन्दी · ગુજરાતી</div></section>
-    <section class="features-section" id="features" aria-labelledby="features-title"><div class="wrap">
-      <div class="section-heading"><div><p class="eyebrow">LESS JUGGLING. MORE CLARITY.</p><h2 id="features-title">The moving parts of your clinic.<br><em>Finally, together.</em></h2></div><p>From a busy reception desk to the last follow-up, give your team a clearer way to work.</p></div>
+
+    <section class="steps-section" id="how-it-works" aria-labelledby="steps-title">
+      <div class="wrap">
+        <h2 id="steps-title">A simpler clinic day</h2>
+        <div class="steps-grid">
+          <article class="step">
+            <span class="icon-box"><svg aria-hidden="true" class="icon"><use href="#i-calendar"/></svg></span>
+            <h3>1. Welcome the patient</h3>
+            <p>Register patients, book appointments and keep reception organised.</p>
+          </article>
+          <article class="step">
+            <span class="icon-box"><svg aria-hidden="true" class="icon"><use href="#i-record"/></svg></span>
+            <h3>2. Consult with context</h3>
+            <p>Review patient history, document the visit and create prescriptions.</p>
+          </article>
+          <article class="step">
+            <span class="icon-box"><svg aria-hidden="true" class="icon"><use href="#i-check"/></svg></span>
+            <h3>3. Complete the visit</h3>
+            <p>Coordinate billing, pharmacy and follow-up with the rest of your team.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section wrap" id="features" aria-labelledby="features-title">
+      <div class="section-heading">
+        <h2 id="features-title">The essentials, all together.</h2>
+        <p>Practical tools for the work your clinic does every day.</p>
+      </div>
       <div class="feature-grid">
-        <article class="feature-card"><span class="feature-icon mint"><svg aria-hidden="true" class="icon"><use href="#i-calendar"/></svg></span><span class="feature-number">01</span><h3>A day that flows better</h3><p>Book appointments, manage visit status and keep the reception-to-doctor handoff connected.</p><span class="feature-tag">APPOINTMENTS & RECEPTION</span></article>
-        <article class="feature-card"><span class="feature-icon peach"><svg aria-hidden="true" class="icon"><use href="#i-record"/></svg></span><span class="feature-number">02</span><h3>The patient story, in context</h3><p>Bring patient details, visit history and prescriptions into your everyday consultation workflow.</p><span class="feature-tag">PATIENT RECORDS</span></article>
-        <article class="feature-card"><span class="feature-icon lilac"><svg aria-hidden="true" class="icon"><use href="#i-team"/></svg></span><span class="feature-number">03</span><h3>A team with clear roles</h3><p>Invite members and manage clinic access for doctors, reception staff and the wider care team.</p><span class="feature-tag">TEAM & PERMISSIONS</span></article>
-        <article class="feature-card"><span class="feature-icon sand"><svg aria-hidden="true" class="icon"><use href="#i-bill"/></svg></span><span class="feature-number">04</span><h3>Clarity beyond the visit</h3><p>Create invoices, record payments and see outstanding balances as part of the clinic workflow.</p><span class="feature-tag">BILLING & PAYMENTS</span></article>
-        <article class="feature-card"><span class="feature-icon blue"><svg aria-hidden="true" class="icon"><use href="#i-box"/></svg></span><span class="feature-number">05</span><h3>Keep essential stock in sight</h3><p>Manage inventory, track stock movements and support pharmacy sales alongside patient care.</p><span class="feature-tag">INVENTORY & PHARMACY</span></article>
-        <article class="feature-card"><span class="feature-icon mint"><svg aria-hidden="true" class="icon"><use href="#i-clinic"/></svg></span><span class="feature-number">06</span><h3>Room for your practice to grow</h3><p>Work across clinics with clinic-specific roles and a shared platform for your organisation.</p><span class="feature-tag">MULTI-CLINIC MANAGEMENT</span></article>
+        <article class="feature-card"><svg aria-hidden="true" class="icon"><use href="#i-calendar"/></svg><h3>Appointments & reception</h3><p>Schedule visits, track appointment status and coordinate the reception-to-doctor handoff.</p></article>
+        <article class="feature-card"><svg aria-hidden="true" class="icon"><use href="#i-record"/></svg><h3>Patient records</h3><p>Keep patient details and visit history together, ready for the next consultation.</p></article>
+        <article class="feature-card"><svg aria-hidden="true" class="icon"><use href="#i-heart"/></svg><h3>Prescriptions & follow-up</h3><p>Create prescriptions and organise the next steps in your patient’s care.</p></article>
+        <article class="feature-card"><svg aria-hidden="true" class="icon"><use href="#i-bill"/></svg><h3>Billing & payments</h3><p>Create invoices, record payments and keep track of outstanding balances.</p></article>
+        <article class="feature-card"><svg aria-hidden="true" class="icon"><use href="#i-box"/></svg><h3>Inventory & pharmacy</h3><p>Manage stock, record stock movements and support pharmacy sales.</p></article>
+        <article class="feature-card"><svg aria-hidden="true" class="icon"><use href="#i-team"/></svg><h3>Staff & clinic access</h3><p>Invite your team, assign clinic-specific roles and work across multiple clinics.</p></article>
       </div>
-    </div></section>
-    <section class="team-section wrap" id="your-team" aria-labelledby="team-title">
-      <div class="team-copy"><p class="eyebrow">DIFFERENT ROLES. ONE SHARED PURPOSE.</p><h2 id="team-title">Good care takes a team.<br><em>Give yours a better workspace.</em></h2><p>The right tools, in the right hands, at each step of the day.</p><div class="audience-switch" role="group" aria-label="Explore benefits for your role"><button type="button" data-audience="doctor" aria-pressed="true">Doctors</button><button type="button" data-audience="team" aria-pressed="false">Clinic teams</button><button type="button" data-audience="owner" aria-pressed="false">Clinic owners</button></div><div id="audience-copy" aria-live="polite"><h3>Walk into every consultation with context.</h3><p>Review patient records, manage visits and create prescriptions in a connected clinical workflow.</p><ul class="check-list"><li>Patient history close at hand</li><li>Appointments and consultations connected</li><li>Prescription and follow-up workflows</li></ul></div></div>
-      <div class="journey"><span class="journey-label">THE PATIENT JOURNEY</span><div class="journey-step"><span class="step-marker">01</span><div><span class="step-role">RECEPTION</span><h3>A welcoming first step</h3><p>Register the patient and organise their appointment.</p></div><svg aria-hidden="true" class="icon"><use href="#i-calendar"/></svg></div><div class="journey-step"><span class="step-marker">02</span><div><span class="step-role">DOCTOR</span><h3>More context for the consultation</h3><p>Review the record and document the visit.</p></div><svg aria-hidden="true" class="icon"><use href="#i-record"/></svg></div><div class="journey-step"><span class="step-marker">03</span><div><span class="step-role">CARE TEAM</span><h3>A thoughtful next step</h3><p>Coordinate prescriptions, billing and follow-up.</p></div><svg aria-hidden="true" class="icon"><use href="#i-heart"/></svg></div><div class="journey-footer"><svg aria-hidden="true" class="icon"><use href="#i-team"/></svg> Connected people. A clearer patient journey.</div></div>
     </section>
-    <section class="trust-section"><div class="wrap trust-grid"><div><p class="eyebrow">BUILT WITH YOUR PRACTICE IN MIND</p><h2>A thoughtful foundation<br>for everyday care.</h2></div><article><svg aria-hidden="true" class="icon"><use href="#i-shield"/></svg><h3>Access with purpose</h3><p>Clinic and role-based permissions help each team member work within their assigned access.</p></article><article><svg aria-hidden="true" class="icon"><use href="#i-heart"/></svg><h3>Familiar, wherever you work</h3><p>A consistent workspace on the web and supported mobile apps, with English, Hindi and Gujarati interfaces.</p></article></div></section>
-    <section class="faq-section wrap" id="questions" aria-labelledby="faq-title"><div><p class="eyebrow">A LITTLE MORE CLARITY</p><h2 id="faq-title">Before you<br><em>get started.</em></h2></div><div class="faq-list"><details><summary>Who is Clinic Solution for?</summary><p>Doctors, reception teams, pharmacy staff and clinic owners who want to manage the day-to-day work of a clinic in one connected product.</p></details><details><summary>Can I use it for more than one clinic?</summary><p>Yes. Clinic Solution supports multiple clinics with clinic-specific membership and role-based access.</p></details><details><summary>Does it support my team’s language?</summary><p>The application includes English, Hindi and Gujarati interfaces. You can select a language within the app.</p></details><details><summary>Can I send appointment messages to patients?</summary><p>Clinic SMS and email workflows and editable templates are available. Delivery requires a configured messaging provider, approved sender/templates where applicable, and may have usage charges.</p></details><details><summary>I already have an account. Where do I sign in?</summary><p><a href="login">Log in here</a> to open your existing clinic workspace. New users can <a href="register">create an account</a>.</p></details></div></section>
-    <section class="final-cta wrap"><div class="cta-orbit" aria-hidden="true">+</div><p class="eyebrow">A BETTER DAY STARTS WITH A LITTLE LESS ADMIN</p><h2>Your focus is care.<br><em>Let’s make room for it.</em></h2><p>Meet the workspace built around your clinic and the people in it.</p><a class="button light" href="register">Create your account <svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></a><span class="cta-login">Already part of the team? <a href="login">Log in</a></span></section>
-    <footer class="site-footer wrap"><a class="brand" href="./"><img src="clinic-solution.svg" width="34" height="34" alt=""><span>Clinic Solution<small>by <b>orByteza</b></small></span></a><p>© 2026 ORBYTEZA TECH LLP. All rights reserved.</p><nav aria-label="Footer navigation"><a href="#features">Features</a><a href="login">Log in</a><a href="register">Register</a></nav></footer>
+
+    <section class="team-section" aria-labelledby="team-title">
+      <div class="wrap">
+        <h2 id="team-title">Built for doctors.<br>Ready for your team.</h2>
+        <p class="section-description">Give everyone a connected way to work, from the front desk to the consultation room.</p>
+        <div class="team-grid">
+          <article><svg aria-hidden="true" class="icon"><use href="#i-shield"/></svg><h3>Access by role</h3><p>Help staff work within the clinic access and responsibilities assigned to them.</p></article>
+          <article><svg aria-hidden="true" class="icon"><use href="#i-clinic"/></svg><h3>One clinic or many</h3><p>Manage clinic-specific membership and roles as your practice grows.</p></article>
+          <article><svg aria-hidden="true" class="icon"><use href="#i-record"/></svg><h3>Your team’s language</h3><p>Use the application in English, Hindi or Gujarati.</p></article>
+        </div>
+        <a class="button light" href="register">Create your account <svg aria-hidden="true" class="icon"><use href="#i-arrow"/></svg></a>
+        <p class="team-login">Already have an account? <a href="login">Log in</a></p>
+      </div>
+    </section>
+
+    <section class="faq-section wrap" id="questions" aria-labelledby="faq-title">
+      <h2 id="faq-title">A few useful answers</h2>
+      <div class="faq-list">
+        <details><summary>Who can use Clinic Solution?</summary><p>Doctors, reception staff, pharmacy teams and clinic owners can use the product, with access based on their assigned clinic roles.</p></details>
+        <details><summary>Can I use it for more than one clinic?</summary><p>Yes. Clinic Solution supports multiple clinics with clinic-specific membership and role-based access.</p></details>
+        <details><summary>How do I get started?</summary><p><a href="register">Create an account</a> to request access for your clinic. If you are already a member, <a href="login">log in</a> to open your workspace.</p></details>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <a class="brand" href="./"><img src="clinic-solution.svg" width="34" height="34" alt=""><span>Clinic Solution<small>by <b>orByteza</b></small></span></a>
+        <p>Clinic management software for doctors and the teams who support them.</p>
+        <nav aria-label="Footer navigation"><a href="#features">Features</a><a href="login">Log in</a><a href="register">Register</a></nav>
+        <p class="copyright">© 2026 ORBYTEZA TECH LLP. All rights reserved.</p>
+      </div>
+    </footer>
   </main>
   <div id="loading" role="status" aria-live="polite" hidden><img src="clinic-solution.svg" width="72" height="72" alt="Clinic Solution logo"><div class="spinner" aria-hidden="true"></div><span>Opening Clinic Solution…</span><small>© 2026 ORBYTEZA TECH LLP. All rights reserved.</small><p id="load-error" hidden>The workspace could not load. Check your connection, then <a href="">try again</a>.</p></div>
   <noscript><p class="noscript-note">You can explore Clinic Solution here. Please enable JavaScript to log in or create an account.</p></noscript>
