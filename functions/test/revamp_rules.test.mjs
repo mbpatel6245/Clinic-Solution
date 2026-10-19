@@ -1,7 +1,7 @@
 import {readFile} from 'node:fs/promises';
 import {before, after, test} from 'node:test';
 import {initializeTestEnvironment, assertFails, assertSucceeds} from '@firebase/rules-unit-testing';
-import {doc, getDoc, setDoc, updateDoc, serverTimestamp} from 'firebase/firestore';
+import {doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp, writeBatch} from 'firebase/firestore';
 
 let env;
 before(async () => {
@@ -14,12 +14,36 @@ before(async () => {
   await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
     for (const id of ['a','b']) await setDoc(doc(db,`clinics/${id}`),{active:true,share_prescriptions_with_patients:true});
-    for (const [uid,role,clinic] of [['doctor','doctor','a'],['staff','receptionist','a'],['patient','patient','a'],['outsider','doctor','b'],['nurse','nurse','a']]) {
+    for (const [uid,role,clinic] of [['doctor','doctor','a'],['staff','receptionist','a'],['patient','patient','a'],['outsider','doctor','b'],['nurse','nurse','a'],['admin','clinic_admin','a']]) {
       await setDoc(doc(db,`users/${uid}`),{role,status:'approved',active_clinic_id:clinic,clinic_ids:[clinic],clinic_roles:{[clinic]:role}});
     }
     await setDoc(doc(db,'clinics/a/prescriptions/shared'),{shared_with_patient:true,patient_user_id:'patient'});
     await setDoc(doc(db,'clinics/a/clinical_notes/shared'),{body:'Private clinician note',patient_id:'patient',author_id:'doctor'});
   });
+});
+test('letterheads are clinic readable but only administrators can configure them',async()=>{
+  const settings={layout:'classic',clinician_name:'Demo',qualifications:'',registration:'',footer_note:'',show_diagnoses:true,show_vitals:true,show_phone:true,font_size:12,margin_mm:18};
+  await assertSucceeds(setDoc(doc(db('admin'),'clinics/a/settings/prescription_print'),settings));
+  await assertSucceeds(getDoc(doc(db('doctor'),'clinics/a/settings/prescription_print')));
+  for(const uid of ['doctor','staff','patient','outsider']) await assertFails(setDoc(doc(db(uid),'clinics/a/settings/prescription_print'),settings));
+  for(const uid of ['staff','patient','outsider']) await assertFails(getDoc(doc(db(uid),'clinics/a/settings/prescription_print')));
+  await assertFails(setDoc(doc(db('admin'),'clinics/a/settings/prescription_print'),{...settings,patient_id:'sensitive'}));
+  await assertFails(setDoc(doc(db('admin'),'clinics/a/settings/prescription_print'),{...settings,font_size:0}));
+});
+test('sitting logs require atomic progress, protect private notes and forbid rewrites',async()=>{
+  const planPath='clinics/a/treatment_plans/log-review';
+  const sitting={name:'Demo sitting',scheduled_at:Timestamp.now(),completed:false,notes:''};
+  const plan={name:'Demo',patient_id:'demo',patient_name:'Demo',sittings:[sitting],status:'active',notes:''};
+  await assertSucceeds(setDoc(doc(db('doctor'),planPath),plan));
+  const entry={sitting_index:0,work_done:'Synthetic review',notes:'Private demo notes',performed_at:Timestamp.now(),author_id:'doctor',recorded_at:serverTimestamp()};
+  await assertFails(setDoc(doc(db('doctor'),`${planPath}/sitting_logs/0`),entry));
+  const writer=db('doctor');
+  const batch=writeBatch(writer);batch.update(doc(writer,planPath),{sittings:[{...sitting,completed:true}]});batch.set(doc(writer,`${planPath}/sitting_logs/0`),entry);
+  await assertSucceeds(batch.commit());
+  await assertSucceeds(getDoc(doc(db('doctor'),`${planPath}/sitting_logs/0`)));
+  for(const uid of ['staff','patient','outsider','nurse'])await assertFails(getDoc(doc(db(uid),`${planPath}/sitting_logs/0`)));
+  await assertFails(updateDoc(doc(db('doctor'),`${planPath}/sitting_logs/0`),{notes:'Changed'}));
+  await assertFails(setDoc(doc(db('doctor'),`${planPath}/sitting_logs/1`),{...entry,sitting_index:1,author_id:'someone-else'}));
 });
 after(async()=>{await env?.cleanup();});
 const db = uid => env.authenticatedContext(uid).firestore();

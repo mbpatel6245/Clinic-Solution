@@ -82,6 +82,8 @@ class TreatmentSitting {
   );
 }
 
+enum TreatmentPlanStatus { active, completed, cancelled }
+
 class TreatmentPlan {
   const TreatmentPlan({
     this.id = '',
@@ -90,9 +92,11 @@ class TreatmentPlan {
     required this.name,
     required this.sittings,
     this.notes = '',
+    this.status = TreatmentPlanStatus.active,
   });
   final String id, patientId, patientName, name, notes;
   final List<TreatmentSitting> sittings;
+  final TreatmentPlanStatus status;
   double get progress => sittings.isEmpty
       ? 0
       : sittings.where((s) => s.completed).length / sittings.length;
@@ -103,6 +107,11 @@ class TreatmentPlan {
         patientName: '${data['patient_name'] ?? ''}',
         name: '${data['name'] ?? ''}',
         notes: '${data['notes'] ?? ''}',
+        status:
+            TreatmentPlanStatus.values
+                .where((v) => v.name == data['status'])
+                .firstOrNull ??
+            TreatmentPlanStatus.active,
         sittings: (data['sittings'] as Iterable? ?? [])
             .whereType<Map>()
             .map((e) => TreatmentSitting.fromMap(Map<String, dynamic>.from(e)))
@@ -113,6 +122,7 @@ class TreatmentPlan {
     'patient_name': patientName,
     'name': name.trim(),
     'notes': notes.trim(),
+    'status': status.name,
     'sittings': sittings.map((e) => e.toMap()).toList(),
     'updated_at': FieldValue.serverTimestamp(),
   };
@@ -123,7 +133,31 @@ class TreatmentPlan {
     name: name,
     sittings: value,
     notes: notes,
+    status: status,
   );
+}
+
+class TreatmentSittingLog {
+  const TreatmentSittingLog({
+    required this.id,
+    required this.sittingIndex,
+    required this.workDone,
+    this.notes = '',
+    required this.performedAt,
+    required this.authorId,
+  });
+  final String id, workDone, notes, authorId;
+  final int sittingIndex;
+  final DateTime performedAt;
+  factory TreatmentSittingLog.fromMap(Map<String, dynamic> data, String id) =>
+      TreatmentSittingLog(
+        id: id,
+        sittingIndex: (data['sitting_index'] as num?)?.toInt() ?? 0,
+        workDone: '${data['work_done'] ?? ''}',
+        notes: '${data['notes'] ?? ''}',
+        performedAt: workflowDate(data['performed_at']) ?? DateTime(1970),
+        authorId: '${data['author_id'] ?? ''}',
+      );
 }
 
 class LabObservation {

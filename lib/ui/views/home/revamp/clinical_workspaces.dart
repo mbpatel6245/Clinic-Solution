@@ -10,6 +10,7 @@ import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
 import 'lab_trend_chart.dart';
+import 'treatment_plan_card.dart';
 
 class TemplateLibraryScreen extends StatelessWidget {
   const TemplateLibraryScreen({super.key, required this.onUse});
@@ -43,7 +44,6 @@ class TreatmentPlansScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = RevampLabels.of(context);
-    final s = AppLocalizations.of(context)!;
     final service = context.read<FirebaseFireStore>();
     return WorkflowList<TreatmentPlan>(
       title: l.text('plans'),
@@ -55,42 +55,8 @@ class TreatmentPlansScreen extends StatelessWidget {
         builder: (_) => const TreatmentPlanForm(),
       ),
       actionLabel: l.text('newPlan'),
-      itemBuilder: (plan) => AppSection(
-        title: plan.name,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(plan.patientName),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(value: plan.progress),
-            for (final (i, sitting) in plan.sittings.indexed)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(sitting.name),
-                subtitle: Text(
-                  DateFormat.yMMMd(
-                    Localizations.localeOf(context).toString(),
-                  ).format(sitting.scheduledAt),
-                ),
-                value: sitting.completed,
-                onChanged: (value) async {
-                  final entries = [...plan.sittings];
-                  entries[i] = sitting.withCompleted(value ?? false);
-                  try {
-                    await service.saveTreatmentPlan(plan.withSittings(entries));
-                  } catch (_) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l.text('saveError'))),
-                      );
-                    }
-                  }
-                },
-              ),
-            if (plan.notes.isNotEmpty) Text('${s.description}: ${plan.notes}'),
-          ],
-        ),
-      ),
+      itemBuilder: (plan) =>
+          TreatmentPlanCard(key: ValueKey(plan.id), plan: plan),
     );
   }
 }

@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../../../data/datasources/clinical_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
+import '../../../../core/design/revamp_labels.dart';
+import '../revamp/prescription_preview.dart';
 
 class TabPrescriptionList extends StatefulWidget {
   const TabPrescriptionList({
@@ -202,6 +204,12 @@ class _PrescriptionCard extends StatelessWidget {
                   onSelected: (action) => _handleAction(context, action),
                   itemBuilder: (context) => [
                     PopupMenuItem(
+                      value: 'print',
+                      child: Text(
+                        RevampLabels.of(context).text('printPreview'),
+                      ),
+                    ),
+                    PopupMenuItem(
                       value: 'details',
                       child: Text(strings.viewDetails),
                     ),
@@ -249,6 +257,10 @@ class _PrescriptionCard extends StatelessWidget {
   }
 
   Future<void> _handleAction(BuildContext context, String action) async {
+    if (action == 'print') {
+      await showPrescriptionPreview(context, record);
+      return;
+    }
     final service = context.read<FirebaseFireStore>();
     if (action == 'details') {
       await showDialog<void>(

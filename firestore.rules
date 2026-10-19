@@ -390,6 +390,20 @@ service cloud.firestore {
           request.resource.data.medicines is list && request.resource.data.medicines.size() <= 50;
         allow delete: if isClinicAdmin(clinicId);
       }
+      match /settings/prescription_print {
+        allow read: if moduleAvailable('clinical') && (isClinicAdmin(clinicId) || isClinical(clinicId) || isPharmacy(clinicId));
+        allow create, update: if moduleAvailable('clinical') && isClinicAdmin(clinicId) &&
+          request.resource.data.keys().hasOnly(['layout','clinician_name','qualifications','registration','footer_note','show_diagnoses','show_vitals','show_phone','font_size','margin_mm']) &&
+          request.resource.data.layout in ['classic','minimal','bordered'] &&
+          request.resource.data.clinician_name is string && request.resource.data.clinician_name.size() <= 160 &&
+          request.resource.data.qualifications is string && request.resource.data.qualifications.size() <= 160 &&
+          request.resource.data.registration is string && request.resource.data.registration.size() <= 160 &&
+          request.resource.data.footer_note is string && request.resource.data.footer_note.size() <= 400 &&
+          request.resource.data.show_diagnoses is bool && request.resource.data.show_vitals is bool && request.resource.data.show_phone is bool &&
+          request.resource.data.font_size is number && request.resource.data.font_size >= 11 && request.resource.data.font_size <= 14 &&
+          request.resource.data.margin_mm is number && request.resource.data.margin_mm >= 12 && request.resource.data.margin_mm <= 25;
+        allow delete: if false;
+      }
       match /clinical_notes/{prescriptionId} {
         allow read: if moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician']));
         allow create, update: if moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician'])) &&
@@ -404,8 +418,25 @@ service cloud.firestore {
           (isClinicAdmin(clinicId) || hasClinicRole(clinicId, ['doctor', 'Doctor', 'physician'])) &&
           request.resource.data.patient_id is string && request.resource.data.patient_id.size() > 0 &&
           request.resource.data.name is string && request.resource.data.name.size() > 0 &&
-          request.resource.data.sittings is list && request.resource.data.sittings.size() <= 100;
+          request.resource.data.sittings is list && request.resource.data.sittings.size() <= 100 &&
+          request.resource.data.get('status','active') in ['active','completed','cancelled'];
         allow delete: if isClinicAdmin(clinicId);
+        match /sitting_logs/{logId} {
+          function canTreat() { return moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician'])); }
+          allow read: if canTreat();
+          allow create: if canTreat() &&
+            request.resource.data.keys().hasOnly(['sitting_index','work_done','notes','performed_at','author_id','recorded_at']) &&
+            request.resource.data.sitting_index is int && request.resource.data.sitting_index >= 0 && request.resource.data.sitting_index < 100 &&
+            logId == string(request.resource.data.sitting_index) &&
+            request.resource.data.work_done is string && request.resource.data.work_done.size() > 0 && request.resource.data.work_done.size() <= 4000 &&
+            request.resource.data.notes is string && request.resource.data.notes.size() <= 10000 &&
+            request.resource.data.performed_at is timestamp && request.resource.data.recorded_at == request.time &&
+            request.resource.data.author_id == request.auth.uid &&
+            get(/databases/$(database)/documents/clinics/$(clinicId)/treatment_plans/$(planId)).data.get('status','active') == 'active' &&
+            get(/databases/$(database)/documents/clinics/$(clinicId)/treatment_plans/$(planId)).data.sittings[request.resource.data.sitting_index].completed == false &&
+            getAfter(/databases/$(database)/documents/clinics/$(clinicId)/treatment_plans/$(planId)).data.sittings[request.resource.data.sitting_index].completed == true;
+          allow update, delete: if false;
+        }
       }
       match /staff_messages/{messageId} {
         function staffMember() { return isClinicAdmin(clinicId) || hasClinicRole(clinicId,

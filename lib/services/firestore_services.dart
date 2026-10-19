@@ -12,6 +12,7 @@ import '../data/datasources/clinical_models.dart';
 import '../data/datasources/enterprise_models.dart';
 import '../data/datasources/user_model.dart';
 import '../data/datasources/workflow_models.dart';
+import '../data/datasources/prescription_print_settings.dart';
 import 'auth_services.dart';
 
 class FirebaseFireStore with ChangeNotifier {
@@ -317,6 +318,92 @@ class FirebaseFireStore with ChangeNotifier {
             : _collection('treatment_plans').doc(value.id))
         .set(value.toMap()),
   );
+
+  Future<PrescriptionPrintSettings> getPrescriptionPrintSettings() async =>
+      PrescriptionPrintSettings.fromMap(
+        (await _collection(
+              'settings',
+            ).doc('prescription_print').get()).data() ??
+            {},
+      );
+
+  Future<void> savePrescriptionPrintSettings(PrescriptionPrintSettings value) =>
+      _collection('settings').doc('prescription_print').set(value.toMap());
+
+  Stream<List<TreatmentSittingLog>> streamTreatmentSittingLogs(String planId) =>
+      _collection('treatment_plans')
+          .doc(planId)
+          .collection('sitting_logs')
+          .orderBy('performed_at')
+          .snapshots()
+          .map(
+            (s) => s.docs
+                .map((d) => TreatmentSittingLog.fromMap(d.data(), d.id))
+                .toList(),
+          );
+
+  /// Re-reads the current plan inside a transaction. Simultaneous completion
+  /// of different sittings cannot overwrite each other's progress or notes.
+  Future<void> logTreatmentSitting({
+    required String planId,
+    required int sittingIndex,
+    required String workDone,
+    required String notes,
+    required DateTime performedAt,
+  }) async {
+    final uid = _authService.currentUser?.uid;
+    if (uid == null ||
+        workDone.trim().isEmpty ||
+        workDone.length > 4000 ||
+        notes.length > 10000) {
+      throw ArgumentError('Invalid sitting log.');
+    }
+    final planRef = _collection('treatment_plans').doc(planId);
+    final logRef = planRef.collection('sitting_logs').doc('$sittingIndex');
+    await _db.runTransaction((tx) async {
+      final snapshot = await tx.get(planRef), existing = await tx.get(logRef);
+      if (!snapshot.exists || existing.exists) {
+        throw StateError('Sitting was already logged or plan is unavailable.');
+      }
+      final plan = TreatmentPlan.fromMap(snapshot.data()!, snapshot.id);
+      if (plan.status != TreatmentPlanStatus.active ||
+          sittingIndex < 0 ||
+          sittingIndex >= plan.sittings.length ||
+          plan.sittings[sittingIndex].completed) {
+        throw StateError('Sitting is unavailable.');
+      }
+      final sittings = [...plan.sittings];
+      sittings[sittingIndex] = sittings[sittingIndex].withCompleted(true);
+      tx.update(planRef, {
+        'sittings': sittings.map((s) => s.toMap()).toList(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      tx.set(logRef, {
+        'sitting_index': sittingIndex,
+        'work_done': workDone.trim(),
+        'notes': notes.trim(),
+        'performed_at': Timestamp.fromDate(performedAt),
+        'author_id': uid,
+        'recorded_at': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> changeTreatmentPlanStatus(
+    String planId,
+    TreatmentPlanStatus status,
+  ) async {
+    final ref = _collection('treatment_plans').doc(planId);
+    await _db.runTransaction((tx) async {
+      final snapshot = await tx.get(ref);
+      if (!snapshot.exists) throw StateError('Plan unavailable.');
+      tx.update(ref, {
+        'status': status.name,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   Stream<List<LabObservation>> streamLabObservations() =>
       _collection('laboratory')
           .where('record_type', isEqualTo: 'observation')

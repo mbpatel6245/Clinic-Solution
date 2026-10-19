@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 class AuthService {
   AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
   final FirebaseAuth _auth;
+  User? get currentUser => _auth.currentUser;
 
   // Firebase owns authentication email delivery and its localized templates.
   Future<void> sendPasswordResetEmail(

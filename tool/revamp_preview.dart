@@ -9,6 +9,8 @@ import 'package:clinic_solution/ui/views/home/revamp/practice_dashboard.dart';
 import 'package:clinic_solution/ui/views/home/revamp/queue_workspace.dart';
 import 'package:clinic_solution/ui/views/home/revamp/workspace_navigation.dart';
 import 'package:flutter/material.dart';
+import 'package:clinic_solution/data/datasources/enterprise_models.dart';
+import 'package:clinic_solution/ui/views/home/revamp/prescription_preview.dart';
 
 void main() => runApp(const RevampPreview());
 
@@ -82,6 +84,34 @@ class _RevampPreviewState extends State<RevampPreview> {
             appBar: AppBar(
               title: const Text('orByteza · Demo Clinic'),
               actions: [
+                IconButton(
+                  tooltip: 'Prescription PDF (demo)',
+                  icon: const Icon(Icons.print_outlined),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PrescriptionPreviewView(
+                        clinic: const ClinicProfile(
+                          id: 'demo',
+                          name: 'DEMO ONLY Clinic',
+                          address: 'Synthetic document for layout review',
+                        ),
+                        record: PrescriptionModel(
+                          patient: _patients.first,
+                          visitDate: _today,
+                          complaints: 'DEMO ONLY. No clinical treatment.',
+                          medicines: const [
+                            MedicineLine(
+                              name: 'DEMO ONLY - Not a medicine',
+                              instructions:
+                                  'केवल डेमो। માત્ર ડેમો. Synthetic text only.',
+                            ),
+                          ],
+                          advice: 'DEMO ONLY - Not valid for clinical use.',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 DropdownButton<String>(
                   value: _language,
                   items: const [

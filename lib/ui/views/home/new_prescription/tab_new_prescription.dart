@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../revamp/prescription_preview.dart';
 
 import '../../../../data/datasources/clinical_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
@@ -272,7 +273,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
     });
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool preview = false}) async {
     if (_saving) return;
     final strings = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
@@ -322,34 +323,33 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
                 ?.allergies ??
             const [],
       );
+      final record = PrescriptionModel(
+        id: _draftPrescriptionId!,
+        createdAt: widget.initialPrescription?.createdAt,
+        status: widget.initialPrescription?.status ?? 'pending',
+        appointmentId:
+            widget.initialPrescription?.appointmentId ??
+            widget.queueAppointmentId,
+        patient: patient,
+        diagnoses: _diagnosis.text
+            .split(',')
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .toList(),
+        complaints: _complaints.text,
+        vitals: _vitals.text,
+        investigation: _investigation.text,
+        advice: _advice.text,
+        medicines: _medicines.map((item) => item.toModel()).toList(),
+        sharedWithPatient:
+            context.read<SessionController>().sharePrescriptionsWithPatients &&
+            _shareWithPatient,
+        patientUserId: patient.userId,
+        visitDate: _visitDate,
+        followUpDate: _followUpDate,
+      );
       await service.savePrescription(
-        PrescriptionModel(
-          id: _draftPrescriptionId!,
-          createdAt: widget.initialPrescription?.createdAt,
-          status: widget.initialPrescription?.status ?? 'pending',
-          appointmentId:
-              widget.initialPrescription?.appointmentId ??
-              widget.queueAppointmentId,
-          patient: patient,
-          diagnoses: _diagnosis.text
-              .split(',')
-              .map((value) => value.trim())
-              .where((value) => value.isNotEmpty)
-              .toList(),
-          complaints: _complaints.text,
-          vitals: _vitals.text,
-          investigation: _investigation.text,
-          advice: _advice.text,
-          medicines: _medicines.map((item) => item.toModel()).toList(),
-          sharedWithPatient:
-              context
-                  .read<SessionController>()
-                  .sharePrescriptionsWithPatients &&
-              _shareWithPatient,
-          patientUserId: patient.userId,
-          visitDate: _visitDate,
-          followUpDate: _followUpDate,
-        ),
+        record,
         privateNotes: _notesLoaded ? _privateNotes.text : null,
         completeQueueVisit:
             widget.initialPrescription == null &&
@@ -360,6 +360,10 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
         context,
       ).showSnackBar(SnackBar(content: Text(strings.prescriptionSaved)));
       _clearForm();
+      if (preview) {
+        await showPrescriptionPreview(context, record);
+        if (!mounted) return;
+      }
       widget.onSaved?.call();
     } catch (error) {
       if (!mounted) return;
@@ -641,15 +645,32 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
                     ),
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
-                    child: FilledButton.icon(
-                      onPressed: _saving ? null : _save,
-                      icon: _saving
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: Text(strings.savePrescription),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _saving
+                              ? null
+                              : () => _save(preview: true),
+                          icon: const Icon(Icons.print_outlined),
+                          label: Text(
+                            RevampLabels.of(context).text('savePreview'),
+                          ),
+                        ),
+                        FilledButton.icon(
+                          onPressed: _saving ? null : _save,
+                          icon: _saving
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.save_outlined),
+                          label: Text(strings.savePrescription),
+                        ),
+                      ],
                     ),
                   ),
                 ],
