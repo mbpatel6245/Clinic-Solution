@@ -10,13 +10,21 @@ import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
 import 'patient_workspace.dart';
+import 'patient_entry_dialog.dart';
+import '../../../../data/datasources/patient_intake.dart';
 
-Future<void> showPatientRegistration(BuildContext context) =>
-    showDialog<void>(context: context, builder: (_) => const _PatientForm());
+Future<PatientEntryResult?> showPatientRegistration(
+  BuildContext context, {
+  PatientEntryMode mode = PatientEntryMode.registration,
+}) => showPatientEntry(context, mode: mode);
 
 class PatientRegistry extends StatefulWidget {
-  const PatientRegistry({super.key, this.onNewVisit, this.onOpenPatient});
-  final ValueChanged<PatientModel>? onNewVisit;
+  const PatientRegistry({
+    super.key,
+    required this.onEntryResult,
+    this.onOpenPatient,
+  });
+  final ValueChanged<PatientEntryResult> onEntryResult;
   final ValueChanged<PatientModel>? onOpenPatient;
   @override
   State<PatientRegistry> createState() => _PatientRegistryState();
@@ -118,7 +126,8 @@ class _PatientRegistryState extends State<PatientRegistry> {
   }
 
   Future<void> _addPatient(BuildContext context) async {
-    await showPatientRegistration(context);
+    final result = await showPatientRegistration(context);
+    if (result != null && mounted) widget.onEntryResult(result);
   }
 
   Future<void> _showPatient(BuildContext context, PatientModel patient) async {
@@ -259,243 +268,5 @@ class PatientDirectoryList extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-class _PatientForm extends StatefulWidget {
-  const _PatientForm();
-  @override
-  State<_PatientForm> createState() => _PatientFormState();
-}
-
-class _PatientFormState extends State<_PatientForm> {
-  final _form = GlobalKey<FormState>();
-  final _name = TextEditingController(),
-      _last = TextEditingController(),
-      _phone = TextEditingController(),
-      _age = TextEditingController(),
-      _address = TextEditingController(),
-      _email = TextEditingController(),
-      _abha = TextEditingController(),
-      _allergies = TextEditingController();
-  String _ageUnit = 'years', _gender = '';
-  DateTime? _birth;
-  bool _consent = false;
-  bool _saving = false, _failed = false;
-  @override
-  void dispose() {
-    for (final c in [
-      _name,
-      _last,
-      _phone,
-      _age,
-      _address,
-      _email,
-      _abha,
-      _allergies,
-    ]) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppLocalizations.of(context)!;
-    final l = RevampLabels.of(context);
-    return AlertDialog(
-      title: Text(l.text('addPatient')),
-      content: SizedBox(
-        width: 480,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _name,
-                  decoration: InputDecoration(labelText: s.firstName),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? s.requiredField : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _last,
-                  decoration: InputDecoration(labelText: s.lastName),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _phone,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(labelText: s.phone),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _age,
-                  enabled: _birth == null,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: s.age),
-                  validator: (v) =>
-                      v == null ||
-                          v.trim().isEmpty ||
-                          ((int.tryParse(v) ?? -1) >= 0 &&
-                              (int.tryParse(v) ?? 60001) <=
-                                  switch (_ageUnit) {
-                                    'years' => 150,
-                                    'months' => 1800,
-                                    'weeks' => 8000,
-                                    _ => 60000,
-                                  })
-                      ? null
-                      : s.invalidNumber,
-                ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final unit in ['years', 'months', 'weeks', 'days'])
-                      ChoiceChip(
-                        label: Text(l.text(unit)),
-                        selected: _ageUnit == unit,
-                        onSelected: (_) => setState(() => _ageUnit = unit),
-                      ),
-                  ],
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.cake_outlined),
-                  label: Text(
-                    '${l.text('dob')}${_birth == null ? '' : ': ${DateFormat.yMMMd(Localizations.localeOf(context).toString()).format(_birth!)}'}',
-                  ),
-                  onPressed: () async {
-                    final value = await showDatePicker(
-                      context: context,
-                      initialDate: _birth ?? DateTime.now(),
-                      firstDate: DateTime(1870),
-                      lastDate: DateTime.now(),
-                    );
-                    if (value != null) setState(() => _birth = value);
-                  },
-                ),
-                if (_birth != null)
-                  TextButton(
-                    onPressed: () => setState(() => _birth = null),
-                    child: Text(s.clearFilters),
-                  ),
-                DropdownButtonFormField<String>(
-                  decoration: InputDecoration(labelText: s.gender),
-                  items: [
-                    DropdownMenuItem(value: 'male', child: Text(s.male)),
-                    DropdownMenuItem(value: 'female', child: Text(s.female)),
-                    DropdownMenuItem(value: 'other', child: Text(s.other)),
-                  ],
-                  onChanged: (v) => _gender = v ?? '',
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(labelText: s.email),
-                  validator: (v) =>
-                      v == null ||
-                          v.trim().isEmpty ||
-                          RegExp(
-                            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-                          ).hasMatch(v.trim())
-                      ? null
-                      : s.validEmail,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _abha,
-                  decoration: const InputDecoration(labelText: 'ABHA ID'),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _allergies,
-                  decoration: InputDecoration(labelText: l.text('allergies')),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l.text('consent')),
-                  value: _consent,
-                  onChanged: (v) => setState(() => _consent = v ?? false),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _address,
-                  decoration: InputDecoration(labelText: s.address),
-                  maxLines: 2,
-                ),
-                if (_failed)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: Text(
-                      l.text('saveError'),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.pop(context),
-          child: Text(s.cancel),
-        ),
-        FilledButton(
-          onPressed: _saving ? null : _save,
-          child: _saving
-              ? const SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(),
-                )
-              : Text(s.save),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
-    setState(() {
-      _saving = true;
-      _failed = false;
-    });
-    try {
-      await context.read<FirebaseFireStore>().savePatientProfile(
-        PatientModel(
-          firstName: _name.text,
-          lastName: _last.text,
-          phone: _phone.text,
-          age: int.tryParse(_age.text.trim()),
-          ageUnit: _ageUnit,
-          dateOfBirth: _birth,
-          gender: _gender,
-          email: _email.text.trim(),
-          abhaId: _abha.text,
-          allergies: _allergies.text
-              .split(',')
-              .map((e) => e.trim())
-              .where((e) => e.isNotEmpty)
-              .toList(),
-          notificationConsent: _consent,
-          address: _address.text,
-          locale: Localizations.localeOf(context).languageCode,
-        ),
-      );
-      if (mounted) Navigator.pop(context);
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-          _failed = true;
-        });
-      }
-    }
   }
 }

@@ -18,6 +18,9 @@ import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
 import 'notification_templates_screen.dart';
 import '../revamp/queue_workspace.dart';
+import '../revamp/patient_registry.dart';
+import '../revamp/patient_workspace.dart';
+import '../../../../data/datasources/patient_intake.dart';
 
 String _money(BuildContext context, double value) =>
     NumberFormat.simpleCurrency(name: 'INR').format(value);
@@ -1291,20 +1294,20 @@ IconData _moduleIcon(ClinicModule module) => switch (module) {
 };
 
 class ReceptionScreen extends StatelessWidget {
-  const ReceptionScreen({super.key, this.onStartPrescription});
+  const ReceptionScreen({
+    super.key,
+    this.onStartPrescription,
+    this.onPatientEntry,
+  });
+  final ValueChanged<PatientEntryResult>? onPatientEntry;
 
   final void Function(PatientModel, AppointmentModel)? onStartPrescription;
 
   @override
   Widget build(BuildContext context) {
-    final roles = context.watch<SessionController>().roles;
-    final canRegister = roles.any(
-      (role) =>
-          role == AppRole.platformOwner ||
-          role == AppRole.clinicAdmin ||
-          role == AppRole.branchManager ||
-          role == AppRole.receptionist,
-    );
+    final session = context.watch<SessionController>();
+    final canRegister =
+        session.can(AppFeature.patients) && session.can(AppFeature.reception);
     return StreamBuilder<List<AppointmentModel>>(
       stream: context.read<FirebaseFireStore>().streamAppointments(),
       builder: (context, snapshot) => QueueWorkspace(
@@ -1340,124 +1343,19 @@ class ReceptionScreen extends StatelessWidget {
   }
 
   Future<void> _registerWalkIn(BuildContext context) async {
-    final billingEnabled = context.read<SessionController>().can(
-      AppFeature.billing,
+    final result = await showPatientRegistration(
+      context,
+      mode: PatientEntryMode.walkIn,
     );
-    final firstName = TextEditingController();
-    final middleName = TextEditingController();
-    final lastName = TextEditingController();
-    final phone = TextEditingController();
-    final notificationEmail = TextEditingController();
-    var notificationConsent = false;
-    final address = TextEditingController();
-    final age = TextEditingController();
-    final reason = TextEditingController();
-    final doctorFee = TextEditingController();
-    final clinicFee = TextEditingController();
-    final amountPaid = TextEditingController();
-    String gender = '';
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Register reception patient'),
-          content: SizedBox(
-            width: 620,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _field(firstName, 'First name'),
-                  _field(middleName, 'Middle name'),
-                  _field(lastName, 'Last name'),
-                  _field(phone, 'Phone (optional)'),
-                  _field(
-                    notificationEmail,
-                    'Email for clinic updates (optional)',
-                  ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Patient agrees to SMS and email updates about appointments and billing',
-                    ),
-                    value: notificationConsent,
-                    onChanged: (value) =>
-                        setState(() => notificationConsent = value ?? false),
-                  ),
-                  _field(address, 'Address'),
-                  _field(age, 'Age', number: true),
-                  DropdownButtonFormField<String>(
-                    initialValue: gender.isEmpty ? null : gender,
-                    decoration: const InputDecoration(labelText: 'Gender'),
-                    items: const [
-                      DropdownMenuItem(value: 'male', child: Text('Male')),
-                      DropdownMenuItem(value: 'female', child: Text('Female')),
-                      DropdownMenuItem(value: 'other', child: Text('Other')),
-                    ],
-                    onChanged: (value) => setState(() => gender = value ?? ''),
-                  ),
-                  _field(reason, 'Visit reason'),
-                  if (billingEnabled) ...[
-                    _field(doctorFee, 'Doctor fee', number: true),
-                    _field(clinicFee, 'Clinic / case fee', number: true),
-                    _field(amountPaid, 'Amount paid', number: true),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Add to queue'),
-            ),
-          ],
+    if (result == null || !context.mounted) return;
+    if (onPatientEntry != null) {
+      onPatientEntry!(result);
+    } else if (result.action == PatientEntryAction.openRecord) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => PatientWorkspace(patient: result.patient),
         ),
-      ),
-    );
-    if (saved != true || !context.mounted) return;
-    if (firstName.text.trim().isEmpty) {
-      _notice(context, 'First name is required.');
-      return;
-    }
-    final patient = PatientModel(
-      firstName: firstName.text,
-      middleName: middleName.text,
-      lastName: lastName.text,
-      phone: phone.text,
-      address: address.text,
-      email: notificationEmail.text,
-      notificationConsent: notificationConsent,
-      locale: Localizations.localeOf(context).languageCode,
-      age: int.tryParse(age.text),
-      gender: gender,
-    );
-    final savedPatient = await context
-        .read<FirebaseFireStore>()
-        .saveReceptionVisit(
-          patient,
-          AppointmentModel(
-            patientName: patient.fullName,
-            phone: patient.phone,
-            email: patient.email ?? '',
-            notificationConsent: notificationConsent,
-            locale: patient.locale ?? 'en',
-            scheduledAt: DateTime.now(),
-            patient: patient,
-            reason: reason.text,
-            status: 'confirmed',
-            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
-            doctorFee: double.tryParse(doctorFee.text) ?? 0,
-            clinicFee: double.tryParse(clinicFee.text) ?? 0,
-            amountPaid: double.tryParse(amountPaid.text) ?? 0,
-          ),
-        );
-    if (context.mounted) {
-      _notice(context, '${savedPatient.fullName} added to today’s queue.');
+      );
     }
   }
 }

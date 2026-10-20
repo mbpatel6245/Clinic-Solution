@@ -3,16 +3,23 @@ import 'package:flutter/material.dart';
 import '../../core/design/app_theme.dart';
 
 class AppPage extends StatelessWidget {
-  const AppPage({super.key, required this.child, this.maxWidth = 1440});
+  const AppPage({
+    super.key,
+    required this.child,
+    this.maxWidth = 1440,
+    this.controller,
+  });
 
   final Widget child;
   final double maxWidth;
+  final ScrollController? controller;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) => SafeArea(
       top: false,
       child: SingleChildScrollView(
+        controller: controller,
         padding:
             AppBreakpoints.pagePadding(constraints.maxWidth) +
             const EdgeInsets.only(bottom: 96),

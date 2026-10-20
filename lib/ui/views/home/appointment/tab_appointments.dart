@@ -8,6 +8,7 @@ import '../../../../data/datasources/clinical_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
 import '../../../../core/constants/locale_key.dart';
+import '../revamp/appointment_booking.dart';
 
 class PatientAppointmentScreen extends StatefulWidget {
   const PatientAppointmentScreen({super.key});
@@ -83,9 +84,20 @@ class _PatientAppointmentScreenState extends State<PatientAppointmentScreen> {
 }
 
 class TabAppointments extends StatefulWidget {
-  const TabAppointments({super.key, this.patientOnly = false});
+  const TabAppointments({
+    super.key,
+    this.patientOnly = false,
+    this.showList = false,
+    this.onOpenPatient,
+    this.onManageSchedule,
+    this.initialPatient,
+  });
 
   final bool patientOnly;
+  final bool showList;
+  final ValueChanged<PatientModel>? onOpenPatient;
+  final VoidCallback? onManageSchedule;
+  final PatientModel? initialPatient;
 
   @override
   State<TabAppointments> createState() => _TabAppointmentsState();
@@ -111,6 +123,21 @@ class _TabAppointmentsState extends State<TabAppointments> {
   @override
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context)!;
+    if (!widget.patientOnly && !widget.showList) {
+      return AppointmentBooking(
+        initialPatient: widget.initialPatient,
+        onOpenPatient: widget.onOpenPatient,
+        onManageSchedule: widget.onManageSchedule,
+        onViewAppointments: () => Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (_) => Scaffold(
+              appBar: AppBar(title: Text(strings.appointments)),
+              body: const TabAppointments(showList: true),
+            ),
+          ),
+        ),
+      );
+    }
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -128,7 +155,9 @@ class _TabAppointmentsState extends State<TabAppointments> {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 FilledButton.icon(
-                  onPressed: _openBooking,
+                  onPressed: widget.patientOnly
+                      ? _openBooking
+                      : () => Navigator.maybePop(context),
                   icon: const Icon(Icons.add),
                   label: Text(strings.bookAppointment),
                 ),
@@ -196,7 +225,7 @@ class _TabAppointmentsState extends State<TabAppointments> {
                   }
                   return ListView.separated(
                     itemCount: appointments.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) => _AppointmentCard(
                       appointment: appointments[index],
                       patientOnly: widget.patientOnly,

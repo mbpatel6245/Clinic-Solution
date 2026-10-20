@@ -20,6 +20,133 @@ class RevampLabels {
   }
 
   static const _copy = <String, List<String>>{
+    'entryHint': [
+      'Register a new patient, or find someone already registered.',
+      'नया मरीज़ दर्ज करें या पहले से पंजीकृत मरीज़ खोजें।',
+      'નવા દર્દીની નોંધણી કરો અથવા નોંધાયેલ દર્દીને શોધો.',
+    ],
+    'newPatient': ['New patient', 'नया मरीज़', 'નવા દર્દી'],
+    'existingPatient': ['Existing patient', 'पंजीकृत मरीज़', 'નોંધાયેલ દર્દી'],
+    'countryCode': ['Code', 'कोड', 'કોડ'],
+    'invalidPhone': [
+      'Enter a valid phone number.',
+      'सही फ़ोन नंबर दर्ज करें।',
+      'માન્ય ફોન નંબર દાખલ કરો.',
+    ],
+    'abhaHint': [
+      '14-digit ABHA number (optional)',
+      '14 अंकों का ABHA नंबर (वैकल्पिक)',
+      '14 અંકનો ABHA નંબર (વૈકલ્પિક)',
+    ],
+    'invalidAbha': [
+      'ABHA number must contain 14 digits.',
+      'ABHA नंबर में 14 अंक होने चाहिए।',
+      'ABHA નંબરમાં 14 અંક હોવા જોઈએ.',
+    ],
+    'selectDate': ['Select date', 'तारीख चुनें', 'તારીખ પસંદ કરો'],
+    'noneKnown': ['None known', 'कोई ज्ञात नहीं', 'કોઈ જાણીતું નથી'],
+    'otherAllergy': ['Other allergy', 'अन्य एलर्जी', 'અન્ય એલર્જી'],
+    'searchPatients': [
+      'Search by patient name or phone',
+      'मरीज़ का नाम या फ़ोन खोजें',
+      'દર્દીના નામ અથવા ફોનથી શોધો',
+    ],
+    'typeToSearch': [
+      'Type at least 2 characters to search.',
+      'खोजने के लिए कम से कम 2 अक्षर लिखें।',
+      'શોધવા માટે ઓછામાં ઓછા 2 અક્ષર લખો.',
+    ],
+    'noPatientMatches': [
+      'No matching patients. Use New patient to register.',
+      'कोई मरीज़ नहीं मिला। नया मरीज़ टैब से पंजीकरण करें।',
+      'કોઈ દર્દી મળ્યા નથી. નવા દર્દી ટૅબથી નોંધણી કરો.',
+    ],
+    'openRecord': ['Open record', 'रिकॉर्ड खोलें', 'રેકોર્ડ ખોલો'],
+    'addToQueue': ['Add to queue', 'कतार में जोड़ें', 'કતારમાં ઉમેરો'],
+    'saveAndQueue': [
+      'Save & add to queue',
+      'सहेजें और कतार में जोड़ें',
+      'સાચવો અને કતારમાં ઉમેરો',
+    ],
+    'savePatient': ['Save patient', 'मरीज़ सहेजें', 'દર્દી સાચવો'],
+    'addPatientAndBook': [
+      'Add patient & book',
+      'मरीज़ जोड़ें और बुक करें',
+      'દર્દી ઉમેરો અને બુક કરો',
+    ],
+    'sendBookingConfirmation': [
+      'Send booking confirmation',
+      'बुकिंग की पुष्टि भेजें',
+      'બુકિંગની પુષ્ટિ મોકલો',
+    ],
+    'confirmationConsentHint': [
+      'Only for patients who agreed to clinic updates.',
+      'केवल क्लिनिक सूचनाओं की सहमति वाले मरीज़ों के लिए।',
+      'માત્ર ક્લિનિકની સૂચનાઓ માટે સંમત દર્દીઓ માટે.',
+    ],
+    'consentRequired': [
+      'This patient has not agreed to updates. Turn off confirmation to continue.',
+      'इस मरीज़ ने सूचनाओं की सहमति नहीं दी है। जारी रखने के लिए पुष्टि भेजना बंद करें।',
+      'આ દર્દીએ સૂચનાઓ માટે સંમતિ આપી નથી. ચાલુ રાખવા પુષ્ટિ મોકલવાનું બંધ કરો.',
+    ],
+    'patientMissing': [
+      'Patient record is unavailable. Search again.',
+      'मरीज़ का रिकॉर्ड नहीं मिला। फिर खोजें।',
+      'દર્દીનો રેકોર્ડ ઉપલબ્ધ નથી. ફરી શોધો.',
+    ],
+    'slotUnavailable': [
+      'This slot is no longer available. Choose another time.',
+      'यह समय अब उपलब्ध नहीं है। दूसरा समय चुनें।',
+      'આ સમય હવે ઉપલબ્ધ નથી. બીજો સમય પસંદ કરો.',
+    ],
+    'bookAnAppointment': [
+      'Book an appointment',
+      'अपॉइंटमेंट बुक करें',
+      'એપોઇન્ટમેન્ટ બુક કરો',
+    ],
+    'manageSchedule': ['Manage schedule', 'समय-सारणी बदलें', 'સમયપત્રક બદલો'],
+    'bookedAppointments': [
+      'Booked appointments',
+      'बुक किए अपॉइंटमेंट',
+      'બુક કરેલી એપોઇન્ટમેન્ટ',
+    ],
+    'noBookedAppointments': [
+      'No appointments booked for this day.',
+      'इस दिन कोई अपॉइंटमेंट बुक नहीं है।',
+      'આ દિવસે કોઈ એપોઇન્ટમેન્ટ બુક નથી.',
+    ],
+    'morningSlots': ['Morning', 'सुबह', 'સવાર'],
+    'afternoonSlots': ['Afternoon', 'दोपहर', 'બપોર'],
+    'eveningSlots': ['Evening', 'शाम', 'સાંજ'],
+    'noSlots': [
+      'No slots available',
+      'कोई समय उपलब्ध नहीं',
+      'કોઈ સમય ઉપલબ્ધ નથી',
+    ],
+    'noSlotsHint': [
+      'Choose another day or review the clinic schedule.',
+      'दूसरा दिन चुनें या क्लिनिक की समय-सारणी देखें।',
+      'બીજો દિવસ પસંદ કરો અથવા ક્લિનિકનું સમયપત્રક જુઓ.',
+    ],
+    'selectedSlot': ['Selected slot', 'चुना हुआ समय', 'પસંદ કરેલો સમય'],
+    'confirmSlot': ['Confirm', 'पुष्टि करें', 'પુષ્ટિ કરો'],
+    'bookingComplete': [
+      'Appointment booked',
+      'अपॉइंटमेंट बुक हो गया',
+      'એપોઇન્ટમેન્ટ બુક થઈ',
+    ],
+    'bookAnother': ['Book another', 'दूसरा बुक करें', 'બીજી બુક કરો'],
+    'viewToday': ['View Today', 'आज की कतार देखें', 'આજની કતાર જુઓ'],
+    'viewPatient': [
+      'Open patient record',
+      'मरीज़ का रिकॉर्ड खोलें',
+      'દર્દીનો રેકોર્ડ ખોલો',
+    ],
+    'slotDurationHint': [
+      '15-minute slots · Times in',
+      '15 मिनट का समय · समय क्षेत्र',
+      '15 મિનિટનો સમય · સમય ક્ષેત્ર',
+    ],
     'welcomeBack': ['Welcome back', 'वापसी पर स्वागत है', 'ફરી સ્વાગત છે'],
     'overviewTab': ['Overview', 'अवलोकन', 'ઝાંખી'],
     'averageWait': ['Avg wait time', 'औसत प्रतीक्षा', 'સરેરાશ રાહ'],
@@ -192,9 +319,9 @@ class RevampLabels {
     'days': ['Days', 'दिन', 'દિવસ'],
     'dob': ['Date of birth', 'जन्म तिथि', 'જન્મ તારીખ'],
     'allergies': [
-      'Allergies (comma-separated)',
-      'एलर्जी (अल्पविराम से अलग)',
-      'એલર્જી (અલ્પવિરામથી અલગ)',
+      'Allergies',
+      'एलर्जी',
+      'એલર્જી',
     ],
     'consent': [
       'Patient agreed to clinic SMS and email updates',

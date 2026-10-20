@@ -13,6 +13,7 @@ import '../data/datasources/enterprise_models.dart';
 import '../data/datasources/user_model.dart';
 import '../data/datasources/workflow_models.dart';
 import '../data/datasources/prescription_print_settings.dart';
+import '../data/datasources/patient_intake.dart';
 import 'auth_services.dart';
 
 class FirebaseFireStore with ChangeNotifier {
@@ -447,6 +448,157 @@ class FirebaseFireStore with ChangeNotifier {
             : _collection(pathPatients).doc(patient.id))
         .set(patient.toMap(), SetOptions(merge: true)),
   );
+
+  String createPatientId() => _collection(pathPatients).doc().id;
+  String createAppointmentId() => _collection(pathAppointments).doc().id;
+
+  /// All entry points share this save path. IDs are allocated once by the
+  /// dialog and reused after failures; existing patient profiles are never
+  /// rewritten by queueing or booking. A new profile and visit commit together.
+  Future<PatientEntryResult> submitPatientEntry(
+    PatientEntrySubmission entry, {
+    required String clinicId,
+  }) async {
+    void checkScope() {
+      if (_activeClinicId != clinicId) {
+        throw const PatientEntryException('clinicChanged');
+      }
+    }
+
+    checkScope();
+    if (entry.patient.id.isEmpty) {
+      throw const PatientEntryException('saveError');
+    }
+    final clinicRef = _db.collection('clinics').doc(clinicId);
+    final patientRef = clinicRef.collection(pathPatients).doc(entry.patient.id);
+    final hasVisit = entry.action != PatientEntryAction.openRecord;
+    var visitId = entry.appointmentId;
+    AppointmentModel? queueCandidate;
+    if (hasVisit) {
+      if (visitId.isEmpty || entry.scheduledAt == null) {
+        throw const PatientEntryException('saveError');
+      }
+      final clinicSnapshot = await clinicRef.get(
+        const GetOptions(source: Source.server),
+      );
+      final clinic = ClinicProfile.fromMap(
+        clinicSnapshot.data() ?? {},
+        clinicId,
+      );
+      checkScope();
+      if (entry.action == PatientEntryAction.booked) {
+        final instant = entry.scheduledAt!;
+        final date = ClinicSchedule.day(clinic, instant);
+        if (!ClinicSchedule.slots(
+          clinic,
+          date,
+          now: DateTime.now(),
+        ).any((slot) => slot.isAtSameMomentAs(instant))) {
+          throw const PatientEntryException('slotUnavailable');
+        }
+        final existing = await clinicRef
+            .collection(pathAppointments)
+            .where('scheduled_at', isEqualTo: Timestamp.fromDate(instant))
+            .get(const GetOptions(source: Source.server));
+        if (existing.docs.any(
+          (d) =>
+              d.id != visitId &&
+              ClinicSchedule.occupiesSlot(
+                AppointmentModel.fromMap(d.data(), d.id),
+              ),
+        )) {
+          throw const PatientEntryException('slotUnavailable');
+        }
+      } else if (!entry.isNew) {
+        final existing = await clinicRef
+            .collection(pathAppointments)
+            .where('patient_id', isEqualTo: entry.patient.id)
+            .get(const GetOptions(source: Source.server));
+        final today = ClinicSchedule.day(clinic, DateTime.now());
+        final candidates =
+            existing.docs
+                .map((d) => AppointmentModel.fromMap(d.data(), d.id))
+                .where(
+                  (a) =>
+                      {'booked', 'confirmed', 'pending'}.contains(a.status) &&
+                      ClinicSchedule.sameDay(clinic, a.scheduledAt, today),
+                )
+                .toList()
+              ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+        if (candidates.isNotEmpty) {
+          queueCandidate = candidates.first;
+          visitId = queueCandidate.id;
+        }
+      }
+    }
+    checkScope();
+    final visitRef = hasVisit
+        ? clinicRef.collection(pathAppointments).doc(visitId)
+        : null;
+    return _db.runTransaction<PatientEntryResult>((tx) async {
+      checkScope();
+      final profile = await tx.get(patientRef);
+      final visit = visitRef == null ? null : await tx.get(visitRef);
+      if (!entry.isNew && !profile.exists) {
+        throw const PatientEntryException('patientMissing');
+      }
+      final patient = profile.exists
+          ? PatientModel.fromMap(profile.data()!, profile.id)
+          : entry.patient;
+      if (visit?.exists == true) {
+        final saved = AppointmentModel.fromMap(visit!.data()!, visit.id);
+        if (saved.patientId != patient.id) {
+          throw const PatientEntryException('saveError');
+        }
+        if (queueCandidate != null &&
+            entry.action == PatientEntryAction.queue) {
+          if (!{'booked', 'confirmed', 'pending'}.contains(saved.status)) {
+            throw const PatientEntryException('saveError');
+          }
+          if (saved.status != 'confirmed') {
+            tx.update(visitRef!, {
+              'status': 'confirmed',
+              'updated_at': FieldValue.serverTimestamp(),
+            });
+          }
+          return PatientEntryResult(
+            patient,
+            entry.action,
+            appointment: saved.copyWith(status: 'confirmed'),
+          );
+        }
+        if (!saved.scheduledAt.isAtSameMomentAs(entry.scheduledAt!)) {
+          throw const PatientEntryException('saveError');
+        }
+        return PatientEntryResult(patient, entry.action, appointment: saved);
+      }
+      checkScope();
+      if (!profile.exists) tx.set(patientRef, patient.toMap());
+      if (visitRef == null) return PatientEntryResult(patient, entry.action);
+      final appointment = AppointmentModel(
+        id: visitId,
+        patientId: patient.id,
+        patient: patient,
+        patientName: patient.fullName,
+        phone: patient.phone,
+        email: patient.email ?? '',
+        locale: patient.locale ?? 'en',
+        notificationConsent:
+            entry.sendConfirmation && patient.notificationConsent == true,
+        scheduledAt: entry.scheduledAt!,
+        status: entry.action == PatientEntryAction.queue
+            ? 'confirmed'
+            : 'booked',
+        createdBy: _authService.currentUser?.uid ?? '',
+      );
+      tx.set(visitRef, appointment.toMap());
+      return PatientEntryResult(
+        patient,
+        entry.action,
+        appointment: appointment,
+      );
+    });
+  }
 
   Future<String> savePrescription(
     PrescriptionModel prescription, {

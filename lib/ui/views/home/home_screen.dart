@@ -31,6 +31,7 @@ import 'revamp/workspace_navigation.dart';
 import 'revamp/clinical_workspaces.dart';
 import 'revamp/practice_queue_panel.dart';
 import 'revamp/patient_workspace.dart';
+import '../../../data/datasources/patient_intake.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -42,6 +43,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   PatientModel? _workspacePatient;
+  PatientModel? _bookingPatient;
   PatientModel? _prescriptionPatient;
   PrescriptionModel? _prescriptionToEdit;
   PrescriptionTemplate? _prescriptionTemplate;
@@ -65,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index < 0) return;
     setState(() {
       _workspacePatient = null;
+      _bookingPatient = null;
       _selectedIndex = index;
       if (feature == AppFeature.createPrescription &&
           (_prescriptionPatient != null ||
@@ -91,6 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _lastClinicId = session.activeClinicId;
       _selectedIndex = 0;
       _workspacePatient = null;
+      _bookingPatient = null;
       _prescriptionPatient = null;
       _prescriptionToEdit = null;
       _prescriptionTemplate = null;
@@ -106,6 +110,53 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<FirebaseFireStore>().useClinic(session.activeClinicId);
 
     late List<_WorkspaceDestination> destinations;
+    void openPatient(PatientModel patient) {
+      final index = destinations.indexWhere(
+        (d) => d.feature == AppFeature.patients,
+      );
+      if (index < 0) return;
+      setState(() {
+        _selectedIndex = index;
+        _workspacePatient = patient;
+      });
+    }
+
+    void bookPatient(PatientModel patient) {
+      final index = destinations.indexWhere(
+        (d) => d.feature == AppFeature.appointments,
+      );
+      if (index < 0) return;
+      setState(() {
+        _selectedIndex = index;
+        _workspacePatient = null;
+        _bookingPatient = patient;
+      });
+    }
+
+    void finishEntry(PatientEntryResult result) {
+      if (!mounted) return;
+      if (result.clinicId.isNotEmpty && result.clinicId != session.activeClinicId) return;
+      final feature = result.action == PatientEntryAction.queue
+          ? AppFeature.reception
+          : AppFeature.patients;
+      final index = destinations.indexWhere((d) => d.feature == feature);
+      if (index < 0) return;
+      setState(() {
+        _selectedIndex = index;
+        _workspacePatient = result.action == PatientEntryAction.openRecord
+            ? result.patient
+            : null;
+      });
+    }
+
+    Future<void> addPatient() async {
+      final clinic = session.activeClinicId;
+      final result = await showPatientRegistration(context);
+      if (result != null && mounted && session.activeClinicId == clinic) {
+        finishEntry(result);
+      }
+    }
+
     void startNewVisit(PatientModel patient) {
       final index = destinations.indexWhere(
         (item) => item.feature == AppFeature.createPrescription,
@@ -158,11 +209,8 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.people_outline,
           selectedIcon: Icons.people,
           page: PatientRegistry(
-            onOpenPatient: (patient) =>
-                setState(() => _workspacePatient = patient),
-            onNewVisit: session.can(AppFeature.createPrescription)
-                ? startNewVisit
-                : null,
+            onEntryResult: finishEntry,
+            onOpenPatient: openPatient,
           ),
         ),
       if (session.can(AppFeature.createPrescription))
@@ -206,7 +254,17 @@ class _HomeScreenState extends State<HomeScreen> {
           label: strings.appointments,
           icon: Icons.calendar_month_outlined,
           selectedIcon: Icons.calendar_month,
-          page: TabAppointments(patientOnly: session.role == AppRole.patient),
+          page: TabAppointments(
+            key: ValueKey(_bookingPatient?.id),
+            patientOnly: session.role == AppRole.patient,
+            initialPatient: _bookingPatient,
+            onOpenPatient: session.can(AppFeature.patients)
+                ? openPatient
+                : null,
+            onManageSchedule: session.can(AppFeature.clinicSetup)
+                ? () => _selectFeature(destinations, AppFeature.clinicSetup)
+                : null,
+          ),
         ),
       if (session.can(AppFeature.reception))
         _WorkspaceDestination(
@@ -215,6 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.how_to_reg_outlined,
           selectedIcon: Icons.how_to_reg,
           page: ReceptionScreen(
+            onPatientEntry: finishEntry,
             onStartPrescription: session.can(AppFeature.createPrescription)
                 ? (patient, appointment) {
                     startNewVisit(patient);
@@ -514,10 +573,13 @@ class _HomeScreenState extends State<HomeScreen> {
               onSelected: (feature) => _selectFeature(destinations, feature),
             )
           : null,
-      floatingActionButton: compact && session.can(AppFeature.patients)
+      floatingActionButton:
+          compact &&
+              session.can(AppFeature.patients) &&
+              selectedFeature != AppFeature.appointments
           ? FloatingActionButton.small(
               tooltip: labels.text('addPatient'),
-              onPressed: () => showPatientRegistration(context),
+              onPressed: addPatient,
               child: const Icon(Icons.person_add_alt_outlined),
             )
           : null,
@@ -558,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onSelected: (feature) => _selectFeature(destinations, feature),
                 onMore: () => Scaffold.of(scaffoldContext).openDrawer(),
                 onAddPatient: session.can(AppFeature.patients)
-                    ? () => showPatientRegistration(context)
+                    ? addPatient
                     : null,
               ),
               const VerticalDivider(width: 1),
@@ -573,6 +635,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         '${session.activeClinicId}:${_workspacePatient!.id}',
                       ),
                       patient: _workspacePatient!,
+                      onBook: session.can(AppFeature.appointments)
+                          ? () => bookPatient(_workspacePatient!)
+                          : null,
                       embedded: true,
                       onBack: () => setState(() => _workspacePatient = null),
                     ),

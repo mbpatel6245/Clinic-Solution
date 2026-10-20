@@ -19,10 +19,12 @@ class PatientWorkspace extends StatefulWidget {
     required this.patient,
     this.embedded = false,
     this.onBack,
+    this.onBook,
   });
   final PatientModel patient;
   final bool embedded;
   final VoidCallback? onBack;
+  final VoidCallback? onBook;
   @override
   State<PatientWorkspace> createState() => _PatientWorkspaceState();
 }
@@ -49,6 +51,7 @@ class _PatientWorkspaceState extends State<PatientWorkspace> {
       builder: (context, snapshot) => PatientWorkspaceView(
         embedded: widget.embedded,
         onBack: widget.onBack,
+        onBook: widget.onBook,
         patient: widget.patient,
         visits: session.can(AppFeature.prescriptionList)
             ? snapshot.data ?? []
@@ -90,6 +93,7 @@ class PatientWorkspaceView extends StatefulWidget {
     this.onPreview,
     this.embedded = false,
     this.onBack,
+    this.onBook,
   });
   final PatientModel patient;
   final List<PrescriptionModel> visits;
@@ -98,6 +102,7 @@ class PatientWorkspaceView extends StatefulWidget {
   final ValueChanged<PrescriptionModel>? onPreview;
   final bool embedded;
   final VoidCallback? onBack;
+  final VoidCallback? onBook;
   @override
   State<PatientWorkspaceView> createState() => _PatientWorkspaceViewState();
 }
@@ -272,6 +277,19 @@ class _PatientWorkspaceViewState extends State<PatientWorkspaceView> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
+                        if (widget.consultation != null)
+                          FilledButton.icon(
+                            onPressed: () =>
+                                setState(() => _tab = 'consultationTab'),
+                            icon: const Icon(Icons.edit_note_outlined),
+                            label: Text(l.text('startVisit')),
+                          ),
+                        if (widget.onBook != null)
+                          OutlinedButton.icon(
+                            onPressed: widget.onBook,
+                            icon: const Icon(Icons.event_outlined),
+                            label: Text(l.text('bookNav')),
+                          ),
                         Chip(
                           avatar: const Icon(
                             Icons.notifications_outlined,
