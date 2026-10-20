@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/auth/app_role.dart';
 import '../../../../core/auth/login_portal.dart';
 import '../../../../core/design/app_theme.dart';
+import '../../../../core/design/revamp_labels.dart';
 import '../../../../data/datasources/clinical_models.dart';
 import '../../../../data/datasources/enterprise_models.dart';
 import '../../../../services/firestore_services.dart';
@@ -1611,13 +1612,26 @@ class BillingScreen extends StatelessWidget {
 }
 
 class VaccinationScreen extends StatelessWidget {
-  const VaccinationScreen({super.key});
+  const VaccinationScreen({super.key, this.patient});
+  final PatientModel? patient;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<List<VaccinationRecord>>(
     stream: context.read<FirebaseFireStore>().streamVaccinations(),
     builder: (context, snapshot) {
-      final records = snapshot.data ?? const <VaccinationRecord>[];
+      if (snapshot.hasError) {
+        return AppPage(
+          child: AppSection(
+            child: Text(RevampLabels.of(context).text('loadError')),
+          ),
+        );
+      }
+      if (!snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final records = snapshot.data!
+          .where((record) => patient == null || record.patientId == patient!.id)
+          .toList();
       return AppPage(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1671,14 +1685,18 @@ class VaccinationScreen extends StatelessWidget {
   );
 
   Future<void> _dialog(BuildContext context) async {
-    final patient = TextEditingController();
+    final patientName = TextEditingController(text: patient?.fullName ?? '');
+    final clinic = context.read<FirebaseFireStore>().activeClinicId;
     final vaccine = TextEditingController();
     final dose = TextEditingController(text: '1');
     final batch = TextEditingController();
     final manufacturer = TextEditingController();
     final vaccinator = TextEditingController();
     final saved = await _formDialog(context, 'Record vaccination', [
-      _field(patient, 'Patient name'),
+      if (patient == null)
+        _field(patientName, 'Patient name')
+      else
+        Text(patient!.fullName),
       _field(vaccine, 'Vaccine'),
       _field(dose, 'Dose number', number: true),
       _field(batch, 'Batch number'),
@@ -1687,11 +1705,16 @@ class VaccinationScreen extends StatelessWidget {
     ]);
     if (saved &&
         context.mounted &&
-        patient.text.trim().isNotEmpty &&
+        patientName.text.trim().isNotEmpty &&
         vaccine.text.trim().isNotEmpty) {
+      if (context.read<FirebaseFireStore>().activeClinicId != clinic) {
+        _notice(context, RevampLabels.of(context).text('clinicChanged'));
+        return;
+      }
       await context.read<FirebaseFireStore>().saveVaccination(
         VaccinationRecord(
-          patientName: patient.text,
+          patientName: patientName.text,
+          patientId: patient?.id ?? '',
           vaccine: vaccine.text,
           doseNumber: int.tryParse(dose.text) ?? 1,
           batchNumber: batch.text,

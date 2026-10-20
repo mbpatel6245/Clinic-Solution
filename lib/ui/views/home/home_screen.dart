@@ -29,6 +29,8 @@ import 'revamp/practice_dashboard.dart';
 import 'revamp/patient_registry.dart';
 import 'revamp/workspace_navigation.dart';
 import 'revamp/clinical_workspaces.dart';
+import 'revamp/practice_queue_panel.dart';
+import 'revamp/patient_workspace.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +41,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  PatientModel? _workspacePatient;
   PatientModel? _prescriptionPatient;
   PrescriptionModel? _prescriptionToEdit;
   PrescriptionTemplate? _prescriptionTemplate;
@@ -61,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final index = destinations.indexWhere((item) => item.feature == feature);
     if (index < 0) return;
     setState(() {
+      _workspacePatient = null;
       _selectedIndex = index;
       if (feature == AppFeature.createPrescription &&
           (_prescriptionPatient != null ||
@@ -86,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_lastClinicId != session.activeClinicId) {
       _lastClinicId = session.activeClinicId;
       _selectedIndex = 0;
+      _workspacePatient = null;
       _prescriptionPatient = null;
       _prescriptionToEdit = null;
       _prescriptionTemplate = null;
@@ -153,6 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.people_outline,
           selectedIcon: Icons.people,
           page: PatientRegistry(
+            onOpenPatient: (patient) =>
+                setState(() => _workspacePatient = patient),
             onNewVisit: session.can(AppFeature.createPrescription)
                 ? startNewVisit
                 : null,
@@ -360,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
       AppFeature.reception,
       AppFeature.appointments,
       AppFeature.patients,
-    ].where(features.contains).take(3).toList();
+    ].where(features.contains).toList();
     final selectedFeature = destinations[selectedIndex].feature;
     final pages = LazyWorkspacePages(
       key: ValueKey('${session.activeClinicId}:${features.join(',')}'),
@@ -370,56 +377,36 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     return Scaffold(
-      drawer: compact
-          ? NavigationDrawer(
-              selectedIndex: selectedIndex,
-              onDestinationSelected: (index) {
-                Navigator.pop(context);
-                setState(() => _selectedIndex = index);
-              },
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(28, 24, 16, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: ClinicLogo(size: 48),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 24, 16, 12),
-                  child: Text(
-                    '${session.clinicName}\n${session.role.displayName}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                ...destinations.map(
-                  (item) => NavigationDrawerDestination(
-                    icon: Icon(item.icon),
-                    selectedIcon: Icon(
-                      item.selectedIcon,
-                      color: AppColors.inverse,
-                    ),
-                    label: Text(item.label),
-                  ),
-                ),
-              ],
-            )
-          : null,
+      extendBody: compact,
+      drawer: Drawer(
+        child: WorkspaceSidebar(
+          links: destinations
+              .map((d) => WorkspaceLink(d.feature, d.label, d.icon))
+              .toList(),
+          selected: selectedFeature,
+          clinicName: session.clinicName,
+          onSelected: (feature) {
+            Navigator.pop(context);
+            _selectFeature(destinations, feature);
+          },
+        ),
+      ),
       appBar: AppBar(
-        title: compact
-            ? const ClinicLogo(size: 28)
-            : Row(
-                children: [
-                  const ClinicLogo(size: 34),
-                  const SizedBox(width: AppSpacing.sm),
-                  Flexible(
-                    child: Text(
-                      session.clinicName,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ClinicLogo(size: 28),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'orByteza',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
+            ),
+          ],
+        ),
         actions: [
           if (session.role == AppRole.platformOwner ||
               session.clinicIds.length > 1)
@@ -462,11 +449,6 @@ class _HomeScreenState extends State<HomeScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
               child: SyncStatusBanner(compact: true),
-            ),
-          if (!compact)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Chip(label: Text(session.role.displayName)),
             ),
           PopupMenuButton<String>(
             tooltip: strings.language,
@@ -518,51 +500,88 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       bottomNavigationBar: compact
-          ? Builder(
-              builder: (scaffoldContext) => NavigationBar(
-                labelBehavior:
-                    NavigationDestinationLabelBehavior.onlyShowSelected,
-                selectedIndex: primary.contains(selectedFeature)
-                    ? primary.indexOf(selectedFeature)
-                    : primary.length,
-                onDestinationSelected: (index) {
-                  if (index == primary.length) {
-                    Scaffold.of(scaffoldContext).openDrawer();
-                  } else {
-                    _selectFeature(destinations, primary[index]);
-                  }
-                },
-                destinations: [
-                  for (final feature in primary)
-                    NavigationDestination(
-                      icon: Icon(destinations[features.indexOf(feature)].icon),
-                      label: destinations[features.indexOf(feature)].label,
-                    ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.menu),
-                    label: labels.text('more'),
-                  ),
-                ],
-              ),
+          ? PracticeNavigation(
+              links: [
+                for (final feature in primary)
+                  WorkspaceLink(feature, switch (feature) {
+                    AppFeature.dashboard => labels.text('home'),
+                    AppFeature.reception => labels.text('todayNav'),
+                    AppFeature.appointments => labels.text('bookNav'),
+                    _ => labels.text('patients'),
+                  }, destinations[features.indexOf(feature)].icon),
+              ],
+              selected: selectedFeature,
+              onSelected: (feature) => _selectFeature(destinations, feature),
             )
           : null,
-      body: compact
-          ? pages
-          : Row(
-              children: [
-                WorkspaceSidebar(
-                  links: destinations
-                      .map((d) => WorkspaceLink(d.feature, d.label, d.icon))
-                      .toList(),
-                  selected: selectedFeature,
-                  onSelected: (feature) =>
-                      _selectFeature(destinations, feature),
-                  clinicName: session.clinicName,
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: pages),
-              ],
+      floatingActionButton: compact && session.can(AppFeature.patients)
+          ? FloatingActionButton.small(
+              tooltip: labels.text('addPatient'),
+              onPressed: () => showPatientRegistration(context),
+              child: const Icon(Icons.person_add_alt_outlined),
+            )
+          : null,
+      body: Builder(
+        builder: (scaffoldContext) => Row(
+          children: [
+            if (!compact) ...[
+              PracticeNavigation(
+                vertical: true,
+                queue: session.can(AppFeature.reception)
+                    ? PracticeQueuePanel(
+                        key: ValueKey(session.activeClinicId),
+                        onQueue: () =>
+                            _selectFeature(destinations, AppFeature.reception),
+                        onBook: session.can(AppFeature.appointments)
+                            ? () => _selectFeature(
+                                destinations,
+                                AppFeature.appointments,
+                              )
+                            : null,
+                      )
+                    : null,
+                links: [
+                  for (final feature in [
+                    ...primary,
+                    if (features.contains(AppFeature.clinicSetup))
+                      AppFeature.clinicSetup,
+                  ])
+                    WorkspaceLink(
+                      feature,
+                      feature == AppFeature.clinicSetup
+                          ? labels.text('settingsNav')
+                          : destinations[features.indexOf(feature)].label,
+                      destinations[features.indexOf(feature)].icon,
+                    ),
+                ],
+                selected: selectedFeature,
+                onSelected: (feature) => _selectFeature(destinations, feature),
+                onMore: () => Scaffold.of(scaffoldContext).openDrawer(),
+                onAddPatient: session.can(AppFeature.patients)
+                    ? () => showPatientRegistration(context)
+                    : null,
+              ),
+              const VerticalDivider(width: 1),
+            ],
+            Expanded(
+              child: Stack(
+                children: [
+                  Offstage(offstage: _workspacePatient != null, child: pages),
+                  if (_workspacePatient != null)
+                    PatientWorkspace(
+                      key: ValueKey(
+                        '${session.activeClinicId}:${_workspacePatient!.id}',
+                      ),
+                      patient: _workspacePatient!,
+                      embedded: true,
+                      onBack: () => setState(() => _workspacePatient = null),
+                    ),
+                ],
+              ),
             ),
+          ],
+        ),
+      ),
     );
   }
 

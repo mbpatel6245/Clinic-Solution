@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'app_typography.dart';
 
 abstract final class AppColors {
-  static const primary = Color(0xFF087F83);
-  static const ink = Color(0xFF17383D);
-  static const inkMuted = Color(0xFF536F73);
-  static const canvas = Color(0xFFF0F6F5);
+  static const primary = Color(0xFF159A82);
+  static const ink = Color(0xFF202629);
+  static const inkMuted = Color(0xFF737B80);
+  static const canvas = Color(0xFFFAFAF9);
   static const surface = Colors.white;
-  static const line = Color(0xFFD9E5E5);
-  static const soft = Color(0xFFE4F3F0);
+  static const line = Color(0xFFE5E8E7);
+  static const soft = Color(0xFFE8F5F1);
   static const inverse = Colors.white;
 }
 
@@ -22,8 +22,8 @@ abstract final class AppSpacing {
 
 abstract final class AppRadius {
   static const double sm = 8;
-  static const double md = 12;
-  static const double lg = 18;
+  static const double md = 8;
+  static const double lg = 10;
 }
 
 abstract final class AppBreakpoints {

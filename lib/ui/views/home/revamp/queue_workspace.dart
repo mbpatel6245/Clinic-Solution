@@ -103,19 +103,14 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
             onChanged: (value) => setState(() => _query = value),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
+          WorkspaceTabs(
+            labels: [
               for (final stage in QueueStage.values)
-                ChoiceChip(
-                  label: Text(
-                    '${l.text(stage.name)} (${filterQueue(widget.items, now, stage, '').length})',
-                  ),
-                  selected: _stage == stage,
-                  onSelected: (_) => setState(() => _stage = stage),
-                ),
+                '${l.text(stage.name)} (${filterQueue(widget.items, now, stage, '').length})',
             ],
+            selected: QueueStage.values.indexOf(_stage),
+            onSelected: (index) =>
+                setState(() => _stage = QueueStage.values[index]),
           ),
           const SizedBox(height: 20),
           if (widget.loading)

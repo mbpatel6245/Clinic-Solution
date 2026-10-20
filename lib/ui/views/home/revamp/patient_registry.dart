@@ -1,33 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/auth/app_role.dart';
 import '../../../../core/design/app_theme.dart';
+import '../../../../core/auth/app_role.dart';
 import '../../../../core/design/revamp_labels.dart';
 import '../../../../data/datasources/clinical_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
+import 'patient_workspace.dart';
+
+Future<void> showPatientRegistration(BuildContext context) =>
+    showDialog<void>(context: context, builder: (_) => const _PatientForm());
 
 class PatientRegistry extends StatefulWidget {
-  const PatientRegistry({super.key, this.onNewVisit});
+  const PatientRegistry({super.key, this.onNewVisit, this.onOpenPatient});
   final ValueChanged<PatientModel>? onNewVisit;
+  final ValueChanged<PatientModel>? onOpenPatient;
   @override
   State<PatientRegistry> createState() => _PatientRegistryState();
 }
 
 class _PatientRegistryState extends State<PatientRegistry> {
   late Stream<List<PatientModel>> _patients;
+  Stream<List<PrescriptionModel>>? _visits;
   String? _clinic;
   String _query = '';
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final clinic = context.watch<SessionController>().activeClinicId;
+    final session = context.watch<SessionController>();
+    final clinic =
+        '${session.activeClinicId}:${session.can(AppFeature.prescriptionList)}';
     if (_clinic == clinic) return;
     _clinic = clinic;
     _patients = context.read<FirebaseFireStore>().streamPatients();
+    _visits = session.can(AppFeature.prescriptionList)
+        ? context.read<FirebaseFireStore>().streamPrescriptions()
+        : null;
   }
 
   @override
@@ -91,33 +102,13 @@ class _PatientRegistryState extends State<PatientRegistry> {
                   ),
                 );
               }
-              return Column(
-                children: [
-                  for (final patient in patients)
-                    Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.soft,
-                          foregroundColor: AppColors.primary,
-                          child: Text(
-                            patient.firstName.characters.firstOrNull
-                                    ?.toUpperCase() ??
-                                '?',
-                          ),
-                        ),
-                        title: Text(patient.fullName),
-                        subtitle: Text(
-                          [
-                            if (patient.phone.isNotEmpty) patient.phone,
-                            if (patient.age != null)
-                              '${AppLocalizations.of(context)!.age}: ${patient.age} ${l.text(patient.ageUnit)}',
-                          ].join(' · '),
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _showPatient(context, patient),
-                      ),
-                    ),
-                ],
+              return StreamBuilder<List<PrescriptionModel>>(
+                stream: _visits,
+                builder: (context, history) => PatientDirectoryList(
+                  patients: patients,
+                  visits: history.hasError ? null : history.data,
+                  onOpen: (patient) => _showPatient(context, patient),
+                ),
               );
             },
           ),
@@ -127,115 +118,146 @@ class _PatientRegistryState extends State<PatientRegistry> {
   }
 
   Future<void> _addPatient(BuildContext context) async {
-    await showDialog<void>(
-      context: context,
-      builder: (_) => const _PatientForm(),
-    );
+    await showPatientRegistration(context);
   }
 
   Future<void> _showPatient(BuildContext context, PatientModel patient) async {
-    final session = context.read<SessionController>();
-    final history = session.can(AppFeature.prescriptionList)
-        ? context.read<FirebaseFireStore>().streamPrescriptions()
-        : null;
+    if (widget.onOpenPatient != null) {
+      widget.onOpenPatient!(patient);
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => PatientWorkspace(patient: patient)),
+    );
+  }
+}
+
+/// Compact rows on mobile and a scannable directory table on desktop.
+class PatientDirectoryList extends StatelessWidget {
+  const PatientDirectoryList({
+    super.key,
+    required this.patients,
+    required this.onOpen,
+    this.visits,
+  });
+  final List<PatientModel> patients;
+  final List<PrescriptionModel>? visits;
+  final ValueChanged<PatientModel> onOpen;
+  @override
+  Widget build(BuildContext context) {
     final l = RevampLabels.of(context);
     final s = AppLocalizations.of(context)!;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(patient.fullName),
-        content: SizedBox(
-          width: 640,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  l.text('details'),
-                  style: Theme.of(context).textTheme.titleMedium,
+    String age(PatientModel p) => [
+      if (p.age != null) '${p.age} ${l.text(p.ageUnit)}',
+      if (p.gender.isNotEmpty) l.text(p.gender),
+    ].join(' · ');
+    List<PrescriptionModel> history(PatientModel p) =>
+        (visits ?? [])
+            .where((v) => p.id.isNotEmpty && v.patient.id == p.id)
+            .toList()
+          ..sort(
+            (a, b) => (b.visitDate ?? b.createdAt ?? DateTime(1970)).compareTo(
+              a.visitDate ?? a.createdAt ?? DateTime(1970),
+            ),
+          );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 700) {
+          return Column(
+            children: [
+              for (final patient in patients)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: AppColors.soft,
+                        foregroundColor: AppColors.primary,
+                        child: Icon(Icons.person_outline),
+                      ),
+                      title: Text(patient.fullName),
+                      subtitle: Text(
+                        [
+                          age(patient),
+                          if (patient.phone.isNotEmpty) patient.phone,
+                        ].join(' · '),
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () => onOpen(patient),
+                    ),
+                  ),
                 ),
-                if (patient.phone.isNotEmpty)
-                  Text('${s.phone}: ${patient.phone}'),
-                if (patient.age != null)
-                  Text('${s.age}: ${patient.age} ${l.text(patient.ageUnit)}'),
-                if (patient.dateOfBirth != null)
-                  Text(
-                    '${l.text('dob')}: ${DateFormat.yMMMd(Localizations.localeOf(context).toString()).format(patient.dateOfBirth!)}',
-                  ),
-                if (patient.allergies.isNotEmpty)
-                  Text(
-                    '${l.text('allergies')}: ${patient.allergies.join(', ')}',
-                  ),
-                if (patient.address.isNotEmpty)
-                  Text('${s.address}: ${patient.address}'),
-                if (history != null) ...[
-                  const SizedBox(height: 24),
-                  Text(
-                    l.text('history'),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  StreamBuilder<List<PrescriptionModel>>(
-                    stream: history,
-                    builder: (_, snapshot) {
-                      if (snapshot.hasError) return Text(l.text('loadError'));
-                      if (!snapshot.hasData) {
-                        return const LinearProgressIndicator();
-                      }
-                      // Never merge different patients based on a shared family phone.
-                      final visits = snapshot.data!
-                          .where((v) => v.patient.id == patient.id)
-                          .toList();
-                      if (visits.isEmpty) return Text(l.text('noHistory'));
-                      return Column(
-                        children: [
-                          for (final visit in visits)
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                visit.diagnoses.isEmpty
-                                    ? s.newVisit
-                                    : visit.diagnoses.join(', '),
-                              ),
-                              subtitle: Text(
-                                [
-                                  if (visit.visitDate ?? visit.createdAt
-                                      case final DateTime date)
-                                    DateFormat.yMMMd(
+            ],
+          );
+        }
+        return Card(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                horizontalMargin: 16,
+                columnSpacing: 24,
+                headingTextStyle: const TextStyle(
+                  color: AppColors.inkMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+                columns: [
+                  DataColumn(label: Text(l.text('patients'))),
+                  DataColumn(label: Text(s.age)),
+                  DataColumn(label: Text(s.phone)),
+                  if (visits != null) ...[
+                    DataColumn(label: Text(l.text('lastVisit'))),
+                    DataColumn(
+                      label: Text(l.text('consultations')),
+                      numeric: true,
+                    ),
+                  ],
+                ],
+                rows: [
+                  for (final patient in patients)
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          Text(
+                            patient.fullName,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          onTap: () => onOpen(patient),
+                        ),
+                        DataCell(
+                          Text(age(patient)),
+                          onTap: () => onOpen(patient),
+                        ),
+                        DataCell(
+                          Text(patient.phone.isEmpty ? '—' : patient.phone),
+                        ),
+                        if (visits != null) ...[
+                          DataCell(
+                            Text(
+                              history(patient).isEmpty
+                                  ? '—'
+                                  : DateFormat.yMMMd(
                                       Localizations.localeOf(
                                         context,
                                       ).toString(),
-                                    ).format(date),
-                                  visit.complaints,
-                                  visit.advice,
-                                ].where((v) => v.isNotEmpty).join('\n'),
-                              ),
+                                    ).format(
+                                      history(patient).first.visitDate ??
+                                          history(patient).first.createdAt ??
+                                          DateTime(1970),
+                                    ),
                             ),
+                          ),
+                          DataCell(Text(history(patient).length.toString())),
                         ],
-                      );
-                    },
-                  ),
+                      ],
+                    ),
                 ],
-              ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(MaterialLocalizations.of(context).closeButtonLabel),
-          ),
-          if (widget.onNewVisit != null)
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                widget.onNewVisit!(patient);
-              },
-              icon: const Icon(Icons.add),
-              label: Text(s.newVisit),
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -13,7 +13,9 @@ class AppPage extends StatelessWidget {
     builder: (context, constraints) => SafeArea(
       top: false,
       child: SingleChildScrollView(
-        padding: AppBreakpoints.pagePadding(constraints.maxWidth),
+        padding:
+            AppBreakpoints.pagePadding(constraints.maxWidth) +
+            const EdgeInsets.only(bottom: 96),
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
@@ -56,7 +58,7 @@ class AppSection extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -84,42 +86,109 @@ class AppMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.ink,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Icon(icon, color: AppColors.inverse),
+    clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: const BorderSide(color: AppColors.line),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ColoredBox(
+          color: AppColors.soft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: AppSpacing.xs),
-                Text(value, style: Theme.of(context).textTheme.headlineSmall),
-                if (caption != null)
-                  Text(
-                    caption!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.inkMuted),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              if (caption != null)
+                Text(
+                  caption!,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.inkMuted),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Horizontally scrollable sections retain their labels on small screens and
+/// with large Hindi/Gujarati text instead of squeezing or clipping them.
+class WorkspaceTabs extends StatelessWidget {
+  const WorkspaceTabs({
+    super.key,
+    required this.labels,
+    required this.selected,
+    required this.onSelected,
+    this.icons,
+  });
+  final List<String> labels;
+  final int selected;
+  final ValueChanged<int> onSelected;
+  final List<IconData>? icons;
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: [
+        for (final (index, label) in labels.indexed)
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Semantics(
+              selected: index == selected,
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: index == selected
+                      ? AppColors.primary
+                      : AppColors.inkMuted,
+                  backgroundColor: index == selected
+                      ? AppColors.soft
+                      : Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-              ],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                ),
+                onPressed: () => onSelected(index),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icons != null) ...[
+                      Icon(icons![index], size: 18),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(label),
+                  ],
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+      ],
     ),
   );
 }

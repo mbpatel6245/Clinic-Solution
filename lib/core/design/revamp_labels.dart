@@ -20,6 +20,30 @@ class RevampLabels {
   }
 
   static const _copy = <String, List<String>>{
+    'welcomeBack': ['Welcome back', 'वापसी पर स्वागत है', 'ફરી સ્વાગત છે'],
+    'overviewTab': ['Overview', 'अवलोकन', 'ઝાંખી'],
+    'averageWait': ['Avg wait time', 'औसत प्रतीक्षा', 'સરેરાશ રાહ'],
+    'todayNav': ['Today', 'आज', 'આજે'],
+    'bookNav': ['Book', 'बुक करें', 'બુક કરો'],
+    'settingsNav': ['Settings', 'सेटिंग', 'સેટિંગ્સ'],
+    'timeline': ['Timeline', 'समयरेखा', 'સમયરેખા'],
+    'consultationTab': ['Consultation', 'परामर्श', 'પરામર્શ'],
+    'lastVisit': ['Last visit', 'पिछला परामर्श', 'છેલ્લી મુલાકાત'],
+    'patientWorkspace': [
+      'Patient workspace',
+      'मरीज़ कार्यक्षेत्र',
+      'દર્દી કાર્યક્ષેત્ર',
+    ],
+    'consentGranted': [
+      'Notifications agreed',
+      'सूचनाओं की सहमति',
+      'સૂચનાઓ માટે સંમતિ',
+    ],
+    'consentNotGranted': [
+      'Notifications not agreed',
+      'सूचनाओं की सहमति नहीं',
+      'સૂચનાઓ માટે સંમતિ નથી',
+    ],
     'signingIn': ['Signing in…', 'साइन इन हो रहा है…', 'સાઇન ઇન થઈ રહ્યું છે…'],
     'wrongPortal': [
       'Use the clinic login for this account. Your administrator assigns staff access.',

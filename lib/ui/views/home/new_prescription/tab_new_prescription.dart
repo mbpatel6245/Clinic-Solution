@@ -710,6 +710,18 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
     _followUpDate = null;
     _draftPrescriptionId = null;
     _formKey.currentState?.reset();
+    // The patient workspace stays open after save. A fresh consultation must
+    // keep its linked identity even though the clinical draft is cleared.
+    final patient = widget.initialPatient;
+    if (patient != null && widget.initialPrescription == null) {
+      _firstName.text = patient.firstName;
+      _middleName.text = patient.middleName;
+      _lastName.text = patient.lastName;
+      _phone.text = patient.phone;
+      _address.text = patient.address;
+      _age.text = patient.age?.toString() ?? '';
+      _gender = patient.gender;
+    }
   }
 
   Widget _field({

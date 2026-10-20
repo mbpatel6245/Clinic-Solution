@@ -67,6 +67,39 @@ Widget _app(Widget child, {_Clinic? clinic}) => MultiProvider(
 
 void main() {
   testWidgets(
+    'a second consultation in the open patient workspace keeps patient identity',
+    (tester) async {
+      final clinic = _Clinic();
+      final patient = PatientModel(
+        id: 'linked',
+        firstName: 'Linked patient',
+        age: 35,
+      );
+      await tester.pumpWidget(
+        _app(TabNewPrescription(initialPatient: patient), clinic: clinic),
+      );
+      for (final diagnosis in ['First visit', 'Second visit']) {
+        final field = find.widgetWithText(TextFormField, 'Diagnosis');
+        await tester.ensureVisible(field);
+        await tester.enterText(field, diagnosis);
+        tester.testTextInput.hide();
+        await tester.pumpAndSettle();
+        final save = find.text('Save prescription');
+        await tester.ensureVisible(save);
+        await tester.tap(save);
+        await tester.pumpAndSettle();
+        expect(clinic.saved?.patient.id, 'linked');
+        expect(clinic.saved?.patient.firstName, 'Linked patient');
+        expect(clinic.saved?.diagnoses, [diagnosis]);
+        ScaffoldMessenger.of(
+          tester.element(find.byType(TabNewPrescription)),
+        ).hideCurrentSnackBar();
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
     'saving a queued consultation preserves demographics and separates private notes',
     (tester) async {
       final clinic = _Clinic();

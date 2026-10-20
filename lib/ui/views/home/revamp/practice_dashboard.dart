@@ -121,6 +121,7 @@ class _PracticeDashboardState extends State<PracticeDashboard> {
       loading: _pending.isNotEmpty,
       hasError: _errors.isNotEmpty,
       unavailable: _errors.union(_pending),
+      displayName: session.displayName,
       onOpen: widget.onOpen,
     );
   }
@@ -142,6 +143,7 @@ class PracticeDashboardView extends StatefulWidget {
     this.hasError = false,
     this.unavailable = const {},
     this.now,
+    this.displayName = '',
   });
   final List<PatientModel> patients;
   final List<PrescriptionModel> visits;
@@ -153,6 +155,7 @@ class PracticeDashboardView extends StatefulWidget {
   final bool loading, hasError;
   final Set<String> unavailable;
   final DateTime? now;
+  final String displayName;
   @override
   State<PracticeDashboardView> createState() => _PracticeDashboardViewState();
 }
@@ -206,30 +209,16 @@ class _PracticeDashboardViewState extends State<PracticeDashboardView> {
       if (can(AppFeature.patients))
         AppMetricCard(
           label: l.text('registered'),
-          value: value('patients', '${widget.patients.length}'),
+          value: value('patients', widget.patients.length.toString()),
           caption: l.text('allTime'),
           icon: Icons.people_outline,
         ),
       if (can(AppFeature.prescriptionList))
         AppMetricCard(
           label: l.text('consultations'),
-          value: value('visits', '${metrics.visits.length}'),
+          value: value('visits', metrics.visits.length.toString()),
           caption: periodLabel,
           icon: Icons.medical_services_outlined,
-        ),
-      if (can(AppFeature.appointments) || can(AppFeature.reception))
-        AppMetricCard(
-          label: s.appointments,
-          value: value('appointments', '${metrics.bookings}'),
-          caption: periodLabel,
-          icon: Icons.calendar_month_outlined,
-        ),
-      if (can(AppFeature.patients))
-        AppMetricCard(
-          label: l.text('newPatients'),
-          value: value('patients', '${metrics.newPatients}'),
-          caption: periodLabel,
-          icon: Icons.person_add_alt_outlined,
         ),
       if (can(AppFeature.billing))
         AppMetricCard(
@@ -238,84 +227,97 @@ class _PracticeDashboardViewState extends State<PracticeDashboardView> {
           caption: periodLabel,
           icon: Icons.payments_outlined,
         ),
-      if (can(AppFeature.billing))
+      if (can(AppFeature.reception) || can(AppFeature.appointments))
         AppMetricCard(
-          label: l.text('outstanding'),
-          value: value('invoices', money(metrics.outstanding)),
-          caption: l.text('allTime'),
-          icon: Icons.receipt_long_outlined,
+          label: l.text('averageWait'),
+          value: _hidden ? '••••' : '—',
+          caption: l.text('unspecified'),
+          icon: Icons.schedule_outlined,
+        ),
+      if (can(AppFeature.appointments) || can(AppFeature.reception))
+        AppMetricCard(
+          label: s.appointments,
+          value: value('appointments', metrics.bookings.toString()),
+          caption: periodLabel,
+          icon: Icons.calendar_month_outlined,
+        ),
+      if (can(AppFeature.patients))
+        AppMetricCard(
+          label: l.text('newPatients'),
+          value: value('patients', metrics.newPatients.toString()),
+          caption: periodLabel,
+          icon: Icons.person_add_alt_outlined,
         ),
     ];
     return AppPage(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    DateFormat.yMMMMEEEEd(locale).format(now),
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.inkMuted),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l.text('welcome'),
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    l.text('welcomeHint'),
-                    style: const TextStyle(color: AppColors.inkMuted),
-                  ),
-                ],
-              ),
-              if (can(AppFeature.createPrescription))
-                FilledButton.icon(
-                  onPressed: () => widget.onOpen(AppFeature.createPrescription),
-                  icon: const Icon(Icons.add),
-                  label: Text(s.newVisit),
-                ),
-            ],
+          Text(
+            '${l.text('welcomeBack')}${widget.displayName.trim().isEmpty ? '!' : ', ${widget.displayName.trim().split(' ').first}!'}',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 4),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
             children: [
-              for (final period in PracticePeriod.values)
-                ChoiceChip(
-                  label: Text(l.text(period.name)),
-                  selected: _period == period && _customRange == null,
-                  onSelected: (_) => setState(() {
-                    _period = period;
-                    _customRange = null;
-                  }),
-                ),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final dates = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(1900),
-                    lastDate: DateTime.now(),
-                    initialDateRange: _customRange,
-                  );
-                  if (dates != null && mounted) {
-                    setState(() => _customRange = dates);
+              Text(
+                DateFormat.yMMMEd(locale).format(now),
+                style: const TextStyle(color: AppColors.inkMuted),
+              ),
+              PopupMenuButton<String>(
+                tooltip: l.text('customRange'),
+                onSelected: (choice) async {
+                  if (choice == 'custom') {
+                    final dates = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime.now(),
+                      initialDateRange: _customRange,
+                    );
+                    if (dates != null && mounted) {
+                      setState(() => _customRange = dates);
+                    }
+                  } else {
+                    setState(() {
+                      _period = PracticePeriod.values.byName(choice);
+                      _customRange = null;
+                    });
                   }
                 },
-                icon: const Icon(Icons.date_range_outlined),
-                label: Text(l.text('customRange')),
+                itemBuilder: (_) => [
+                  for (final period in PracticePeriod.values)
+                    PopupMenuItem(
+                      value: period.name,
+                      child: Text(l.text(period.name)),
+                    ),
+                  PopupMenuItem(
+                    value: 'custom',
+                    child: Text(l.text('customRange')),
+                  ),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '| $periodLabel',
+                          style: const TextStyle(color: AppColors.inkMuted),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.expand_more,
+                        size: 18,
+                        color: AppColors.inkMuted,
+                      ),
+                    ],
+                  ),
+                ),
               ),
               IconButton(
                 tooltip: l.text(_hidden ? 'show' : 'hide'),
@@ -324,6 +326,7 @@ class _PracticeDashboardViewState extends State<PracticeDashboardView> {
                   _hidden
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
+                  size: 18,
                 ),
               ),
             ],
@@ -343,19 +346,45 @@ class _PracticeDashboardViewState extends State<PracticeDashboardView> {
             ),
           const SizedBox(height: 12),
           if (cards.isNotEmpty)
-            ResponsiveGrid(minimumItemWidth: 225, children: cards),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final count = constraints.maxWidth >= 1000
+                    ? 6
+                    : constraints.maxWidth >= 650
+                    ? 3
+                    : 2;
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    for (final card in cards)
+                      SizedBox(
+                        width:
+                            (constraints.maxWidth - 12 * (count - 1)) / count,
+                        child: card,
+                      ),
+                  ],
+                );
+              },
+            ),
           const SizedBox(height: 24),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final tab in tabs)
-                ChoiceChip(
-                  label: Text(l.text(tab)),
-                  selected: selectedTab == tab,
-                  onSelected: (_) => setState(() => _tab = tab),
-                ),
-            ],
+          WorkspaceTabs(
+            labels: tabs
+                .map((tab) => l.text(tab == 'home' ? 'overviewTab' : tab))
+                .toList(),
+            selected: tabs.indexOf(selectedTab),
+            icons: tabs
+                .map(
+                  (tab) => switch (tab) {
+                    'analytics' => Icons.bar_chart_outlined,
+                    'payments' => Icons.credit_card_outlined,
+                    'activity' => Icons.bolt_outlined,
+                    'vaccines' => Icons.vaccines_outlined,
+                    _ => Icons.grid_view_outlined,
+                  },
+                )
+                .toList(),
+            onSelected: (index) => setState(() => _tab = tabs[index]),
           ),
           const SizedBox(height: 16),
           if (_hidden)

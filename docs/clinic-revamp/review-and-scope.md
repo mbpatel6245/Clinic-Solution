@@ -1,6 +1,6 @@
 # Clinic revamp: reviewed workflows and delivery status
 
-Branch: `clinic-revamp`. Review date: 19 October 2026. This is a feature inventory and branch status, not a claim of complete parity or production deployment.
+Branch: `clinic-revamp`. Review date: 20 October 2026. This is a feature inventory and branch status, not a claim of complete parity or production deployment.
 
 ## Authenticated review
 
@@ -19,7 +19,7 @@ The user authorized dummy records and enabling the Treatment Plan Tab. Created o
 | Payments | Collected/latest/all payments | Existing invoice/partial payments plus invoice-period summary; payment-event ledger remains |
 | Queue | Scheduled/live/done, walk-ins, vitals, timers, priority order | Implemented search/count tabs, check-in, consultation, complete/cancel/no-show and atomic consultation-to-queue completion; structured vitals, timers and reordering remain |
 | Registration | Age units/DOB, gender, ABHA, allergies, contact/consent | Implemented registry independent of billing/booking, demographics, allergies and consent; existing walk-ins retained |
-| Patient record | Timeline, analytics, repeat visit, documents, risk markers | Clinician-only history and new consultation implemented; rich timeline, existing-profile editing, documents and risk markers remain |
+| Patient record | Timeline, analytics, repeat visit, documents, risk markers | Unified patient header with role-gated Analytics/Timeline/Consultation/Treatment/Vaccination tabs; chronological saved visits and PDF access, patient-scoped plans and doses implemented. Rich clinical trends, existing-profile editing, documents and additional risk markers remain |
 | Consultation | Symptoms/durations, ICD/medicine search, tests/advice, follow-up | Existing editor retained and private notes separately protected; licensed catalogs, structured vitals and automatic follow-up remain |
 | Templates | Save/use/update Rx, custom symptom/test/advice lists | Implemented identity-free templates and non-destructive apply/update; shared terminology/advice library remains |
 | Rx output/design | PDF/print, translation/share, themes/header/signature/QR | Implemented save-and-preview, saved-record preview, native/system print and PDF export, three letterheads, clinician/registration/footer fields, margins/text size and visibility controls; English/Hindi/Gujarati labels with original clinical text. Header/signature uploads, QR and AI translation remain |
@@ -42,7 +42,9 @@ The user authorized dummy records and enabling the Treatment Plan Tab. Created o
 
 ## Data, design and localization
 
-Original orByteza identity, grouped searchable desktop sidebar, tablet/mobile drawer and bottom navigation. Pages build on first visit and preserve form state; clinic/module changes reset the workspace. Failed metrics display unavailable values rather than zero. Queue outcomes are persisted; wait-time metrics are not invented.
+Original orByteza identity. After the owner reported the previous design did not resemble the reference, re-reviewed the actual mobile and desktop layouts. The workspace now uses a compact brand header, five everyday desktop destinations with a live/recent queue panel, floating Home/Today/Book/Patients mobile navigation, and a searchable drawer for extended tools. The dashboard has six compact cards with tinted headings, a period menu and horizontal section tabs. Desktop patient lists use a directory table and mobile uses compact rows; opening a patient presents a unified tabbed workspace rather than a history dialog. Patient tabs retain consultation drafts and filter records by patient ID, never by shared names or phone numbers. Missing consent is not treated as agreement. Treatment and vaccination forms opened from a patient bind new records to that patient; clinic changes block saving into a different clinic.
+
+Pages build on first visit and preserve form state; clinic/module changes reset the workspace. Failed metrics display unavailable values rather than zero. Queue outcomes are persisted; average wait time remains “not recorded” until arrival/consultation timestamps exist. The local synthetic-data preview uses the same dashboard, navigation and patient presentation widgets; it does not connect to Firebase. These layout improvements do not close the feature gaps in the table above or claim a pixel-identical reproduction.
 
 New workspace copy supports English/Hindi/Gujarati with locale fonts and large-text spacing. Older dialogs still have English strings. The pre-existing public homepage remains HTML; new application work is Flutter. Porting the homepage remains part of the all-Flutter objective.
 

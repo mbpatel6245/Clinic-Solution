@@ -40,7 +40,8 @@ class TemplateLibraryScreen extends StatelessWidget {
 }
 
 class TreatmentPlansScreen extends StatelessWidget {
-  const TreatmentPlansScreen({super.key});
+  const TreatmentPlansScreen({super.key, this.patient});
+  final PatientModel? patient;
   @override
   Widget build(BuildContext context) {
     final l = RevampLabels.of(context);
@@ -49,10 +50,14 @@ class TreatmentPlansScreen extends StatelessWidget {
       title: l.text('plans'),
       hint: l.text('planHint'),
       empty: l.text('noPlans'),
-      stream: service.streamTreatmentPlans(),
+      stream: service.streamTreatmentPlans().map(
+        (plans) => patient == null
+            ? plans
+            : plans.where((p) => p.patientId == patient!.id).toList(),
+      ),
       action: () => showDialog<void>(
         context: context,
-        builder: (_) => const TreatmentPlanForm(),
+        builder: (_) => TreatmentPlanForm(patient: patient),
       ),
       actionLabel: l.text('newPlan'),
       itemBuilder: (plan) =>
@@ -62,7 +67,8 @@ class TreatmentPlansScreen extends StatelessWidget {
 }
 
 class TreatmentPlanForm extends StatefulWidget {
-  const TreatmentPlanForm({super.key});
+  const TreatmentPlanForm({super.key, this.patient});
+  final PatientModel? patient;
   @override
   State<TreatmentPlanForm> createState() => _TreatmentPlanFormState();
 }
@@ -75,6 +81,14 @@ class _TreatmentPlanFormState extends State<TreatmentPlanForm> {
   ];
   PatientModel? _patient;
   bool _saving = false, _failed = false;
+  late final String _clinic;
+  @override
+  void initState() {
+    super.initState();
+    _patient = widget.patient;
+    _clinic = context.read<SessionController>().activeClinicId;
+  }
+
   @override
   void dispose() {
     _name.dispose();
@@ -99,7 +113,10 @@ class _TreatmentPlanFormState extends State<TreatmentPlanForm> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                WorkflowPatientPicker(onSelected: (v) => _patient = v),
+                if (widget.patient == null)
+                  WorkflowPatientPicker(onSelected: (v) => _patient = v)
+                else
+                  Text(widget.patient!.fullName),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _name,
@@ -188,6 +205,10 @@ class _TreatmentPlanFormState extends State<TreatmentPlanForm> {
     if (!_form.currentState!.validate() || _patient == null) return;
     setState(() => _saving = true);
     try {
+      if (context.read<SessionController>().activeClinicId != _clinic ||
+          context.read<FirebaseFireStore>().activeClinicId != _clinic) {
+        throw StateError('Clinic changed.');
+      }
       await context.read<FirebaseFireStore>().saveTreatmentPlan(
         TreatmentPlan(
           patientId: _patient!.id,

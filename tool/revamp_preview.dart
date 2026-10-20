@@ -11,6 +11,9 @@ import 'package:clinic_solution/ui/views/home/revamp/workspace_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:clinic_solution/data/datasources/enterprise_models.dart';
 import 'package:clinic_solution/ui/views/home/revamp/prescription_preview.dart';
+import 'package:clinic_solution/ui/views/home/revamp/patient_workspace.dart';
+import 'package:clinic_solution/ui/views/home/revamp/patient_registry.dart';
+import 'package:clinic_solution/ui/widgets/app_design.dart';
 
 void main() => runApp(const RevampPreview());
 
@@ -44,11 +47,7 @@ class _RevampPreviewState extends State<RevampPreview> {
       status: i < 2 ? 'confirmed' : 'booked',
     ),
   );
-  void _open(AppFeature feature) => setState(
-    () => _selected = feature == AppFeature.reception
-        ? feature
-        : AppFeature.dashboard,
-  );
+  void _open(AppFeature feature) => setState(() => _selected = feature);
   @override
   Widget build(BuildContext context) {
     final locale = Locale(_language), l = RevampLabels(_language);
@@ -60,8 +59,18 @@ class _RevampPreviewState extends State<RevampPreview> {
       ),
       WorkspaceLink(
         AppFeature.reception,
-        l.text('queue'),
+        l.text('todayNav'),
         Icons.groups_outlined,
+      ),
+      WorkspaceLink(
+        AppFeature.appointments,
+        l.text('bookNav'),
+        Icons.event_outlined,
+      ),
+      WorkspaceLink(
+        AppFeature.patients,
+        l.text('patients'),
+        Icons.people_outline,
       ),
     ];
     return MaterialApp(
@@ -74,16 +83,34 @@ class _RevampPreviewState extends State<RevampPreview> {
         builder: (context) {
           final desktop =
               MediaQuery.sizeOf(context).width >= AppBreakpoints.medium;
-          final sidebar = WorkspaceSidebar(
+          final sidebar = PracticeNavigation(
+            vertical: true,
             links: links,
             selected: _selected,
             onSelected: _open,
-            clinicName: 'Demo Clinic',
           );
           return Scaffold(
             appBar: AppBar(
               title: const Text('orByteza · Demo Clinic'),
               actions: [
+                IconButton(
+                  tooltip: 'Patient workspace (demo)',
+                  icon: const Icon(Icons.person_outline),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PatientWorkspaceView(
+                        patient: _patients.first,
+                        visits: [
+                          PrescriptionModel(
+                            patient: _patients.first,
+                            visitDate: _today,
+                            complaints: 'DEMO ONLY - Synthetic visit.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Prescription PDF (demo)',
                   icon: const Icon(Icons.print_outlined),
@@ -127,21 +154,10 @@ class _RevampPreviewState extends State<RevampPreview> {
             drawer: desktop ? null : Drawer(child: sidebar),
             bottomNavigationBar: desktop
                 ? null
-                : NavigationBar(
-                    selectedIndex: _selected == AppFeature.dashboard ? 0 : 1,
-                    onDestinationSelected: (index) => _open(
-                      index == 0 ? AppFeature.dashboard : AppFeature.reception,
-                    ),
-                    destinations: [
-                      NavigationDestination(
-                        icon: const Icon(Icons.space_dashboard_outlined),
-                        label: l.text('home'),
-                      ),
-                      NavigationDestination(
-                        icon: const Icon(Icons.groups_outlined),
-                        label: l.text('queue'),
-                      ),
-                    ],
+                : PracticeNavigation(
+                    links: links,
+                    selected: _selected,
+                    onSelected: _open,
                   ),
             body: Column(
               children: [
@@ -183,14 +199,41 @@ class _RevampPreviewState extends State<RevampPreview> {
                                   );
                                 },
                               )
+                            : _selected == AppFeature.patients
+                            ? AppPage(
+                                child: PatientDirectoryList(
+                                  patients: _patients,
+                                  onOpen: (patient) =>
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => PatientWorkspaceView(
+                                            patient: patient,
+                                          ),
+                                        ),
+                                      ),
+                                  visits: const [],
+                                ),
+                              )
+                            : _selected == AppFeature.appointments
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: Text(
+                                    'Booking is available in the signed-in app at http://127.0.0.1:8090/login. This preview does not save appointments.',
+                                  ),
+                                ),
+                              )
                             : PracticeDashboardView(
                                 available: const {
                                   AppFeature.dashboard,
+                                  AppFeature.billing,
+                                  AppFeature.vaccination,
                                   AppFeature.patients,
                                   AppFeature.prescriptionList,
                                   AppFeature.appointments,
                                   AppFeature.reception,
                                 },
+                                displayName: 'Demo Doctor',
                                 patients: _patients,
                                 appointments: _appointments,
                                 now: _today,
