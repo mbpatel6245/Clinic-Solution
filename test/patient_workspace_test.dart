@@ -25,6 +25,41 @@ Widget app(Widget child, {String language = 'en', double scale = 1}) =>
     );
 
 void main() {
+  testWidgets(
+    'desktop practice navigation paints selected rows on its own Material',
+    (tester) async {
+      await tester.pumpWidget(
+        app(
+          Scaffold(
+            body: Row(
+              children: [
+                PracticeNavigation(
+                  vertical: true,
+                  links: const [
+                    WorkspaceLink(
+                      AppFeature.dashboard,
+                      'Home',
+                      Icons.home_outlined,
+                    ),
+                    WorkspaceLink(
+                      AppFeature.patients,
+                      'Patients',
+                      Icons.people_outline,
+                    ),
+                  ],
+                  selected: AppFeature.patients,
+                  onSelected: (_) {},
+                ),
+                const Expanded(child: Text('Workspace')),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
   final patient = PatientModel(
     id: 'one',
     firstName: 'Demo',

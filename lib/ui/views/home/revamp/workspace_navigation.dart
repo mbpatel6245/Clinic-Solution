@@ -99,7 +99,7 @@ class PracticeNavigation extends StatelessWidget {
     if (vertical) {
       return SizedBox(
         width: 256,
-        child: ColoredBox(
+        child: Material(
           color: const Color(0xFFF7F9FA),
           child: ListView(
             children: [
