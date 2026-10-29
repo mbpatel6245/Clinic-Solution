@@ -32,6 +32,8 @@ class PrescriptionDocument {
   ) {
     String label(String key) => labels[language]?[key] ?? labels['en']![key]!;
     return [
+      if (record.clinicalState == 'signed' && record.clinicalVersion > 0)
+        (label('signedVersion'), '${record.clinicalVersion}'),
       if (record.complaints.trim().isNotEmpty)
         (label('complaints'), record.complaints),
       if (settings.showDiagnoses && record.diagnoses.isNotEmpty)
@@ -59,10 +61,22 @@ class PrescriptionDocument {
     required ClinicProfile clinic,
     PrescriptionPrintSettings settings = const PrescriptionPrintSettings(),
     String language = 'en',
+    String? documentTitle,
+    List<(String, String)>? documentSections,
   }) async {
+    if (record.clinicalState == 'signed' &&
+        record.clinicalPrintContext.isNotEmpty) {
+      final frozen = record.clinicalPrintContext;
+      clinic = clinic.copyWith(
+        name: frozen['name']?.toString() ?? clinic.name,
+        phone: frozen['phone']?.toString() ?? '',
+        address: frozen['address']?.toString() ?? '',
+      );
+      settings = PrescriptionPrintSettings.fromMap(frozen);
+    }
     await _loadFonts();
     final locale = labels.containsKey(language) ? language : 'en';
-    final content = sections(record, settings, locale);
+    final content = documentSections ?? sections(record, settings, locale);
     // Refuse excessive data; never silently drop a medicine or clinical text.
     final totalCharacters =
         content.fold<int>(0, (total, entry) => total + entry.$2.length) +
@@ -144,7 +158,11 @@ class PrescriptionDocument {
       ].where((v) => v.isNotEmpty).join('\n'),
     );
     final body = <pw.Widget>[
-      ...await text(labels[locale]!['title']!, size: 17, heading: true),
+      ...await text(
+        documentTitle ?? labels[locale]!['title']!,
+        size: 17,
+        heading: true,
+      ),
       pw.SizedBox(height: 12),
       ...patient,
       pw.SizedBox(height: 14),
@@ -163,7 +181,7 @@ class PrescriptionDocument {
     );
     final logo = await _logo();
     final pdf = pw.Document(
-      title: 'Prescription',
+      title: documentTitle ?? 'Prescription',
       author: clinic.name,
       creator: 'orByteza Clinic Solution',
     );
@@ -324,6 +342,7 @@ class PrescriptionDocument {
       'date': 'Visit date',
       'allergies': 'Allergies',
       'registration': 'Registration',
+      'signedVersion': 'Signed clinical version',
       'complaints': 'Presenting complaints',
       'diagnoses': 'Diagnosis',
       'vitals': 'Vitals',
@@ -338,6 +357,7 @@ class PrescriptionDocument {
       'date': 'मुलाकात की तारीख',
       'allergies': 'एलर्जी',
       'registration': 'पंजीकरण',
+      'signedVersion': 'हस्ताक्षरित क्लिनिकल संस्करण',
       'complaints': 'मुख्य शिकायतें',
       'diagnoses': 'निदान',
       'vitals': 'शारीरिक माप',
@@ -352,6 +372,7 @@ class PrescriptionDocument {
       'date': 'મુલાકાતની તારીખ',
       'allergies': 'એલર્જી',
       'registration': 'નોંધણી',
+      'signedVersion': 'સહી કરેલ ક્લિનિકલ આવૃત્તિ',
       'complaints': 'મુખ્ય ફરિયાદો',
       'diagnoses': 'નિદાન',
       'vitals': 'શારીરિક માપ',

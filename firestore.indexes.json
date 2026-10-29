@@ -1,6 +1,40 @@
 {
   "indexes": [
     {
+      "collectionGroup": "clinical_artifacts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "author_id", "order": "ASCENDING"},
+        {"fieldPath": "patient_id", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "clinical_artifact_copies",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "patient_user_id", "order": "ASCENDING"},
+        {"fieldPath": "shared", "order": "ASCENDING"},
+        {"fieldPath": "issued_at", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "prescriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "patient_user_id", "order": "ASCENDING"},
+        {"fieldPath": "shared_with_patient", "order": "ASCENDING"},
+        {"fieldPath": "visit_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "clinical_encounters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "author_id", "order": "ASCENDING"},
+        {"fieldPath": "patient_id", "order": "ASCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "notification_outbox",
       "queryScope": "COLLECTION",
       "fields": [

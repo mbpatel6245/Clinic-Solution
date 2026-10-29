@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/design/uvilo_theme.dart';
+import '../../../../features/clinical/presentation/clinical_record_overview.dart';
+import '../../../../features/patients/presentation/administrative_patient_profile.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/auth/app_role.dart';
@@ -30,6 +35,9 @@ class PatientWorkspace extends StatefulWidget {
 }
 
 class _PatientWorkspaceState extends State<PatientWorkspace> {
+  late final String? _userId = Firebase.apps.isEmpty
+      ? null
+      : FirebaseAuth.instance.currentUser?.uid;
   late final String _clinic = context.read<SessionController>().activeClinicId;
   late final Stream<List<PrescriptionModel>> _history = context
       .read<FirebaseFireStore>()
@@ -40,10 +48,20 @@ class _PatientWorkspaceState extends State<PatientWorkspace> {
     final session = context.watch<SessionController>();
     final l = RevampLabels.of(context);
     if (session.activeClinicId != _clinic ||
+        (_userId != null &&
+            FirebaseAuth.instance.currentUser?.uid != _userId) ||
         !session.can(AppFeature.patients)) {
       return Scaffold(
         appBar: AppBar(),
         body: Center(child: Text(l.text('clinicChanged'))),
+      );
+    }
+    if (!session.can(AppFeature.prescriptionList) &&
+        !session.can(AppFeature.createPrescription)) {
+      return AdministrativePatientProfile(
+        patient: widget.patient,
+        onBack: widget.onBack,
+        onBook: widget.onBook,
       );
     }
     return StreamBuilder<List<PrescriptionModel>>(
@@ -54,7 +72,7 @@ class _PatientWorkspaceState extends State<PatientWorkspace> {
         onBook: widget.onBook,
         patient: widget.patient,
         visits: session.can(AppFeature.prescriptionList)
-            ? snapshot.data ?? []
+            ? (snapshot.hasError ? [] : snapshot.data ?? [])
             : [],
         historyLoading:
             session.can(AppFeature.prescriptionList) &&
@@ -64,7 +82,7 @@ class _PatientWorkspaceState extends State<PatientWorkspace> {
         canReadHistory: session.can(AppFeature.prescriptionList),
         onPreview: (visit) => showPrescriptionPreview(context, visit),
         consultation: session.can(AppFeature.createPrescription)
-            ? TabNewPrescription(initialPatient: widget.patient)
+            ? TabNewPrescription(initialPatient: widget.patient, sourceClinicId: _clinic)
             : null,
         treatment: session.can(AppFeature.treatmentPlans)
             ? TreatmentPlansScreen(patient: widget.patient)
@@ -137,10 +155,6 @@ class _PatientWorkspaceViewState extends State<PatientWorkspaceView> {
     ];
     final selected = tabs.contains(_tab) ? _tab : tabs.first;
     _visited.add(selected);
-    final diagnoses = visits
-        .expand((v) => v.diagnoses)
-        .where((s) => s.trim().isNotEmpty)
-        .toSet();
     Widget history({required bool analytics}) => AppPage(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -150,36 +164,10 @@ class _PatientWorkspaceViewState extends State<PatientWorkspaceView> {
           else if (widget.historyError)
             AppSection(child: Text(l.text('loadError')))
           else if (analytics) ...[
-            ResponsiveGrid(
-              minimumItemWidth: 200,
-              children: [
-                AppMetricCard(
-                  label: l.text('consultations'),
-                  value: '${visits.length}',
-                  icon: Icons.medical_services_outlined,
-                  caption: l.text('allTime'),
-                ),
-                AppMetricCard(
-                  label: l.text('lastVisit'),
-                  value: visits.isEmpty
-                      ? '—'
-                      : DateFormat.yMMMd(locale).format(
-                          visits.first.visitDate ??
-                              visits.first.createdAt ??
-                              DateTime(1970),
-                        ),
-                  icon: Icons.history,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            AppSection(
-              title: l.text('diagnoses'),
-              child: Text(
-                diagnoses.isEmpty
-                    ? l.text('noDiagnoses')
-                    : diagnoses.join(' · '),
-              ),
+            ClinicalRecordOverview(
+              patient: patient,
+              visits: visits,
+              onPreview: widget.onPreview,
             ),
           ] else if (visits.isEmpty)
             AppSection(child: Text(l.text('noHistory')))
@@ -215,141 +203,144 @@ class _PatientWorkspaceViewState extends State<PatientWorkspaceView> {
         ],
       ),
     );
-    return Scaffold(
-      appBar: widget.embedded
-          ? null
-          : AppBar(title: Text(l.text('patientWorkspace'))),
-      body: Column(
-        children: [
-          if (widget.embedded)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: widget.onBack,
-                icon: const Icon(Icons.arrow_back, size: 18),
-                label: Text(l.text('patients')),
+    return Theme(
+      data: UviloTheme.light,
+      child: Scaffold(
+        appBar: widget.embedded
+            ? null
+            : AppBar(title: Text(l.text('patientWorkspace'))),
+        body: Column(
+          children: [
+            if (widget.embedded)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: widget.onBack,
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: Text(l.text('patients')),
+                ),
               ),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        const CircleAvatar(
-                          backgroundColor: AppColors.soft,
-                          foregroundColor: AppColors.primary,
-                          child: Icon(Icons.person_outline),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                patient.fullName,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              Text(
-                                [
-                                  if (patient.gender.isNotEmpty)
-                                    l.text(patient.gender),
-                                  if (patient.age != null)
-                                    '${patient.age} ${l.text(patient.ageUnit)}',
-                                  if (patient.phone.isNotEmpty) patient.phone,
-                                ].join(' · '),
-                                style: const TextStyle(
-                                  color: AppColors.inkMuted,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const CircleAvatar(
+                            backgroundColor: AppColors.soft,
+                            foregroundColor: AppColors.primary,
+                            child: Icon(Icons.person_outline),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  patient.fullName,
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (widget.consultation != null)
-                          FilledButton.icon(
-                            onPressed: () =>
-                                setState(() => _tab = 'consultationTab'),
-                            icon: const Icon(Icons.edit_note_outlined),
-                            label: Text(l.text('startVisit')),
-                          ),
-                        if (widget.onBook != null)
-                          OutlinedButton.icon(
-                            onPressed: widget.onBook,
-                            icon: const Icon(Icons.event_outlined),
-                            label: Text(l.text('bookNav')),
-                          ),
-                        Chip(
-                          avatar: const Icon(
-                            Icons.notifications_outlined,
-                            size: 16,
-                          ),
-                          label: Text(
-                            l.text(
-                              patient.notificationConsent == true
-                                  ? 'consentGranted'
-                                  : 'consentNotGranted',
+                                Text(
+                                  [
+                                    if (patient.gender.isNotEmpty)
+                                      l.text(patient.gender),
+                                    if (patient.age != null)
+                                      '${patient.age} ${l.text(patient.ageUnit)}',
+                                    if (patient.phone.isNotEmpty) patient.phone,
+                                  ].join(' · '),
+                                  style: const TextStyle(
+                                    color: AppColors.inkMuted,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                        if (patient.allergies.isNotEmpty)
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (widget.consultation != null)
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  setState(() => _tab = 'consultationTab'),
+                              icon: const Icon(Icons.edit_note_outlined),
+                              label: Text(l.text('startVisit')),
+                            ),
+                          if (widget.onBook != null)
+                            OutlinedButton.icon(
+                              onPressed: widget.onBook,
+                              icon: const Icon(Icons.event_outlined),
+                              label: Text(l.text('bookNav')),
+                            ),
                           Chip(
                             avatar: const Icon(
-                              Icons.warning_amber_outlined,
+                              Icons.notifications_outlined,
                               size: 16,
                             ),
                             label: Text(
-                              '${l.text('allergies')}: ${patient.allergies.join(', ')}',
+                              l.text(
+                                patient.notificationConsent == true
+                                    ? 'consentGranted'
+                                    : 'consentNotGranted',
+                              ),
                             ),
                           ),
-                      ],
-                    ),
-                  ],
+                          if (patient.allergies.isNotEmpty)
+                            Chip(
+                              avatar: const Icon(
+                                Icons.warning_amber_outlined,
+                                size: 16,
+                              ),
+                              label: Text(
+                                '${l.text('allergies')}: ${patient.allergies.join(', ')}',
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: WorkspaceTabs(
-              labels: tabs.map(l.text).toList(),
-              selected: tabs.indexOf(selected),
-              onSelected: (index) => setState(() => _tab = tabs[index]),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: WorkspaceTabs(
+                labels: tabs.map(l.text).toList(),
+                selected: tabs.indexOf(selected),
+                onSelected: (index) => setState(() => _tab = tabs[index]),
+              ),
             ),
-          ),
-          Expanded(
-            child: IndexedStack(
-              index: tabs.indexOf(selected),
-              children: [
-                for (final tab in tabs)
-                  KeyedSubtree(
-                    key: ValueKey(tab),
-                    child: !_visited.contains(tab)
-                        ? const SizedBox.shrink()
-                        : switch (tab) {
-                            'analytics' => history(analytics: true),
-                            'timeline' => history(analytics: false),
-                            'consultationTab' => widget.consultation!,
-                            'plans' => widget.treatment!,
-                            'vaccines' => widget.vaccinations!,
-                            _ => AppPage(child: Text(patient.address)),
-                          },
-                  ),
-              ],
+            Expanded(
+              child: IndexedStack(
+                index: tabs.indexOf(selected),
+                children: [
+                  for (final tab in tabs)
+                    KeyedSubtree(
+                      key: ValueKey(tab),
+                      child: !_visited.contains(tab)
+                          ? const SizedBox.shrink()
+                          : switch (tab) {
+                              'analytics' => history(analytics: true),
+                              'timeline' => history(analytics: false),
+                              'consultationTab' => widget.consultation!,
+                              'plans' => widget.treatment!,
+                              'vaccines' => widget.vaccinations!,
+                              _ => AppPage(child: Text(patient.address)),
+                            },
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

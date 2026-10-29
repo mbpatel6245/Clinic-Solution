@@ -1,4 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/design/uvilo_theme.dart';
+import '../../../../features/clinical/presentation/clinical_components.dart';
+import '../../../../features/clinical/domain/clinical_draft_repository.dart';
+import '../../../../features/clinical/domain/clinical_repository.dart';
+import '../../../../features/clinical/data/firebase_clinical_repository.dart';
+import '../../../../features/clinical/presentation/clinical_finalization_screen.dart';
+import 'dart:convert';
+import '../../../../features/clinical/presentation/clinical_draft_actions.dart';
+import '../../../../features/clinical/presentation/prescription_review.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../revamp/prescription_preview.dart';
@@ -19,6 +30,10 @@ class TabNewPrescription extends StatefulWidget {
     this.onSaved,
     this.initialTemplate,
     this.queueAppointmentId = '',
+    this.clinicalRepository,
+    this.sourceClinicId,
+    this.recoveryScope,
+    this.draftRepositoryFactory,
   });
 
   final PatientModel? initialPatient;
@@ -26,6 +41,10 @@ class TabNewPrescription extends StatefulWidget {
   final VoidCallback? onSaved;
   final PrescriptionTemplate? initialTemplate;
   final String queueAppointmentId;
+  final ClinicalRepository? clinicalRepository;
+  final String? sourceClinicId;
+  final String? recoveryScope;
+  final ClinicalDraftRepository Function()? draftRepositoryFactory;
 
   @override
   State<TabNewPrescription> createState() => _TabNewPrescriptionState();
@@ -33,6 +52,7 @@ class TabNewPrescription extends StatefulWidget {
 
 class _TabNewPrescriptionState extends State<TabNewPrescription> {
   final _formKey = GlobalKey<FormState>();
+  final _draftActionsKey = GlobalKey();
   final _firstName = TextEditingController();
   final _middleName = TextEditingController();
   final _lastName = TextEditingController();
@@ -54,16 +74,138 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
   bool _saving = false;
   late bool _shareWithPatient;
   String? _draftPrescriptionId;
+  late final String _clinicId;
+  String? _userId, _localScope;
+  late final bool _clinicalMigration;
+  ClinicalRepository? _clinicalRepository;
+  ClinicalEncounter? _signedEncounter;
+  PatientModel? _clinicalPatient;
+  bool _clinicalLoading = false, _clinicalLoadError = false;
+  int _clinicalRevision = 0;
+  final _clinicalOperations = <String, Map<String, Object?>>{};
+  Future<List<PrescriptionModel>>? _clinicalDrafts;
+
+  bool get _authorized =>
+      mounted &&
+      context.read<SessionController>().activeClinicId == _clinicId &&
+      (widget.sourceClinicId == null || widget.sourceClinicId == _clinicId) &&
+      (widget.initialPrescription?.clinicId.isNotEmpty != true ||
+          widget.initialPrescription!.clinicId == _clinicId) &&
+      context.read<SessionController>().clinicalV3 == _clinicalMigration &&
+      (!_clinicalMigration ||
+          context.read<SessionController>().roles.contains(AppRole.doctor)) &&
+      context.read<FirebaseFireStore>().activeClinicId == _clinicId &&
+      context.read<SessionController>().can(AppFeature.createPrescription) &&
+      (Firebase.apps.isEmpty ||
+          (_userId != null &&
+              FirebaseAuth.instance.currentUser?.uid == _userId));
+
+  Map<String, TextEditingController> get _draftFields => {
+    'firstName': _firstName,
+    'middleName': _middleName,
+    'lastName': _lastName,
+    'phone': _phone,
+    'address': _address,
+    'age': _age,
+    'diagnosis': _diagnosis,
+    'complaints': _complaints,
+    'vitals': _vitals,
+    'investigation': _investigation,
+    'advice': _advice,
+    'privateNotes': _privateNotes,
+  };
+
+  Map<String, Object?> _captureDraft() {
+    _draftPrescriptionId ??= context
+        .read<FirebaseFireStore>()
+        .createPrescriptionId();
+    return {
+      'version': 1, 'id': _draftPrescriptionId,
+      'clinicalMigration': _clinicalMigration,
+      'clinicalRevision': _clinicalRevision,
+      'fields': _draftFields.map((key, value) => MapEntry(key, value.text)),
+      'gender': _gender, 'visit': _visitDate.toIso8601String(),
+      'followUp': _followUpDate?.toIso8601String(),
+      'medicines': _medicines.map((m) => m.toModel().toMap()).toList(),
+      // Release is always reviewed again after recovery.
+    };
+  }
+
+  void _restoreDraft(Map<String, Object?> data) {
+    if (!_authorized ||
+        data['version'] != 1 ||
+        (data['clinicalMigration'] == true) != _clinicalMigration) {
+      throw StateError('Invalid draft');
+    }
+    final fields = Map<String, String>.from(data['fields'] as Map);
+    final visit = DateTime.parse(data['visit'] as String);
+    final medicines = (data['medicines'] as List)
+        .map((m) => MedicineLine.fromMap(Map<String, dynamic>.from(m as Map)))
+        .toList();
+    final id = data['id'] as String;
+    if (id.isEmpty ||
+        (widget.initialPrescription != null &&
+            id != widget.initialPrescription!.id)) {
+      throw StateError('Encounter mismatch');
+    }
+    setState(() {
+      for (final entry in _draftFields.entries) {
+        entry.value.text = fields[entry.key] ?? '';
+      }
+      _draftPrescriptionId = id;
+      _clinicalRevision = (data['clinicalRevision'] as num?)?.toInt() ?? 0;
+      _clinicalLoadError = false;
+      _notesLoaded = true;
+      _gender = data['gender'] as String? ?? '';
+      _visitDate = visit;
+      _followUpDate = DateTime.tryParse(data['followUp'] as String? ?? '');
+      for (final m in _medicines) {
+        m.dispose();
+      }
+      _medicines
+        ..clear()
+        ..addAll(
+          medicines.isEmpty
+              ? [_MedicineControllers()]
+              : medicines.map(_MedicineControllers.fromModel),
+        );
+      _shareWithPatient = false;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    _clinicId = context.read<SessionController>().activeClinicId;
+    _localScope = widget.recoveryScope;
+    _clinicalMigration = context.read<SessionController>().clinicalV3;
+    if (_clinicalMigration) {
+      _clinicalRepository =
+          widget.clinicalRepository ?? FirebaseClinicalRepository(_clinicId);
+    }
+    if (Firebase.apps.isNotEmpty) {
+      _userId = FirebaseAuth.instance.currentUser?.uid;
+      if (_userId != null) {
+        _localScope = ClinicalDraftIdentity(
+          project: Firebase.app().options.projectId,
+          user: _userId!,
+          clinic: _clinicId,
+          patient:
+              widget.initialPrescription?.patient.id ??
+              widget.initialPatient?.id ??
+              'new-patient',
+          encounter:
+              widget.initialPrescription?.id ??
+              (widget.queueAppointmentId.isNotEmpty
+                  ? widget.queueAppointmentId
+                  : 'new-encounter'),
+        ).scope;
+      }
+    }
     final patient = widget.initialPatient;
     final existing = widget.initialPrescription;
     final sourcePatient = existing?.patient ?? patient;
-    _shareWithPatient =
-        existing?.sharedWithPatient ??
-        context.read<SessionController>().sharePrescriptionsWithPatients;
+    _shareWithPatient = existing?.sharedWithPatient ?? false;
     if (sourcePatient != null) {
       _firstName.text = sourcePatient.firstName;
       _middleName.text = sourcePatient.middleName;
@@ -75,20 +217,22 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
     }
     if (existing != null) {
       _notesLoaded = false;
-      context
-          .read<FirebaseFireStore>()
-          .getPrivateVisitNotes(existing.id)
-          .then((notes) {
-            if (mounted) {
-              setState(() {
-                _privateNotes.text = notes;
-                _notesLoaded = true;
-              });
-            }
-          })
-          .catchError((Object _) {
-            if (mounted) setState(() => _notesLoaded = false);
-          });
+      if (!_clinicalMigration) {
+        context
+            .read<FirebaseFireStore>()
+            .getPrivateVisitNotes(existing.id)
+            .then((notes) {
+              if (_authorized) {
+                setState(() {
+                  _privateNotes.text = notes;
+                  _notesLoaded = true;
+                });
+              }
+            })
+            .catchError((Object _) {
+              if (mounted) setState(() => _notesLoaded = false);
+            });
+      }
       _draftPrescriptionId = existing.id;
       _diagnosis.text = existing.diagnoses.join(', ');
       _complaints.text = existing.complaints;
@@ -107,6 +251,117 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
         );
     }
     if (widget.initialTemplate != null) _applyTemplate(widget.initialTemplate!);
+    if (_clinicalMigration && existing != null) {
+      _clinicalLoading = true;
+      _loadClinicalEncounter();
+    }
+    if (_authorized &&
+        _clinicalMigration &&
+        existing == null &&
+        widget.initialPatient?.id.isNotEmpty == true &&
+        _clinicalRepository is ClinicalDraftListing) {
+      _clinicalDrafts = (_clinicalRepository as ClinicalDraftListing).drafts(
+        widget.initialPatient!.id,
+      );
+    }
+  }
+
+  Future<void> _resumeDraft(PrescriptionModel draft) async {
+    if (!_authorized) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(ClinicalLabels.of(context)('resume'))),
+          body: TabNewPrescription(
+            initialPrescription: draft,
+            sourceClinicId: _clinicId,
+          ),
+        ),
+      ),
+    );
+    if (!mounted || !_authorized) return;
+    setState(
+      () => _clinicalDrafts = (_clinicalRepository as ClinicalDraftListing)
+          .drafts(widget.initialPatient!.id),
+    );
+  }
+
+  Future<void> _loadClinicalEncounter() async {
+    if (!_authorized || _clinicalRepository == null) return;
+    setState(() {
+      _clinicalLoading = true;
+      _clinicalLoadError = false;
+    });
+    try {
+      final current = await _clinicalRepository!.load(_draftPrescriptionId!);
+      if (!_authorized) return;
+      _applyClinicalEncounter(current);
+    } catch (_) {
+      if (_authorized) setState(() => _clinicalLoadError = true);
+    } finally {
+      if (mounted) setState(() => _clinicalLoading = false);
+    }
+  }
+
+  void _applyClinicalEncounter(ClinicalEncounter encounter) {
+    final r = encounter.record;
+    setState(() {
+      _clinicalRevision = encounter.revision;
+      _clinicalPatient = r.patient;
+      _signedEncounter = encounter.signed ? encounter : null;
+      _draftPrescriptionId = encounter.id;
+      _diagnosis.text = r.diagnoses.join(', ');
+      _complaints.text = r.complaints;
+      _vitals.text = r.vitals;
+      _investigation.text = r.investigation;
+      _advice.text = r.advice;
+      _privateNotes.text = encounter.privateNotes;
+      _notesLoaded = true;
+      _visitDate = r.visitDate ?? _visitDate;
+      _followUpDate = r.followUpDate;
+      for (final m in _medicines) {
+        m.dispose();
+      }
+      _medicines
+        ..clear()
+        ..addAll(
+          r.medicines.isEmpty
+              ? [_MedicineControllers()]
+              : r.medicines.map(_MedicineControllers.fromModel),
+        );
+    });
+  }
+
+  Widget _finalization(ClinicalEncounter encounter, {bool embedded = false}) =>
+      ClinicalFinalizationScreen(
+        key: ValueKey((encounter.id, encounter.revision)),
+        initial: encounter,
+        repository: _clinicalRepository!,
+        clinicName: context.read<SessionController>().clinicName,
+        authorized: () => _authorized,
+        changes: context.read<SessionController>(),
+        sharingEnabled: () =>
+            context.read<SessionController>().sharePrescriptionsWithPatients,
+        onPrint: (r) => showPrescriptionPreview(context, r),
+        onAmended: embedded ? _applyClinicalEncounter : null,
+        onDone: embedded
+            ? _finishClinical
+            : () => Navigator.of(context).pop(true),
+      );
+
+  void _finishClinical() {
+    if (!_authorized) return;
+    if (widget.onSaved != null) {
+      widget.onSaved!();
+    } else if (widget.initialPrescription != null) {
+      Navigator.of(context).maybePop();
+    } else {
+      setState(() {
+        _signedEncounter = null;
+        _clinicalRevision = 0;
+        _clearForm();
+      });
+    }
   }
 
   void _applyTemplate(PrescriptionTemplate value) {
@@ -146,6 +401,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
   }
 
   Future<void> _useTemplate() async {
+    if (!_authorized) return;
     final l = RevampLabels.of(context);
     final selected = await showDialog<PrescriptionTemplate>(
       context: context,
@@ -185,10 +441,13 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
         ],
       ),
     );
-    if (selected != null && mounted) setState(() => _applyTemplate(selected));
+    if (selected != null && _authorized) {
+      setState(() => _applyTemplate(selected));
+    }
   }
 
   Future<void> _saveTemplate({bool update = false}) async {
+    if (!_authorized) return;
     final l = RevampLabels.of(context);
     final name = await showDialog<String>(
       context: context,
@@ -196,7 +455,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
         initialName: update ? _activeTemplate?.name ?? '' : '',
       ),
     );
-    if (name == null || !mounted) return;
+    if (!mounted || name == null || !_authorized) return;
     try {
       await context.read<FirebaseFireStore>().savePrescriptionTemplate(
         PrescriptionTemplate(
@@ -227,6 +486,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
 
   @override
   void dispose() {
+    _clinicalRepository?.close();
     for (final controller in [
       _firstName,
       _middleName,
@@ -274,7 +534,7 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
   }
 
   Future<void> _save({bool preview = false}) async {
-    if (_saving) return;
+    if (_saving || !_authorized) return;
     final strings = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -348,6 +608,61 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
         visitDate: _visitDate,
         followUpDate: _followUpDate,
       );
+      if (_clinicalMigration) {
+        final details = <String, Object?>{
+          'kind': 'saveDraft',
+          'encounterId': record.id,
+          'patientId': patient.id,
+          'appointmentId': record.appointmentId,
+          'expectedRevision': _clinicalRevision,
+          'record': clinicalRecordPayload(record),
+          if (_notesLoaded) 'privateNotes': _privateNotes.text,
+        };
+        final command = _clinicalOperations.putIfAbsent(
+          jsonEncode(details),
+          () => {
+            ...details,
+            'operationId': _clinicalRepository!.newOperationId(),
+          },
+        );
+        await _clinicalRepository!.command(command);
+        final current = await _clinicalRepository!.load(record.id);
+        if (!mounted || !_authorized) return;
+        _applyClinicalEncounter(current);
+        final amendment = await Navigator.of(context).push<Object?>(
+          MaterialPageRoute(builder: (_) => _finalization(current)),
+        );
+        if (!mounted || !_authorized) return;
+        if (amendment is ClinicalEncounter) {
+          _applyClinicalEncounter(amendment);
+        } else if (amendment == true) {
+          _finishClinical();
+        } else {
+          await _loadClinicalEncounter();
+        }
+        return;
+      }
+      final reviewed = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => ListenableBuilder(
+            listenable: context.read<SessionController>(),
+            builder: (reviewContext, _) => _authorized
+                ? PrescriptionReview(
+                    record: record,
+                    clinicName: context.read<SessionController>().clinicName,
+                  )
+                : Scaffold(
+                    appBar: AppBar(),
+                    body: Center(
+                      child: Text(
+                        RevampLabels.of(context).text('clinicChanged'),
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      );
+      if (!mounted || reviewed != true || !_authorized) return;
       await service.savePrescription(
         record,
         privateNotes: _notesLoaded ? _privateNotes.text : null,
@@ -355,10 +670,10 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
             widget.initialPrescription == null &&
             widget.queueAppointmentId.isNotEmpty,
       );
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(strings.prescriptionSaved)));
+      if (!mounted || !_authorized) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ClinicalLabels.of(context)('queued'))),
+      );
       _clearForm();
       if (preview) {
         await showPrescriptionPreview(context, record);
@@ -367,9 +682,15 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
       widget.onSaved?.call();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${strings.errorMessage} $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _clinicalMigration
+                ? ClinicalLabels.of(context)('remoteError')
+                : '${strings.errorMessage} $error',
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -377,303 +698,482 @@ class _TabNewPrescriptionState extends State<TabNewPrescription> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<SessionController>();
     final strings = AppLocalizations.of(context)!;
+    if (!_authorized) {
+      return Center(
+        child: Text(RevampLabels.of(context).text('clinicChanged')),
+      );
+    }
+    if (_clinicalLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_clinicalLoadError) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(ClinicalLabels.of(context)('remoteError')),
+            TextButton(
+              onPressed: _loadClinicalEncounter,
+              child: Text(ClinicalLabels.of(context)('reload')),
+            ),
+            if (_localScope != null)
+              ClinicalDraftActions(
+                key: _draftActionsKey,
+                scope: _localScope!,
+                authorized: () => _authorized && !_saving,
+                capture: _captureDraft,
+                restore: _restoreDraft,
+                canSave: false,
+                repositoryFactory: widget.draftRepositoryFactory,
+              ),
+          ],
+        ),
+      );
+    }
+    if (_signedEncounter != null) {
+      return _finalization(_signedEncounter!, embedded: true);
+    }
+    if (!_clinicalMigration &&
+        widget.initialPrescription?.clinicalState == 'signed') {
+      return PrescriptionReview(
+        record: widget.initialPrescription!,
+        clinicName: context.read<SessionController>().clinicName,
+        signed: true,
+        actions: OutlinedButton(
+          onPressed: () =>
+              showPrescriptionPreview(context, widget.initialPrescription!),
+          child: Text(ClinicalLabels.of(context)('print')),
+        ),
+      );
+    }
     final linkedPatient =
-        widget.initialPrescription?.patient ?? widget.initialPatient;
+        _clinicalPatient ??
+        widget.initialPrescription?.patient ??
+        widget.initialPatient;
     final dateFormat = DateFormat.yMMMd(
       Localizations.localeOf(context).toString(),
     );
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    strings.newPrescription,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
+    return Theme(
+      data: UviloTheme.light,
+      child: ColoredBox(
+        color: UviloTheme.canvas,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1250),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      OutlinedButton.icon(
-                        onPressed: _useTemplate,
-                        icon: const Icon(Icons.snippet_folder_outlined),
-                        label: Text(
-                          RevampLabels.of(context).text('useTemplate'),
-                        ),
+                      Text(
+                        ClinicalLabels.of(context)('workspace'),
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      OutlinedButton.icon(
-                        onPressed: _saveTemplate,
-                        icon: const Icon(Icons.bookmark_add_outlined),
-                        label: Text(
-                          RevampLabels.of(context).text('saveTemplate'),
-                        ),
-                      ),
-                      if (_activeTemplate?.id.isNotEmpty == true)
-                        OutlinedButton.icon(
-                          onPressed: () => _saveTemplate(update: true),
-                          icon: const Icon(Icons.edit_outlined),
-                          label: Text(
-                            RevampLabels.of(context).text('updateTemplate'),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _Section(
-                    title: strings.patientDetails,
-                    icon: Icons.person_outline,
-                    child:
-                        widget.initialPatient != null &&
-                            widget.initialPrescription == null
-                        ? ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(
-                              child: Text(
-                                widget.initialPatient!.firstName.isEmpty
-                                    ? '?'
-                                    : widget.initialPatient!.firstName[0]
-                                          .toUpperCase(),
-                              ),
-                            ),
-                            title: Text(widget.initialPatient!.fullName),
-                            subtitle: Text(
-                              [
-                                if (widget.initialPatient!.phone.isNotEmpty)
-                                  widget.initialPatient!.phone,
-                                if (widget.initialPatient!.age != null)
-                                  '${widget.initialPatient!.age} ${strings.age}',
-                                if (widget.initialPatient!.address.isNotEmpty)
-                                  widget.initialPatient!.address,
-                              ].join(' • '),
-                            ),
-                          )
-                        : _ResponsiveFields(
-                            children: [
-                              _field(
-                                controller: _firstName,
-                                label: strings.firstName,
-                                requiredText: strings.requiredField,
-                              ),
-                              _field(
-                                controller: _middleName,
-                                label: strings.middleName,
-                              ),
-                              _field(
-                                controller: _lastName,
-                                label: strings.lastName,
-                              ),
-                              _field(
-                                controller: _phone,
-                                label: strings.phone,
-                                keyboardType: TextInputType.phone,
-                              ),
-                              _field(
-                                controller: _age,
-                                label: strings.age,
-                                keyboardType: TextInputType.number,
-                                validator: (value) =>
-                                    value != null &&
-                                        value.isNotEmpty &&
-                                        int.tryParse(value) == null
-                                    ? strings.invalidNumber
-                                    : null,
-                              ),
-                              DropdownButtonFormField<String>(
-                                initialValue: _gender.isEmpty ? null : _gender,
-                                decoration: InputDecoration(
-                                  labelText: strings.gender,
-                                ),
-                                items: [
-                                  DropdownMenuItem(
-                                    value: 'male',
-                                    child: Text(strings.male),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'female',
-                                    child: Text(strings.female),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'other',
-                                    child: Text(strings.other),
-                                  ),
+                      const SizedBox(height: 16),
+                      if (_clinicalDrafts != null) ...[
+                        FutureBuilder<List<PrescriptionModel>>(
+                          future: _clinicalDrafts,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return Text(
+                                ClinicalLabels.of(context)('remoteError'),
+                              );
+                            }
+                            if (!snapshot.hasData) {
+                              return const LinearProgressIndicator();
+                            }
+                            if (snapshot.data!.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return ClinicalCard(
+                              title: ClinicalLabels.of(context)('drafts'),
+                              child: Column(
+                                children: [
+                                  for (final draft in snapshot.data!)
+                                    ListTile(
+                                      title: Text(
+                                        draft.diagnoses.isEmpty
+                                            ? draft.id
+                                            : draft.diagnoses.join(', '),
+                                      ),
+                                      subtitle: Text(
+                                        draft.visitDate == null
+                                            ? draft.id
+                                            : dateFormat.format(
+                                                draft.visitDate!,
+                                              ),
+                                      ),
+                                      trailing: TextButton(
+                                        onPressed: _saving
+                                            ? null
+                                            : () => _resumeDraft(draft),
+                                        child: Text(
+                                          ClinicalLabels.of(context)('resume'),
+                                        ),
+                                      ),
+                                    ),
                                 ],
-                                onChanged: (value) => _gender = value ?? '',
                               ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (linkedPatient != null) ...[
+                        ClinicalPatientBanner(
+                          patient: linkedPatient,
+                          encounter: widget.queueAppointmentId,
+                        ),
+                        const SizedBox(height: 16),
+                        ClinicalAllergyBanner(
+                          allergies: linkedPatient.allergies,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (_localScope != null && _notesLoaded) ...[
+                        ClinicalDraftActions(
+                          key: _draftActionsKey,
+                          scope: _localScope!,
+                          repositoryFactory: widget.draftRepositoryFactory,
+                          authorized: () => _authorized && !_saving,
+                          capture: _captureDraft,
+                          restore: _restoreDraft,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _useTemplate,
+                            icon: const Icon(Icons.snippet_folder_outlined),
+                            label: Text(
+                              RevampLabels.of(context).text('useTemplate'),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _saveTemplate,
+                            icon: const Icon(Icons.bookmark_add_outlined),
+                            label: Text(
+                              RevampLabels.of(context).text('saveTemplate'),
+                            ),
+                          ),
+                          if (_activeTemplate?.id.isNotEmpty == true)
+                            OutlinedButton.icon(
+                              onPressed: () => _saveTemplate(update: true),
+                              icon: const Icon(Icons.edit_outlined),
+                              label: Text(
+                                RevampLabels.of(context).text('updateTemplate'),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (widget.initialPatient == null ||
+                          widget.initialPrescription != null)
+                        _Section(
+                          title: strings.patientDetails,
+                          icon: Icons.person_outline,
+                          child:
+                              widget.initialPatient != null &&
+                                  widget.initialPrescription == null
+                              ? ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: CircleAvatar(
+                                    child: Text(
+                                      widget.initialPatient!.firstName.isEmpty
+                                          ? '?'
+                                          : widget.initialPatient!.firstName[0]
+                                                .toUpperCase(),
+                                    ),
+                                  ),
+                                  title: Text(widget.initialPatient!.fullName),
+                                  subtitle: Text(
+                                    [
+                                      if (widget
+                                          .initialPatient!
+                                          .phone
+                                          .isNotEmpty)
+                                        widget.initialPatient!.phone,
+                                      if (widget.initialPatient!.age != null)
+                                        '${widget.initialPatient!.age} ${strings.age}',
+                                      if (widget
+                                          .initialPatient!
+                                          .address
+                                          .isNotEmpty)
+                                        widget.initialPatient!.address,
+                                    ].join(' • '),
+                                  ),
+                                )
+                              : _ResponsiveFields(
+                                  children: [
+                                    _field(
+                                      controller: _firstName,
+                                      label: strings.firstName,
+                                      requiredText: strings.requiredField,
+                                    ),
+                                    _field(
+                                      controller: _middleName,
+                                      label: strings.middleName,
+                                    ),
+                                    _field(
+                                      controller: _lastName,
+                                      label: strings.lastName,
+                                    ),
+                                    _field(
+                                      controller: _phone,
+                                      label: strings.phone,
+                                      keyboardType: TextInputType.phone,
+                                    ),
+                                    _field(
+                                      controller: _age,
+                                      label: strings.age,
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) =>
+                                          value != null &&
+                                              value.isNotEmpty &&
+                                              int.tryParse(value) == null
+                                          ? strings.invalidNumber
+                                          : null,
+                                    ),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: _gender.isEmpty
+                                          ? null
+                                          : _gender,
+                                      decoration: InputDecoration(
+                                        labelText: strings.gender,
+                                      ),
+                                      items: [
+                                        DropdownMenuItem(
+                                          value: 'male',
+                                          child: Text(strings.male),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'female',
+                                          child: Text(strings.female),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'other',
+                                          child: Text(strings.other),
+                                        ),
+                                      ],
+                                      onChanged: (value) =>
+                                          _gender = value ?? '',
+                                    ),
+                                    _field(
+                                      controller: _address,
+                                      label: strings.address,
+                                      maxLines: 2,
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      const SizedBox(height: 16),
+                      ClinicalEditorColumns(
+                        sidebar: ClinicalCard(
+                          title: strings.clinicalDetails,
+                          icon: '4_18715_imgClipboardList.svg',
+                          child: Column(
+                            children: [
+                              _dateField(
+                                label: strings.visitDate,
+                                value: dateFormat.format(_visitDate),
+                                onTap: () => _pickDate(followUp: false),
+                              ),
+                              const SizedBox(height: 16),
+                              _dateField(
+                                label: strings.followUpDate,
+                                value: _followUpDate == null
+                                    ? ''
+                                    : dateFormat.format(_followUpDate!),
+                                onTap: () => _pickDate(followUp: true),
+                                onClear: _followUpDate == null
+                                    ? null
+                                    : () =>
+                                          setState(() => _followUpDate = null),
+                              ),
+                              const SizedBox(height: 16),
                               _field(
-                                controller: _address,
-                                label: strings.address,
-                                maxLines: 2,
+                                controller: _vitals,
+                                label: strings.vitals,
+                                maxLines: 3,
                               ),
                             ],
                           ),
-                  ),
-                  const SizedBox(height: 16),
-                  _Section(
-                    title: strings.clinicalDetails,
-                    icon: Icons.monitor_heart_outlined,
-                    child: Column(
-                      children: [
-                        _ResponsiveFields(
+                        ),
+                        content: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _dateField(
-                              label: strings.visitDate,
-                              value: dateFormat.format(_visitDate),
-                              onTap: () => _pickDate(followUp: false),
+                            ClinicalCard(
+                              title: ClinicalLabels.of(context)('visitNotes'),
+                              child: Column(
+                                children: [
+                                  _field(
+                                    controller: _complaints,
+                                    label: strings.chiefComplaints,
+                                    maxLines: 3,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _field(
+                                    controller: _investigation,
+                                    label: strings.investigation,
+                                    maxLines: 3,
+                                  ),
+                                ],
+                              ),
                             ),
-                            _dateField(
-                              label: strings.followUpDate,
-                              value: _followUpDate == null
-                                  ? ''
-                                  : dateFormat.format(_followUpDate!),
-                              onTap: () => _pickDate(followUp: true),
-                              onClear: _followUpDate == null
-                                  ? null
-                                  : () => setState(() => _followUpDate = null),
-                            ),
-                            _field(
-                              controller: _diagnosis,
-                              label: strings.diagnosis,
-                              helperText: 'e.g. Diabetes, Hypertension',
-                            ),
-                            _field(controller: _vitals, label: strings.vitals),
-                            _field(
-                              controller: _complaints,
-                              label: strings.chiefComplaints,
-                              maxLines: 3,
-                            ),
-                            _field(
-                              controller: _investigation,
-                              label: strings.investigation,
-                              maxLines: 3,
-                            ),
-                            _field(
-                              controller: _advice,
-                              label: strings.advice,
-                              maxLines: 3,
+                            const SizedBox(height: 16),
+                            ClinicalCard(
+                              title: ClinicalLabels.of(context)(
+                                'assessmentPlan',
+                              ),
+                              child: Column(
+                                children: [
+                                  _field(
+                                    controller: _diagnosis,
+                                    label: strings.diagnosis,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _field(
+                                    controller: _advice,
+                                    label: strings.advice,
+                                    maxLines: 3,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _Section(
-                    title: strings.medicines,
-                    icon: Icons.medication_outlined,
-                    child: Column(
-                      children: [
-                        for (var index = 0; index < _medicines.length; index++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _MedicineRow(
-                              controllers: _medicines[index],
-                              index: index,
-                              canRemove: _medicines.length > 1,
-                              onRemove: () {
-                                setState(() {
-                                  _medicines.removeAt(index).dispose();
-                                });
-                              },
-                            ),
-                          ),
-                        Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child: OutlinedButton.icon(
-                            onPressed: () => setState(
-                              () => _medicines.add(_MedicineControllers()),
-                            ),
-                            icon: const Icon(Icons.add),
-                            label: Text(strings.addMedicine),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _Section(
-                    title: RevampLabels.of(context).text('privateNotes'),
-                    icon: Icons.lock_outline,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(RevampLabels.of(context).text('privateNotesHint')),
-                        const SizedBox(height: 12),
-                        if (!_notesLoaded)
-                          Text(RevampLabels.of(context).text('loadError')),
-                        TextFormField(
-                          controller: _privateNotes,
-                          enabled: _notesLoaded,
-                          maxLines: 4,
-                          maxLength: 20000,
-                          decoration: InputDecoration(
-                            labelText: RevampLabels.of(
-                              context,
-                            ).text('privateNotes'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (context
-                      .watch<SessionController>()
-                      .sharePrescriptionsWithPatients)
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Share with patient'),
-                      subtitle: Text(
-                        linkedPatient?.userId.isEmpty != false
-                            ? 'Available after this patient books or links an account.'
-                            : 'Patient can view this prescription and medicines.',
                       ),
-                      value:
-                          _shareWithPatient &&
-                          linkedPatient?.userId.isNotEmpty == true,
-                      onChanged: linkedPatient?.userId.isNotEmpty != true
-                          ? null
-                          : (value) =>
-                                setState(() => _shareWithPatient = value),
-                    ),
-                  Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _saving
-                              ? null
-                              : () => _save(preview: true),
-                          icon: const Icon(Icons.print_outlined),
-                          label: Text(
-                            RevampLabels.of(context).text('savePreview'),
+                      const SizedBox(height: 16),
+                      _Section(
+                        title: strings.medicines,
+                        icon: Icons.medication_outlined,
+                        child: Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < _medicines.length;
+                              index++
+                            )
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _MedicineRow(
+                                  key: ObjectKey(_medicines[index]),
+                                  controllers: _medicines[index],
+                                  index: index,
+                                  canRemove: _medicines.length > 1,
+                                  onRemove: () {
+                                    setState(() {
+                                      _medicines.removeAt(index).dispose();
+                                    });
+                                  },
+                                ),
+                              ),
+                            Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: OutlinedButton.icon(
+                                onPressed: () => setState(
+                                  () => _medicines.add(_MedicineControllers()),
+                                ),
+                                icon: const Icon(Icons.add),
+                                label: Text(strings.addMedicine),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _Section(
+                        title: RevampLabels.of(context).text('privateNotes'),
+                        icon: Icons.lock_outline,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              RevampLabels.of(context).text('privateNotesHint'),
+                            ),
+                            const SizedBox(height: 12),
+                            if (!_notesLoaded)
+                              Text(RevampLabels.of(context).text('loadError')),
+                            TextFormField(
+                              controller: _privateNotes,
+                              enabled: _notesLoaded,
+                              maxLines: 4,
+                              maxLength: 20000,
+                              decoration: InputDecoration(
+                                labelText: RevampLabels.of(
+                                  context,
+                                ).text('privateNotes'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      if (!_clinicalMigration &&
+                          context
+                              .watch<SessionController>()
+                              .sharePrescriptionsWithPatients)
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Share with patient'),
+                          subtitle: Text(
+                            linkedPatient?.userId.isEmpty != false
+                                ? 'Available after this patient books or links an account.'
+                                : 'Patient can view this prescription and medicines.',
                           ),
+                          value:
+                              _shareWithPatient &&
+                              linkedPatient?.userId.isNotEmpty == true,
+                          onChanged: linkedPatient?.userId.isNotEmpty != true
+                              ? null
+                              : (value) =>
+                                    setState(() => _shareWithPatient = value),
                         ),
-                        FilledButton.icon(
-                          onPressed: _saving ? null : _save,
-                          icon: _saving
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.save_outlined),
-                          label: Text(strings.savePrescription),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: _saving
+                                  ? null
+                                  : () => _save(preview: true),
+                              icon: const Icon(Icons.print_outlined),
+                              label: Text(
+                                RevampLabels.of(context).text('savePreview'),
+                              ),
+                            ),
+                            FilledButton.icon(
+                              onPressed: _saving ? null : _save,
+                              icon: _saving
+                                  ? const SizedBox.square(
+                                      dimension: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.save_outlined),
+                              label: Text(
+                                _clinicalMigration
+                                    ? ClinicalLabels.of(context)('finalReview')
+                                    : strings.savePrescription,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -866,6 +1366,7 @@ class _MedicineControllers {
 
 class _MedicineRow extends StatelessWidget {
   const _MedicineRow({
+    super.key,
     required this.controllers,
     required this.index,
     required this.canRemove,
@@ -1042,7 +1543,12 @@ class _Section extends StatelessWidget {
               children: [
                 Icon(icon),
                 const SizedBox(width: 8),
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),

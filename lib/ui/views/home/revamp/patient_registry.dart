@@ -1,3 +1,4 @@
+import '../../../../features/patients/presentation/patient_directory_view.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +9,6 @@ import '../../../../data/datasources/clinical_models.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../services/firestore_services.dart';
 import '../../../../services/session_controller.dart';
-import '../../../widgets/app_design.dart';
 import 'patient_workspace.dart';
 import 'patient_entry_dialog.dart';
 import '../../../../data/datasources/patient_intake.dart';
@@ -32,95 +32,42 @@ class PatientRegistry extends StatefulWidget {
 
 class _PatientRegistryState extends State<PatientRegistry> {
   late Stream<List<PatientModel>> _patients;
-  Stream<List<PrescriptionModel>>? _visits;
+  Stream<List<AppointmentModel>>? _appointments;
   String? _clinic;
-  String _query = '';
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final session = context.watch<SessionController>();
     final clinic =
-        '${session.activeClinicId}:${session.can(AppFeature.prescriptionList)}';
+        '${session.activeClinicId}:${session.can(AppFeature.appointments)}:${session.can(AppFeature.reception)}';
     if (_clinic == clinic) return;
     _clinic = clinic;
     _patients = context.read<FirebaseFireStore>().streamPatients();
-    _visits = session.can(AppFeature.prescriptionList)
-        ? context.read<FirebaseFireStore>().streamPrescriptions()
+    _appointments =
+        (session.can(AppFeature.appointments) ||
+            session.can(AppFeature.reception))
+        ? context.read<FirebaseFireStore>().streamAppointments()
         : null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final l = RevampLabels.of(context);
-    return AppPage(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              Text(
-                l.text('patients'),
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              FilledButton.icon(
-                onPressed: () => _addPatient(context),
-                icon: const Icon(Icons.person_add_alt_1_outlined),
-                label: Text(l.text('addPatient')),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            l.text('patientHint'),
-            style: const TextStyle(color: AppColors.inkMuted),
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
-              hintText: l.text('search'),
-            ),
-            onChanged: (value) =>
-                setState(() => _query = value.trim().toLowerCase()),
-          ),
-          const SizedBox(height: 16),
-          StreamBuilder<List<PatientModel>>(
-            stream: _patients,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return AppSection(child: Text(l.text('loadError')));
-              }
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final patients = snapshot.data!
-                  .where(
-                    (patient) => '${patient.fullName} ${patient.phone}'
-                        .toLowerCase()
-                        .contains(_query),
-                  )
-                  .toList();
-              if (patients.isEmpty) {
-                return AppSection(
-                  child: Text(
-                    l.text(_query.isEmpty ? 'noPatients' : 'noQueue'),
-                  ),
-                );
-              }
-              return StreamBuilder<List<PrescriptionModel>>(
-                stream: _visits,
-                builder: (context, history) => PatientDirectoryList(
-                  patients: patients,
-                  visits: history.hasError ? null : history.data,
-                  onOpen: (patient) => _showPatient(context, patient),
-                ),
-              );
-            },
-          ),
-        ],
+    return StreamBuilder<List<PatientModel>>(
+      key: ValueKey(_clinic),
+      stream: _patients,
+      builder: (context, snapshot) => StreamBuilder<List<AppointmentModel>>(
+        stream: _appointments,
+        builder: (context, appointments) => PatientDirectoryView(
+          patients: snapshot.data ?? const [],
+          appointments: appointments.data ?? const [],
+          loading: !snapshot.hasData && !snapshot.hasError,
+          hasError: snapshot.hasError || appointments.hasError,
+          onRetry: () => setState(() {
+            _patients = context.read<FirebaseFireStore>().streamPatients();
+          }),
+          onOpen: (patient) => _showPatient(context, patient),
+          onRegister: () => _addPatient(context),
+        ),
       ),
     );
   }

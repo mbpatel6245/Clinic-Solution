@@ -219,6 +219,10 @@ class PrescriptionModel {
     this.patientUserId = '',
     this.clinicId = '',
     this.appointmentId = '',
+    this.clinicalState = '',
+    this.clinicalVersion = 0,
+    this.clinicalAuthorId = '',
+    this.clinicalPrintContext = const {},
   });
 
   final String id;
@@ -238,6 +242,10 @@ class PrescriptionModel {
   final String patientUserId;
   final String clinicId;
   final String appointmentId;
+  final String clinicalState;
+  final int clinicalVersion;
+  final String clinicalAuthorId;
+  final Map<String, dynamic> clinicalPrintContext;
 
   DateTime get visitTimestamp => createdAt ?? visitDate ?? DateTime.now();
 
@@ -292,6 +300,12 @@ class PrescriptionModel {
           '',
       clinicId: data['_clinic_id']?.toString() ?? '',
       appointmentId: data['appointment_id']?.toString() ?? '',
+      clinicalState: data['clinical_state']?.toString() ?? '',
+      clinicalVersion: (data['clinical_version'] as num?)?.toInt() ?? 0,
+      clinicalAuthorId: data['clinical_author_id']?.toString() ?? '',
+      clinicalPrintContext: data['clinical_print_context'] is Map
+          ? Map<String, dynamic>.from(data['clinical_print_context'] as Map)
+          : const {},
     );
   }
 
@@ -346,6 +360,11 @@ class AppointmentModel {
     this.email = '',
     this.notificationConsent = false,
     this.locale = 'en',
+    this.practitionerId = '',
+    this.practitionerName = '',
+    this.durationMinutes = 15,
+    this.arrivalAt,
+    this.arrivalBy = '',
   });
 
   final String id;
@@ -366,6 +385,10 @@ class AppointmentModel {
   final String email;
   final bool notificationConsent;
   final String locale;
+  final String practitionerId, practitionerName;
+  final int durationMinutes;
+  final DateTime? arrivalAt;
+  final String arrivalBy;
 
   factory AppointmentModel.fromMap(Map<String, dynamic> data, String id) {
     return AppointmentModel(
@@ -392,12 +415,24 @@ class AppointmentModel {
       email: data['email']?.toString() ?? '',
       notificationConsent: data['notification_consent'] == true,
       locale: data['locale']?.toString() ?? 'en',
+      practitionerId: data['practitioner_id']?.toString() ?? '',
+      practitionerName: data['practitioner_name']?.toString() ?? '',
+      durationMinutes: int.tryParse('${data['duration_minutes']}') ?? 15,
+      arrivalAt: _dateTimeFrom(data['arrival_at']),
+      arrivalBy: data['arrival_by']?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toMap() => {
     'patient_id': patientId,
     'patient_name': patientName.trim(),
+    if (arrivalAt != null) 'arrival_at': Timestamp.fromDate(arrivalAt!),
+    if (arrivalBy.isNotEmpty) 'arrival_by': arrivalBy,
+    if (practitionerId.isNotEmpty) ...{
+      'practitioner_id': practitionerId,
+      'practitioner_name': practitionerName,
+      'duration_minutes': durationMinutes,
+    },
     'patient_name_search': patientName.toLowerCase().trim(),
     'phone': phone.trim(),
     'email': email.trim(),
@@ -440,6 +475,11 @@ class AppointmentModel {
     email: email,
     notificationConsent: notificationConsent,
     locale: locale,
+    practitionerId: practitionerId,
+    practitionerName: practitionerName,
+    durationMinutes: durationMinutes,
+    arrivalAt: arrivalAt,
+    arrivalBy: arrivalBy,
   );
 }
 

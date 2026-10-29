@@ -6,6 +6,22 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function operationalV2(clinicId) {
+      return exists(/databases/$(database)/documents/clinics/$(clinicId)) &&
+        get(/databases/$(database)/documents/clinics/$(clinicId)).data.get('operational_v2', false) == true;
+    }
+
+    function clinicalV3(clinicId) {
+      return get(/databases/$(database)/documents/clinics/$(clinicId)).data.get('clinical_v3', false) == true;
+    }
+    function clinicAllowsArtifactSharing(clinicId) {
+      return get(/databases/$(database)/documents/clinics/$(clinicId)).data.get('share_clinical_artifacts_with_patients',false) == true;
+    }
+
+    function responsibleClinician(clinicId) {
+      return moduleAvailable('clinical') && hasClinicRole(clinicId, ['doctor','Doctor','physician']);
+    }
+
     function profile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
@@ -266,7 +282,7 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'name', 'code', 'phone', 'address', 'currency', 'timezone',
             'opening_time', 'closing_time', 'working_days',
-            'share_prescriptions_with_patients', 'updated_at'
+            'share_prescriptions_with_patients', 'share_clinical_artifacts_with_patients', 'updated_at'
           ]));
       allow delete: if isPlatformOwner();
 
@@ -291,16 +307,84 @@ service cloud.firestore {
           (isClinicAdmin(clinicId) || isClinical(clinicId) || isPharmacy(clinicId) ||
           (signedIn() && globalRole() == 'patient' &&
             resource.data.get('shared_with_patient', false) == true &&
-            resource.data.get('patient_user_id', '') == request.auth.uid));
-        allow create, update: if moduleAvailable('clinical') &&
+            resource.data.get('patient_user_id', '') == request.auth.uid &&
+            (resource.data.get('clinical_state','') != 'signed' || (belongsTo(clinicId) && clinicAllowsPrescriptionSharing(clinicId)))));
+        allow create: if !clinicalV3(clinicId) && moduleAvailable('clinical') &&
+          !request.resource.data.keys().hasAny(['clinical_state','clinical_version','clinical_author_id','signed_at']) &&
           (isClinicAdmin(clinicId) || isClinical(clinicId)) &&
           (request.resource.data.get('shared_with_patient', false) == false ||
             clinicAllowsPrescriptionSharing(clinicId));
-        allow delete: if moduleAvailable('clinical') && isClinicAdmin(clinicId);
+        allow update: if moduleAvailable('clinical') && (
+          (!clinicalV3(clinicId) && resource.data.get('clinical_state','') != 'signed' &&
+            !request.resource.data.keys().hasAny(['clinical_state','clinical_version','clinical_author_id','signed_at']) &&
+            (isClinicAdmin(clinicId) || isClinical(clinicId)) &&
+            (request.resource.data.get('shared_with_patient', false) == false || clinicAllowsPrescriptionSharing(clinicId))) ||
+          (resource.data.get('clinical_state','') == 'signed' &&
+            (isPharmacy(clinicId) || responsibleClinician(clinicId)) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updated_at']) &&
+            request.resource.data.status in ['pending','dispensed','completed'])
+          || (resource.data.get('clinical_state','') == 'signed' && isClinicAdmin(clinicId) && !clinicAllowsPrescriptionSharing(clinicId) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['shared_with_patient','updated_at']) && request.resource.data.shared_with_patient == false)
+        );
+        allow delete: if !clinicalV3(clinicId) && resource.data.get('clinical_state','') != 'signed' && moduleAvailable('clinical') && isClinicAdmin(clinicId);
       }
 
+      match /clinical_encounters/{encounterId} {
+        allow read: if responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid;
+        allow write: if false;
+        match /versions/{version} {
+          allow read: if responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid;
+          allow write: if false;
+        }
+      }
+      match /clinical_encounter_private/{encounterId} {
+        allow read: if responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid;
+        allow write: if false;
+        match /versions/{version} {
+          allow read: if responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid;
+          allow write: if false;
+        }
+      }
+      match /clinical_receipts/{receiptId} {
+        allow read: if responsibleClinician(clinicId) && resource.data.actor_id == request.auth.uid;
+        allow write: if false;
+      }
+      match /clinical_releases/{releaseId} {
+        allow read: if responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid;
+        allow write: if false;
+      }
+      match /clinical_release_revocations/{revocationId} {
+        allow read: if responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid;
+        allow write: if false;
+      }
+      match /clinical_artifacts/{artifactId} {
+        function owner() { return responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid; }
+        allow read: if owner();
+        allow write: if false;
+        match /versions/{version} {
+          allow read: if responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid;
+          allow write: if false;
+        }
+        match /release_history/{eventId} {
+          allow read: if responsibleClinician(clinicId) && resource.data.author_id == request.auth.uid;
+          allow write: if false;
+        }
+      }
+      match /clinical_artifact_copies/{artifactId} {
+        allow read: if (isClinicAdmin(clinicId) && !clinicAllowsArtifactSharing(clinicId)) || (moduleAvailable('clinical') && (
+          (responsibleClinician(clinicId) && get(/databases/$(database)/documents/clinics/$(clinicId)/clinical_artifacts/$(artifactId)).data.author_id == request.auth.uid) ||
+          (belongsTo(clinicId) && globalRole() == 'patient' && clinicAllowsArtifactSharing(clinicId) && resource.data.shared == true && resource.data.patient_user_id == request.auth.uid)));
+        allow create, delete: if false;
+        allow update: if isClinicAdmin(clinicId) && !clinicAllowsArtifactSharing(clinicId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['shared','updated_at']) && request.resource.data.shared == false;
+      }
+      match /clinical_artifact_receipts/{receiptId} {
+        allow read: if responsibleClinician(clinicId) && resource.data.actor_id == request.auth.uid;
+        allow write: if false;
+      }
+      match /clinical_order_keys/{keyId} { allow read, write: if false; }
+
       match /appointments/{appointmentId} {
-        allow create: if (moduleAvailable('appointments') || moduleAvailable('reception')) &&
+        allow create: if !operationalV2(clinicId) && (moduleAvailable('appointments') || moduleAvailable('reception')) &&
           validAppointment() && (
           (belongsTo(clinicId) &&
             request.resource.data.created_by == request.auth.uid) ||
@@ -311,14 +395,33 @@ service cloud.firestore {
           (isClinicAdmin(clinicId) || isClinical(clinicId) ||
           isReception(clinicId) ||
           (signedIn() && resource.data.created_by == request.auth.uid));
-        allow update: if (moduleAvailable('appointments') || moduleAvailable('reception')) &&
+        allow update: if (!operationalV2(clinicId) ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updated_at']) &&
+            request.resource.data.status in ['cancelled','completed','no_show'] &&
+            (request.resource.data.status != 'no_show' ||
+              (resource.data.status in ['booked','pending'] && resource.data.get('arrival_at', null) == null &&
+                resource.data.scheduled_at <= request.time)))) &&
+          (moduleAvailable('appointments') || moduleAvailable('reception')) &&
           (isClinicAdmin(clinicId) || isClinical(clinicId) ||
           isReception(clinicId) ||
           (signedIn() && resource.data.created_by == request.auth.uid &&
             request.resource.data.created_by == request.auth.uid &&
             request.resource.data.status in ['booked', 'cancelled']));
-        allow delete: if (moduleAvailable('appointments') || moduleAvailable('reception')) &&
+        allow delete: if !operationalV2(clinicId) && (moduleAvailable('appointments') || moduleAvailable('reception')) &&
           isClinicAdmin(clinicId);
+      }
+
+      match /practitioner_availability/{dayId} {
+        allow read: if moduleAvailable('appointments') &&
+          (isClinicAdmin(clinicId) || isClinical(clinicId) || isReception(clinicId));
+        allow write: if false;
+      }
+      match /operational_receipts/{receiptId} {
+        allow get: if belongsTo(clinicId) && resource.data.actor_id == request.auth.uid;
+        allow list, write: if false;
+      }
+      match /operational_day_guards/{dayId} {
+        allow read, write: if false;
       }
 
       match /stocks/{stockId} {
@@ -375,9 +478,13 @@ service cloud.firestore {
       }
 
       match /laboratory/{recordId} {
-        allow read, create, update: if moduleAvailable('laboratory') &&
+        allow read: if moduleAvailable('laboratory') &&
           (isClinicAdmin(clinicId) || isClinical(clinicId));
-        allow delete: if moduleAvailable('laboratory') && isClinicAdmin(clinicId);
+        allow create: if moduleAvailable('laboratory') && (isClinicAdmin(clinicId) || isClinical(clinicId)) &&
+          !request.resource.data.keys().hasAny(['clinical_artifact_id','clinical_artifact_version','superseded']);
+        allow update: if moduleAvailable('laboratory') && (isClinicAdmin(clinicId) || isClinical(clinicId)) &&
+          !resource.data.keys().hasAny(['clinical_artifact_id']) && !request.resource.data.keys().hasAny(['clinical_artifact_id','clinical_artifact_version','superseded']);
+        allow delete: if moduleAvailable('laboratory') && isClinicAdmin(clinicId) && !resource.data.keys().hasAny(['clinical_artifact_id']);
       }
 
       match /prescription_templates/{templateId} {
@@ -405,11 +512,18 @@ service cloud.firestore {
         allow delete: if false;
       }
       match /clinical_notes/{prescriptionId} {
-        allow read: if moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician']));
-        allow create, update: if moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician'])) &&
+        allow read: if moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician'])) &&
+          (!exists(/databases/$(database)/documents/clinics/$(clinicId)/prescriptions/$(prescriptionId)) ||
+            get(/databases/$(database)/documents/clinics/$(clinicId)/prescriptions/$(prescriptionId)).data.get('clinical_state','') != 'signed' || resource.data.author_id == request.auth.uid);
+        allow create, update: if !clinicalV3(clinicId) &&
+          (!exists(/databases/$(database)/documents/clinics/$(clinicId)/prescriptions/$(prescriptionId)) ||
+            get(/databases/$(database)/documents/clinics/$(clinicId)/prescriptions/$(prescriptionId)).data.get('clinical_state','') != 'signed') &&
+          moduleAvailable('clinical') && (isClinicAdmin(clinicId) || hasClinicRole(clinicId,['doctor','Doctor','physician'])) &&
           request.resource.data.keys().hasOnly(['patient_id','body','author_id','updated_at']) &&
           request.resource.data.author_id == request.auth.uid && request.resource.data.body is string && request.resource.data.body.size() <= 20000;
-        allow delete: if isClinicAdmin(clinicId);
+        allow delete: if !clinicalV3(clinicId) &&
+          (!exists(/databases/$(database)/documents/clinics/$(clinicId)/prescriptions/$(prescriptionId)) ||
+            get(/databases/$(database)/documents/clinics/$(clinicId)/prescriptions/$(prescriptionId)).data.get('clinical_state','') != 'signed') && isClinicAdmin(clinicId);
       }
       match /treatment_plans/{planId} {
         allow read: if moduleAvailable('clinical') &&

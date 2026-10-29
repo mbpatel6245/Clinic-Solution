@@ -1,3 +1,9 @@
+import '../../../../features/patients/data/registration_draft_store.dart';
+import '../../../../features/patients/presentation/registration_review.dart';
+import '../../../../features/patients/presentation/patient_labels.dart';
+import '../../../../shared/presentation/guarded_dialog_content.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -21,42 +27,66 @@ Future<PatientEntryResult?> showPatientEntry(
   final service = context.read<FirebaseFireStore>();
   final session = context.read<SessionController>();
   final clinic = session.activeClinicId;
+  final userId = FirebaseAuth.instance.currentUser?.uid;
   return showDialog<PatientEntryResult>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => PatientEntryDialog(
-      mode: mode,
-      slot: slot,
-      slotLabel: slotLabel,
-      initialPatient: initialPatient,
-      canQueue: session.can(AppFeature.reception),
-      canOpen: session.can(AppFeature.patients),
-      patients: service.streamPatients,
-      newPatientId: service.createPatientId,
-      newAppointmentId: service.createAppointmentId,
-      onSubmit: (entry) async {
-        if (session.activeClinicId != clinic ||
-            !session.can(AppFeature.patients) ||
-            (entry.action == PatientEntryAction.queue &&
-                !session.can(AppFeature.reception)) ||
-            (entry.action == PatientEntryAction.booked &&
-                !session.can(AppFeature.appointments))) {
-          throw const PatientEntryException('clinicChanged');
-        }
-        final result = await service.submitPatientEntry(
-          entry,
-          clinicId: clinic,
-        );
-        if (session.activeClinicId != clinic) {
-          throw const PatientEntryException('clinicChanged');
-        }
-        return PatientEntryResult(
-          result.patient,
-          result.action,
-          appointment: result.appointment,
-          clinicId: clinic,
-        );
-      },
+    builder: (_) => GuardedDialogContent(
+      changes: session,
+      isAuthorized: () =>
+          session.activeClinicId == clinic &&
+          FirebaseAuth.instance.currentUser?.uid == userId &&
+          session.can(AppFeature.patients),
+      message: RevampLabels.of(context).text('clinicChanged'),
+      child: PatientEntryDialog(
+        mode: mode,
+        reviewNewPatients: true,
+        authorizationChanges: session,
+        isAuthorized: () =>
+            session.activeClinicId == clinic &&
+            FirebaseAuth.instance.currentUser?.uid == userId &&
+            session.can(AppFeature.patients),
+        draftScope: mode == PatientEntryMode.registration && userId != null
+            ? RegistrationDraftStore.scope(
+                Firebase.app().options.projectId,
+                userId,
+                clinic,
+              )
+            : null,
+        slot: slot,
+        slotLabel: slotLabel,
+        initialPatient: initialPatient,
+        canQueue: session.can(AppFeature.reception),
+        canOpen: session.can(AppFeature.patients),
+        patients: service.streamPatients,
+        newPatientId: service.createPatientId,
+        newAppointmentId: service.createAppointmentId,
+        onSubmit: (entry) async {
+          if (FirebaseAuth.instance.currentUser?.uid != userId ||
+              session.activeClinicId != clinic ||
+              !session.can(AppFeature.patients) ||
+              (entry.action == PatientEntryAction.queue &&
+                  !session.can(AppFeature.reception)) ||
+              (entry.action == PatientEntryAction.booked &&
+                  !session.can(AppFeature.appointments))) {
+            throw const PatientEntryException('clinicChanged');
+          }
+          final result = await service.submitPatientEntry(
+            entry,
+            clinicId: clinic,
+          );
+          if (FirebaseAuth.instance.currentUser?.uid != userId ||
+              session.activeClinicId != clinic) {
+            throw const PatientEntryException('clinicChanged');
+          }
+          return PatientEntryResult(
+            result.patient,
+            result.action,
+            appointment: result.appointment,
+            clinicId: clinic,
+          );
+        },
+      ),
     ),
   );
 }
@@ -72,6 +102,10 @@ class PatientEntryDialog extends StatefulWidget {
     this.slot,
     this.slotLabel,
     this.initialPatient,
+    this.reviewNewPatients = false,
+    this.authorizationChanges,
+    this.isAuthorized,
+    this.draftScope,
     this.canQueue = true,
     this.canOpen = true,
   });
@@ -83,11 +117,16 @@ class PatientEntryDialog extends StatefulWidget {
   final String? slotLabel;
   final PatientModel? initialPatient;
   final bool canQueue, canOpen;
+  final bool reviewNewPatients;
+  final Listenable? authorizationChanges;
+  final bool Function()? isAuthorized;
+  final String? draftScope;
   @override
   State<PatientEntryDialog> createState() => _PatientEntryDialogState();
 }
 
 class _PatientEntryDialogState extends State<PatientEntryDialog> {
+  int _draftRevision = 0;
   final _form = GlobalKey<FormState>();
   final _existingPanel = GlobalKey();
   final _name = TextEditingController(),
@@ -134,6 +173,128 @@ class _PatientEntryDialogState extends State<PatientEntryDialog> {
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _draft(bool restore) async {
+    final scope = widget.draftScope;
+    if (scope == null || _busy) return;
+    final l = PatientLabels.of(context), password = TextEditingController();
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l(restore ? 'draftRestore' : 'draftSave')),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l('draftHint')),
+              const SizedBox(height: 16),
+              TextField(
+                controller: password,
+                obscureText: true,
+                enableSuggestions: false,
+                autocorrect: false,
+                decoration: InputDecoration(labelText: l('passphrase')),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l('continue')),
+          ),
+        ],
+      ),
+    );
+    final secret = password.text;
+    password.dispose();
+    if (accepted != true || !mounted) return;
+    if (secret.length < 16) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l('passphrase'))));
+      return;
+    }
+    setState(() => _busy = true);
+    final store = RegistrationDraftStore.open();
+    try {
+      if (restore) {
+        final saved = await store.restore(scope, secret);
+        if (!mounted) return;
+        if (saved == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l('draftMissing'))));
+          return;
+        }
+        final p = saved.payload;
+        setState(() {
+          _draftRevision = saved.revision;
+          _name.text = p['name'] as String? ?? '';
+          _email.text = p['email'] as String? ?? '';
+          _phone.text = p['phone'] as String? ?? '';
+          _country.text = p['country'] as String? ?? '+91';
+          _age.text = p['age'] as String? ?? '';
+          _abha.text = p['abha'] as String? ?? '';
+          _otherAllergy.text = p['otherAllergy'] as String? ?? '';
+          _unit = p['unit'] as String? ?? 'years';
+          _gender = p['gender'] as String? ?? '';
+          _birth = DateTime.tryParse(p['birth'] as String? ?? '');
+          _dob = p['dob'] == true;
+          _consent = p['consent'] == true;
+          _patientId = p['patientId'] as String?;
+          _visitId = p['visitId'] as String?;
+          _allergies
+            ..clear()
+            ..addAll((p['allergies'] as List? ?? []).cast<String>());
+        });
+      } else {
+        _patientId ??= widget.newPatientId();
+        _visitId ??= widget.newAppointmentId();
+        _draftRevision = await store.save(
+          scope,
+          {
+            'name': _name.text,
+            'email': _email.text,
+            'phone': _phone.text,
+            'country': _country.text,
+            'age': _age.text,
+            'abha': _abha.text,
+            'otherAllergy': _otherAllergy.text,
+            'unit': _unit,
+            'gender': _gender,
+            'birth': _birth?.toIso8601String(),
+            'dob': _dob,
+            'consent': _consent,
+            'patientId': _patientId,
+            'visitId': _visitId,
+            'allergies': _allergies.toList(),
+          },
+          secret,
+          expectedRevision: _draftRevision,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l('draftSaved'))));
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l('draftError'))));
+      }
+    } finally {
+      await store.close();
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   bool get _booking => widget.mode == PatientEntryMode.booking;
@@ -185,6 +346,24 @@ class _PatientEntryDialogState extends State<PatientEntryDialog> {
       setState(() => _error = 'consentRequired');
       return;
     }
+    if (existing == null && widget.reviewNewPatients) {
+      setState(() => _busy = true);
+      final approved = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => RegistrationReview(
+          patient: patient,
+          patients: widget.patients(),
+          authorizationChanges: widget.authorizationChanges,
+          isAuthorized: widget.isAuthorized,
+        ),
+      );
+      if (!mounted) return;
+      if (approved != true) {
+        setState(() => _busy = false);
+        return;
+      }
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -194,6 +373,7 @@ class _PatientEntryDialogState extends State<PatientEntryDialog> {
         PatientEntrySubmission(
           patient: patient,
           isNew: existing == null,
+          careConsentRecorded: existing == null && widget.reviewNewPatients,
           action: action,
           appointmentId: _visitId!,
           scheduledAt: action == PatientEntryAction.booked
@@ -203,6 +383,16 @@ class _PatientEntryDialogState extends State<PatientEntryDialog> {
               _booking && _send && patient.notificationConsent == true,
         ),
       );
+      if (_draftRevision > 0 && widget.draftScope != null) {
+        final drafts = RegistrationDraftStore.open();
+        try {
+          await drafts.remove(widget.draftScope!, _draftRevision);
+        } catch (_) {
+          /* A newer draft must be retained; registration already committed. */
+        } finally {
+          await drafts.close();
+        }
+      }
       if (mounted) Navigator.pop(context, result);
     } catch (error) {
       if (mounted) {
@@ -444,6 +634,23 @@ class _PatientEntryDialogState extends State<PatientEntryDialog> {
                       }
                     },
                   ),
+                  if (widget.draftScope != null)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton(
+                          onPressed: _busy ? null : () => _draft(false),
+                          child: Text(PatientLabels.of(context)('draftSave')),
+                        ),
+                        TextButton(
+                          onPressed: _busy ? null : () => _draft(true),
+                          child: Text(
+                            PatientLabels.of(context)('draftRestore'),
+                          ),
+                        ),
+                      ],
+                    ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(l.text('consent')),

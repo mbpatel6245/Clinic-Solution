@@ -34,6 +34,12 @@ jobs:
       - run: npm audit --prefix functions --audit-level=high
       - run: npm test --prefix functions
       - run: npx --yes firebase-tools@14.18.0 emulators:exec --only firestore --project demo-clinic-revamp --config firebase.rules-test.json "node --test functions/test/revamp_rules.test.mjs"
+      - name: Operational booking races and availability
+        run: npx --yes firebase-tools@14.18.0 emulators:exec --only firestore --project demo-clinic-operations --config firebase.rules-test.json "node --test functions/tests/operational_scheduling.test.cjs"
+      - name: Clinical signing, amendments and release
+        run: npx --yes firebase-tools@14.18.0 emulators:exec --only firestore --project demo-clinic-clinical --config firebase.rules-test.json "node --test functions/tests/clinical_lifecycle.test.cjs"
+      - name: Clinical artifact workflow emulator tests
+        run: npx --yes firebase-tools@14.18.0 emulators:exec --only firestore --project demo-clinic-artifacts --config firebase.rules-test.json "node --test functions/tests/clinical_artifacts.test.cjs"
 
   flutter-checks:
     name: Flutter tests and web build

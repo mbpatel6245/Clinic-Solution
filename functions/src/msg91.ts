@@ -28,22 +28,15 @@ const EMAIL_URL = "https://control.msg91.com/api/v5/email/send";
 const WHATSAPP_URL =
   "https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/";
 
-function responseMessage(body: unknown): string {
-  if (typeof body === "string") return body.slice(0, 500);
-  if (body && typeof body === "object") {
-    const record = body as Record<string, unknown>;
-    const value = record.message ?? record.error ?? record.type;
-    if (typeof value === "string") return value.slice(0, 500);
-  }
-  return "MSG91 rejected the request";
-}
-
 function findMessageId(body: unknown): string {
   if (!body || typeof body !== "object") return "";
   const record = body as Record<string, unknown>;
-  for (const key of ["request_id", "message_id", "id"]) {
-    if (typeof record[key] === "string") return record[key] as string;
+  for (const key of ["request_id", "message_id", "unique_id", "id"]) {
+    if (typeof record[key] === "string" && record[key].trim()) return record[key].trim();
   }
+  // SMS Flow returns its receipt in `message`; email uses data.unique_id.
+  // Never interpret an error description or an email's prose as a receipt.
+  if (record.type === "success" && typeof record.message === "string") return record.message.trim();
   const nested = record.data;
   return nested && typeof nested === "object" ? findMessageId(nested) : "";
 }
@@ -54,21 +47,22 @@ async function post(
   config: Msg91Config,
   fetcher: FetchLike,
 ): Promise<SendResult> {
+  const authKey = required(config.authKey, "MSG91_AUTH_KEY");
   let response: Response;
   try {
     response = await fetcher(url, {
       method: "POST",
       headers: {
         accept: "application/json",
-        authkey: required(config.authKey, "MSG91_AUTH_KEY"),
+        authkey: authKey,
         "content-type": "application/json",
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(20_000),
     });
-  } catch (error) {
+  } catch {
     throw new ProviderError(
-      `MSG91 request failed: ${error instanceof Error ? error.message : "network error"}`,
+      "MSG91 request failed; check provider logs before a manual resend",
       true,
     );
   }
@@ -80,16 +74,30 @@ async function post(
   } catch {
     // Keep the provider's plain-text response.
   }
+  const record = body && typeof body === "object" ? body as Record<string, unknown> : {};
+  if (String(record.apiError) === "418" || String(record.code) === "418") {
+    throw new ProviderError("MSG91 source IP is not whitelisted", false, 403);
+  }
   if (!response.ok) {
     throw new ProviderError(
-      responseMessage(body),
+      `MSG91 rejected the request (HTTP ${response.status})`,
       response.status === 408 || response.status === 429 || response.status >= 500,
       response.status,
     );
   }
+  if (record.hasError === true || ["error", "failed", "failure"].includes(String(record.type).toLowerCase()) ||
+      ["error", "failed", "failure"].includes(String(record.status).toLowerCase())) {
+    // MSG91 can return application-level errors with HTTP 200.
+    throw new ProviderError("MSG91 rejected the request", false, 400);
+  }
+  const messageId = findMessageId(body);
+  if (!messageId) {
+    // Do not claim success or blindly resend an ambiguous accepted request.
+    throw new ProviderError("MSG91 delivery status is unknown; check provider logs before resending", false);
+  }
   return {
     provider: "msg91",
-    messageId: findMessageId(body),
+    messageId,
     acceptedStatus: "accepted",
   };
 }
@@ -104,12 +112,12 @@ export async function sendWithMsg91(
     return post(
       SMS_URL,
       {
-        template_id: required(job.templateId || config.smsTemplateId, "SMS template ID"),
+        template_id: required(job.templateId || (job.event ? "" : config.smsTemplateId), "SMS template ID"),
         short_url: "0",
         recipients: [
           {
-            mobiles: normalizePhone(job.recipient, config.defaultCountryCode),
             ...vars,
+            mobiles: normalizePhone(job.recipient, config.defaultCountryCode),
           },
         ],
       },

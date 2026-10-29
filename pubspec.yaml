@@ -50,6 +50,12 @@ dependencies:
 
   shared_preferences: ^2.5.5
   font_awesome_flutter: ^11.0.0
+  drift: ^2.35.3
+  drift_flutter: ^0.3.1
+  flutter_svg: ^2.3.0
+  # Keep the pre-JNI implementation until desktop packaging is qualified.
+  path_provider_android: 2.2.23
+  cryptography: ^2.9.0
 
 dev_dependencies:
   flutter_test:
@@ -74,6 +80,9 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
+    - assets/figma/phase2/
+    - assets/figma/phase3/
+    - assets/brand/uvilo-mark.svg
     - functions/src/template_catalog.json
   #assets:
   #  - web/index.html
@@ -94,6 +103,9 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/InterVariable.ttf
     - family: Noto Sans Devanagari
       fonts:
         - asset: assets/fonts/NotoSansDevanagari.ttf

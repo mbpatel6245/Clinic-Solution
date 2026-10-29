@@ -66,6 +66,19 @@ Widget _app(Widget child, {_Clinic? clinic}) => MultiProvider(
 );
 
 void main() {
+  Future<void> confirmReview(WidgetTester tester) async {
+    for (var i = 0; i < 3; i++) {
+      final check = find.byKey(ValueKey('clinical-review-$i'));
+      await tester.ensureVisible(check);
+      await tester.tap(check);
+      await tester.pumpAndSettle();
+    }
+    final confirm = find.byKey(const ValueKey('clinical-review-confirm'));
+    await tester.ensureVisible(confirm);
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+  }
+
   testWidgets(
     'a second consultation in the open patient workspace keeps patient identity',
     (tester) async {
@@ -88,6 +101,8 @@ void main() {
         await tester.ensureVisible(save);
         await tester.tap(save);
         await tester.pumpAndSettle();
+        expect(clinic.saved?.diagnoses, isNot([diagnosis]));
+        await confirmReview(tester);
         expect(clinic.saved?.patient.id, 'linked');
         expect(clinic.saved?.patient.firstName, 'Linked patient');
         expect(clinic.saved?.diagnoses, [diagnosis]);
@@ -138,6 +153,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(save);
       await tester.pumpAndSettle();
+      expect(clinic.saved, isNull);
+      expect(find.text('Private clinician context'), findsNothing);
+      await confirmReview(tester);
       expect(clinic.saved?.patient.ageUnit, 'months');
       expect(clinic.saved?.patient.dateOfBirth, patient.dateOfBirth);
       expect(clinic.saved?.patient.notificationConsent, isTrue);

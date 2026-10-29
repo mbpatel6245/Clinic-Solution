@@ -1,7 +1,10 @@
-import '../../../core/design/clinic_brand.dart';
+import '../../../shared/presentation/adaptive_workspace.dart';
+import '../../../core/design/uvilo_theme.dart';
+import '../../../features/front_desk/presentation/front_desk_components.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -29,7 +32,6 @@ import 'revamp/practice_dashboard.dart';
 import 'revamp/patient_registry.dart';
 import 'revamp/workspace_navigation.dart';
 import 'revamp/clinical_workspaces.dart';
-import 'revamp/practice_queue_panel.dart';
 import 'revamp/patient_workspace.dart';
 import '../../../data/datasources/patient_intake.dart';
 
@@ -90,8 +92,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (session.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (_lastClinicId != session.activeClinicId) {
-      _lastClinicId = session.activeClinicId;
+    final workspaceScope =
+        '${FirebaseAuth.instance.currentUser?.uid}:${session.activeClinicId}';
+    if (_lastClinicId != workspaceScope) {
+      _lastClinicId = workspaceScope;
       _selectedIndex = 0;
       _workspacePatient = null;
       _bookingPatient = null;
@@ -135,7 +139,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     void finishEntry(PatientEntryResult result) {
       if (!mounted) return;
-      if (result.clinicId.isNotEmpty && result.clinicId != session.activeClinicId) return;
+      if (result.clinicId.isNotEmpty &&
+          result.clinicId != session.activeClinicId) {
+        return;
+      }
       final feature = result.action == PatientEntryAction.queue
           ? AppFeature.reception
           : AppFeature.patients;
@@ -188,10 +195,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     destinations = [
-      if (session.can(AppFeature.dashboard) && !isFrontDeskOnly(session.roles))
+      if (session.can(AppFeature.dashboard))
         _WorkspaceDestination(
           feature: AppFeature.dashboard,
-          label: strings.overview,
+          label: isFrontDeskOnly(session.roles)
+              ? DeskLabels.of(context)('frontDesk')
+              : strings.overview,
           icon: Icons.space_dashboard_outlined,
           selectedIcon: Icons.space_dashboard,
           page: session.isAllClinics
@@ -221,6 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedIcon: Icons.note_add,
           page: TabNewPrescription(
             key: ValueKey(_prescriptionFormVersion),
+            sourceClinicId: session.activeClinicId,
             initialPatient: _prescriptionPatient,
             initialPrescription: _prescriptionToEdit,
             initialTemplate: _prescriptionTemplate,
@@ -273,6 +283,9 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.how_to_reg_outlined,
           selectedIcon: Icons.how_to_reg,
           page: ReceptionScreen(
+            onAppointments: session.can(AppFeature.appointments)
+                ? () => _selectFeature(destinations, AppFeature.appointments)
+                : null,
             onPatientEntry: finishEntry,
             onStartPrescription: session.can(AppFeature.createPrescription)
                 ? (patient, appointment) {
@@ -403,6 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
     if (isFrontDeskOnly(session.roles)) {
       const priority = [
+        AppFeature.dashboard,
         AppFeature.reception,
         AppFeature.appointments,
         AppFeature.patients,
@@ -421,52 +435,81 @@ class _HomeScreenState extends State<HomeScreen> {
     final selectedIndex = _selectedIndex.clamp(0, destinations.length - 1);
     final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.medium;
     final features = destinations.map((d) => d.feature).toList();
-    final primary = [
-      AppFeature.dashboard,
-      AppFeature.reception,
-      AppFeature.appointments,
-      AppFeature.patients,
-    ].where(features.contains).toList();
     final selectedFeature = destinations[selectedIndex].feature;
     final pages = LazyWorkspacePages(
-      key: ValueKey('${session.activeClinicId}:${features.join(',')}'),
+      key: ValueKey('$workspaceScope:${features.join(',')}'),
       features: features,
       selected: selectedFeature,
       pages: destinations.map((d) => d.page).toList(),
     );
 
-    return Scaffold(
-      extendBody: compact,
-      drawer: Drawer(
-        child: WorkspaceSidebar(
-          links: destinations
-              .map((d) => WorkspaceLink(d.feature, d.label, d.icon))
-              .toList(),
-          selected: selectedFeature,
-          clinicName: session.clinicName,
-          onSelected: (feature) {
-            Navigator.pop(context);
-            _selectFeature(destinations, feature);
-          },
+    return Theme(
+      data: UviloTheme.light,
+      child: AdaptiveWorkspace(
+        figmaNavigation: true,
+        workspaceLabel: session.role.displayName,
+        footer: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const CircleAvatar(
+            backgroundColor: Colors.white,
+            child: Icon(Icons.person_outline),
+          ),
+          title: Text(
+            session.displayName,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            session.role.displayName,
+            style: const TextStyle(fontSize: 10),
+          ),
         ),
-      ),
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const ClinicLogo(size: 28),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                'orByteza',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
+        navigationIconBuilder: (id) {
+          final icon = switch (id) {
+            'dashboard' => 'imgLayoutDashboard',
+            'patients' => 'imgUsers',
+            'appointments' => 'imgCalendarDays',
+            'reception' => 'imgListOrdered',
+            'billing' => 'imgReceipt',
+            'clinicSetup' => 'imgSettings2',
+            _ => null,
+          };
+          final node = switch (selectedFeature) {
+            AppFeature.dashboard => '4_17763',
+            AppFeature.appointments => '4_18438',
+            AppFeature.reception => '12_4553',
+            _ => '4_18003',
+          };
+          return icon == null
+              ? Icon(destinations.firstWhere((d) => d.feature.name == id).icon)
+              : SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: SvgPicture.asset(
+                    'assets/figma/phase2/n${node}_$icon.svg',
+                  ),
+                );
+        },
+        destinations: [
+          for (final d in destinations)
+            WorkspaceDestination(
+              id: d.feature.name,
+              label: d.label,
+              icon: d.icon,
             ),
-          ],
-        ),
+        ],
+        selectedId: selectedFeature.name,
+        onSelect: (id) =>
+            _selectFeature(destinations, AppFeature.values.byName(id)),
+        title: destinations[selectedIndex].label,
+        clinicLabel: session.clinicName,
         actions: [
+          if (session.can(AppFeature.patients))
+            IconButton(
+              tooltip: labels.text('addPatient'),
+              onPressed: addPatient,
+              icon: const Icon(Icons.person_add_alt_outlined),
+            ),
+
           if (session.role == AppRole.platformOwner ||
               session.clinicIds.length > 1)
             PopupMenuButton<String>(
@@ -557,93 +600,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: AppSpacing.xs),
         ],
-      ),
-      bottomNavigationBar: compact
-          ? PracticeNavigation(
-              links: [
-                for (final feature in primary)
-                  WorkspaceLink(feature, switch (feature) {
-                    AppFeature.dashboard => labels.text('home'),
-                    AppFeature.reception => labels.text('todayNav'),
-                    AppFeature.appointments => labels.text('bookNav'),
-                    _ => labels.text('patients'),
-                  }, destinations[features.indexOf(feature)].icon),
-              ],
-              selected: selectedFeature,
-              onSelected: (feature) => _selectFeature(destinations, feature),
-            )
-          : null,
-      floatingActionButton:
-          compact &&
-              session.can(AppFeature.patients) &&
-              selectedFeature != AppFeature.appointments
-          ? FloatingActionButton.small(
-              tooltip: labels.text('addPatient'),
-              onPressed: addPatient,
-              child: const Icon(Icons.person_add_alt_outlined),
-            )
-          : null,
-      body: Builder(
-        builder: (scaffoldContext) => Row(
+        child: Stack(
           children: [
-            if (!compact) ...[
-              PracticeNavigation(
-                vertical: true,
-                queue: session.can(AppFeature.reception)
-                    ? PracticeQueuePanel(
-                        key: ValueKey(session.activeClinicId),
-                        onQueue: () =>
-                            _selectFeature(destinations, AppFeature.reception),
-                        onBook: session.can(AppFeature.appointments)
-                            ? () => _selectFeature(
-                                destinations,
-                                AppFeature.appointments,
-                              )
-                            : null,
-                      )
-                    : null,
-                links: [
-                  for (final feature in [
-                    ...primary,
-                    if (features.contains(AppFeature.clinicSetup))
-                      AppFeature.clinicSetup,
-                  ])
-                    WorkspaceLink(
-                      feature,
-                      feature == AppFeature.clinicSetup
-                          ? labels.text('settingsNav')
-                          : destinations[features.indexOf(feature)].label,
-                      destinations[features.indexOf(feature)].icon,
-                    ),
-                ],
-                selected: selectedFeature,
-                onSelected: (feature) => _selectFeature(destinations, feature),
-                onMore: () => Scaffold.of(scaffoldContext).openDrawer(),
-                onAddPatient: session.can(AppFeature.patients)
-                    ? addPatient
+            Offstage(offstage: _workspacePatient != null, child: pages),
+            if (_workspacePatient != null)
+              PatientWorkspace(
+                key: ValueKey(
+                  '${session.activeClinicId}:${_workspacePatient!.id}',
+                ),
+                patient: _workspacePatient!,
+                embedded: true,
+                onBack: () => setState(() => _workspacePatient = null),
+                onBook: session.can(AppFeature.appointments)
+                    ? () => bookPatient(_workspacePatient!)
                     : null,
               ),
-              const VerticalDivider(width: 1),
-            ],
-            Expanded(
-              child: Stack(
-                children: [
-                  Offstage(offstage: _workspacePatient != null, child: pages),
-                  if (_workspacePatient != null)
-                    PatientWorkspace(
-                      key: ValueKey(
-                        '${session.activeClinicId}:${_workspacePatient!.id}',
-                      ),
-                      patient: _workspacePatient!,
-                      onBook: session.can(AppFeature.appointments)
-                          ? () => bookPatient(_workspacePatient!)
-                          : null,
-                      embedded: true,
-                      onBack: () => setState(() => _workspacePatient = null),
-                    ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

@@ -1,0 +1,81 @@
+name: Flutter foundation prototype
+
+on:
+  pull_request:
+  push:
+    branches: [main, clinic-revamp]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-foundation:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: windows
+          - os: ubuntu-latest
+            target: linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - name: Linux build prerequisites
+        if: matrix.target == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.0
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze foundation
+        run: flutter analyze lib/core/design/uvilo_theme.dart lib/core/domain lib/core/persistence lib/core/platform/firebase_rest_client.dart lib/core/sync lib/features lib/shared tool/foundation_preview.dart tool/foundation_desktop_probe.dart tool/phase3_preview.dart tool/phase3_desktop_smoke.dart tool/clinical_artifacts_preview.dart tool/clinical_artifacts_desktop_smoke.dart lib/core/platform/scoped_clinic_callable.dart test/foundation test/phase2 test/phase3
+      - name: Foundation and existing regression tests
+        run: flutter test
+      - name: Native SQLite and HTTP probe
+        run: dart run tool/foundation_desktop_probe.dart
+      - name: Build actual foundation entry point
+        run: flutter build ${{ matrix.target }} --release -t tool/foundation_preview.dart
+      - name: Build Phase 2 native renderer smoke app
+        run: flutter build ${{ matrix.target }} --release -t tool/phase2_desktop_smoke.dart
+      - name: Run Linux native renderer
+        if: matrix.target == 'linux'
+        run: timeout 30s xvfb-run -a build/linux/x64/release/bundle/clinic_solution
+      - name: Run Windows native renderer
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath build/windows/x64/runner/Release/clinic_solution.exe -WindowStyle Hidden -PassThru
+          if (-not $process.WaitForExit(30000)) { $process.Kill(); throw 'Native renderer did not finish within 30 seconds' }
+          $process.Refresh()
+          if ($process.ExitCode -ne 0) { throw "Native renderer failed with exit code $($process.ExitCode)" }
+      - name: Build Phase 3 clinical native renderer
+        run: flutter build ${{ matrix.target }} --release -t tool/phase3_desktop_smoke.dart
+      - name: Run Linux clinical renderer
+        if: matrix.target == 'linux'
+        run: timeout 30s xvfb-run -a build/linux/x64/release/bundle/clinic_solution
+      - name: Run Windows clinical renderer
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath build/windows/x64/runner/Release/clinic_solution.exe -WindowStyle Hidden -PassThru
+          if (-not $process.WaitForExit(30000)) { $process.Kill(); throw 'Clinical renderer did not finish within 30 seconds' }
+          $process.Refresh()
+          if ($process.ExitCode -ne 0) { throw "Clinical renderer failed with exit code $($process.ExitCode)" }
+      - name: Build lab and care-plan native renderer
+        run: flutter build ${{ matrix.target }} --release -t tool/clinical_artifacts_desktop_smoke.dart
+      - name: Run Linux lab and care-plan renderer
+        if: matrix.target == 'linux'
+        run: timeout 40s xvfb-run -a build/linux/x64/release/bundle/clinic_solution
+      - name: Run Windows lab and care-plan renderer
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath build/windows/x64/runner/Release/clinic_solution.exe -WindowStyle Hidden -PassThru
+          if (-not $process.WaitForExit(40000)) { $process.Kill(); throw 'Lab and care-plan renderer did not finish within 40 seconds' }
+          $process.Refresh()
+          if ($process.ExitCode -ne 0) { throw "Lab and care-plan renderer failed with exit code $($process.ExitCode)" }

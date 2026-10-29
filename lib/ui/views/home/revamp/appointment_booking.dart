@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../features/appointments/presentation/operational_schedule.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/auth/app_role.dart';
@@ -65,6 +66,12 @@ class _AppointmentBookingState extends State<AppointmentBooking> {
         final session = context.watch<SessionController>();
         if (!session.can(AppFeature.appointments)) {
           return const SizedBox.shrink();
+        }
+        if (clinic.data!.operationalV2) {
+          return OperationalSchedule(
+            key: ValueKey(_clinicId),
+            clinic: clinic.data!,
+          );
         }
         return AppointmentBookingView(
           key: ValueKey(_clinicId),

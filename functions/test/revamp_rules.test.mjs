@@ -1,9 +1,32 @@
 import {readFile} from 'node:fs/promises';
 import {before, after, test} from 'node:test';
 import {initializeTestEnvironment, assertFails, assertSucceeds} from '@firebase/rules-unit-testing';
-import {doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp, writeBatch} from 'firebase/firestore';
+import {doc, deleteDoc, getDoc, getDocs, collection, query, where, orderBy, setDoc, updateDoc, serverTimestamp, Timestamp, writeBatch} from 'firebase/firestore';
 
 let env;
+test('migrated scheduling blocks direct interval writes and protects receipts',async()=>{
+  await env.withSecurityRulesDisabled(async context=>{
+    const store=context.firestore();
+    await setDoc(doc(store,'clinics/v2'),{active:true,operational_v2:true});
+    await setDoc(doc(store,'users/v2-staff'),{role:'receptionist',status:'approved',clinic_ids:['v2']});
+    await setDoc(doc(store,'clinics/v2/appointments/existing'),{patient_name:'Synthetic',phone:'',scheduled_at:Timestamp.now(),status:'booked',created_by:'v2-staff'});
+    await setDoc(doc(store,'clinics/v2/operational_receipts/private'),{actor_id:'doctor',result:{status:'booked'}});
+  });
+  const staff=db('v2-staff');
+  await assertFails(setDoc(doc(staff,'clinics/v2/appointments/new'),{patient_name:'Synthetic',phone:'',scheduled_at:Timestamp.now(),status:'booked',created_by:'v2-staff'}));
+  await assertFails(updateDoc(doc(staff,'clinics/v2/appointments/existing'),{scheduled_at:Timestamp.now()}));
+  await assertFails(updateDoc(doc(staff,'clinics/v2/appointments/existing'),{status:'confirmed'}));
+    await assertSucceeds(updateDoc(doc(staff,'clinics/v2/appointments/existing'),{status:'no_show',updated_at:serverTimestamp()}));
+    await env.withSecurityRulesDisabled(async context=>{
+      await setDoc(doc(context.firestore(),'clinics/v2/appointments/arrived'),{status:'confirmed',scheduled_at:Timestamp.now(),arrival_at:Timestamp.now(),created_by:'v2-staff'});
+      await setDoc(doc(context.firestore(),'clinics/v2/appointments/future'),{status:'booked',scheduled_at:Timestamp.fromMillis(Date.now()+86400000),created_by:'v2-staff'});
+    });
+    await assertFails(updateDoc(doc(staff,'clinics/v2/appointments/arrived'),{status:'no_show',updated_at:serverTimestamp()}));
+    await assertFails(updateDoc(doc(staff,'clinics/v2/appointments/future'),{status:'no_show',updated_at:serverTimestamp()}));
+  await assertSucceeds(updateDoc(doc(staff,'clinics/v2/appointments/existing'),{status:'cancelled',updated_at:serverTimestamp()}));
+  await assertFails(setDoc(doc(staff,'clinics/v2/operational_day_guards/today'),{revision:99}));
+  await assertFails(getDoc(doc(staff,'clinics/v2/operational_receipts/private')));
+});
 before(async () => {
   // A demo project cannot contact or mutate the production Firebase project.
   const address = process.env.FIRESTORE_EMULATOR_HOST;
@@ -46,7 +69,70 @@ test('sitting logs require atomic progress, protect private notes and forbid rew
   await assertFails(setDoc(doc(db('doctor'),`${planPath}/sitting_logs/1`),{...entry,sitting_index:1,author_id:'someone-else'}));
 });
 after(async()=>{await env?.cleanup();});
+test('reviewed lab and care copies enforce author-only drafts, separate patient sharing and protected numeric projections',async()=>{
+  const base='clinics/artifacts-rules';
+  await env.withSecurityRulesDisabled(async context=>{
+    const store=context.firestore();
+    await setDoc(doc(store,base),{active:true,clinical_artifacts_v1:true,enabled_modules:['clinical','laboratory'],share_prescriptions_with_patients:true,share_clinical_artifacts_with_patients:true});
+    for(const [uid,role] of [['artifact-doctor','doctor'],['artifact-other','doctor'],['artifact-admin','clinic_admin'],['artifact-patient','patient']])await setDoc(doc(store,`users/${uid}`),{role,status:'approved',clinic_ids:['artifacts-rules']});
+    await setDoc(doc(store,`${base}/clinical_artifacts/care`),{author_id:'artifact-doctor',patient_id:'synthetic',state:'draft',input:{verification_note:'PRIVATE SOURCE NOTE'}});
+    await setDoc(doc(store,`${base}/clinical_artifacts/care/versions/1`),{author_id:'artifact-doctor',snapshot:{record:{instructions:['Selected existing advice']}}});
+    await setDoc(doc(store,`${base}/clinical_artifact_copies/care`),{kind:'carePlan',version:1,shared:true,patient_user_id:'artifact-patient',issued_at:Timestamp.now(),record:{instructions:['Selected existing advice']}});
+    await setDoc(doc(store,`${base}/laboratory/bridge`),{record_type:'observation',clinical_artifact_id:'care',clinical_artifact_version:1,value:4,unit:'synthetic',superseded:false});
+  });
+  await assertSucceeds(getDoc(doc(db('artifact-doctor'),`${base}/clinical_artifacts/care`)));
+  await assertSucceeds(getDoc(doc(db('artifact-doctor'),`${base}/clinical_artifact_copies/care`)));
+  await assertSucceeds(getDoc(doc(db('artifact-patient'),`${base}/clinical_artifact_copies/care`)));
+  await assertSucceeds(getDocs(query(collection(db('artifact-patient'),`${base}/clinical_artifact_copies`),where('patient_user_id','==','artifact-patient'),where('shared','==',true),orderBy('issued_at','desc'))));
+  for(const uid of ['artifact-patient','artifact-admin','artifact-other']){
+    await assertFails(getDoc(doc(db(uid),`${base}/clinical_artifacts/care`)));
+    await assertFails(getDoc(doc(db(uid),`${base}/clinical_artifacts/care/versions/1`)));
+  }
+  await assertFails(setDoc(doc(db('artifact-doctor'),`${base}/clinical_artifacts/forged`),{author_id:'artifact-doctor'}));
+  await assertFails(updateDoc(doc(db('artifact-doctor'),`${base}/clinical_artifact_copies/care`),{shared:false}));
+  await assertFails(updateDoc(doc(db('artifact-doctor'),`${base}/laboratory/bridge`),{value:99}));
+  await assertFails(deleteDoc(doc(db('artifact-admin'),`${base}/laboratory/bridge`)));
+  await assertFails(setDoc(doc(db('artifact-doctor'),`${base}/laboratory/forged`),{record_type:'observation',clinical_artifact_id:'care'}));
+  await assertFails(updateDoc(doc(db('artifact-admin'),base),{clinical_artifacts_v1:false}));
+  await assertSucceeds(updateDoc(doc(db('artifact-admin'),base),{share_clinical_artifacts_with_patients:false,updated_at:serverTimestamp()}));
+  await assertSucceeds(getDocs(query(collection(db('artifact-admin'),`${base}/clinical_artifact_copies`),where('shared','==',true))));
+  await assertFails(getDoc(doc(db('artifact-patient'),`${base}/clinical_artifact_copies/care`)));
+  await assertSucceeds(updateDoc(doc(db('artifact-admin'),`${base}/clinical_artifact_copies/care`),{shared:false,updated_at:serverTimestamp()}));
+  await assertFails(updateDoc(doc(db('artifact-admin'),`${base}/clinical_artifact_copies/care`),{shared:true,updated_at:serverTimestamp()}));
+});
 const db = uid => env.authenticatedContext(uid).firestore();
+
+test('clinical V3 versions are server-only, private notes are author scoped, and patient release cannot be forged',async()=>{
+  await env.withSecurityRulesDisabled(async context=>{
+    const store=context.firestore();
+    await setDoc(doc(store,'clinics/clinical-v3'),{active:true,clinical_v3:true,share_prescriptions_with_patients:true});
+    for (const [uid,role] of [['v3-doctor','doctor'],['v3-other','doctor'],['v3-admin','admin'],['v3-patient','patient'],['v3-pharmacy','pharmacist']]) await setDoc(doc(store,`users/${uid}`),{role,status:'approved',clinic_ids:['clinical-v3']});
+    await setDoc(doc(store,'clinics/clinical-v3/clinical_encounters/rx'),{author_id:'v3-doctor',state:'signed',revision:2,version:1});
+    await setDoc(doc(store,'clinics/clinical-v3/clinical_encounters/rx/versions/1'),{author_id:'v3-doctor',snapshot:{advice:'Immutable synthetic advice'}});
+    await setDoc(doc(store,'clinics/clinical-v3/clinical_encounter_private/rx'),{author_id:'v3-doctor',body:'Private synthetic context'});
+    await setDoc(doc(store,'clinics/clinical-v3/clinical_notes/rx'),{author_id:'v3-doctor',body:'Private synthetic context'});
+    await setDoc(doc(store,'clinics/clinical-v3/prescriptions/rx'),{clinical_state:'signed',clinical_version:1,clinical_author_id:'v3-doctor',shared_with_patient:false,patient_user_id:'v3-patient',status:'pending',visit_date:Timestamp.now()});
+  });
+  const base='clinics/clinical-v3';
+  await assertSucceeds(getDoc(doc(db('v3-doctor'),`${base}/clinical_encounters/rx/versions/1`)));
+  for (const uid of ['v3-other','v3-admin','v3-patient']) {
+    await assertFails(getDoc(doc(db(uid),`${base}/clinical_encounters/rx/versions/1`)));
+    await assertFails(getDoc(doc(db(uid),`${base}/clinical_encounter_private/rx`)));
+    await assertFails(getDoc(doc(db(uid),`${base}/clinical_notes/rx`)));
+  }
+  await assertFails(setDoc(doc(db('v3-doctor'),`${base}/clinical_encounters/rx/versions/2`),{author_id:'v3-doctor'}));
+  await assertFails(setDoc(doc(db('v3-doctor'),`${base}/prescriptions/new`),{patient_id:'synthetic'}));
+  await assertFails(updateDoc(doc(db('v3-doctor'),`${base}/prescriptions/rx`),{advice:'Overwrite signed content'}));
+  await assertFails(updateDoc(doc(db('v3-admin'),`${base}/prescriptions/rx`),{shared_with_patient:true}));
+  await assertFails(getDoc(doc(db('v3-patient'),`${base}/prescriptions/rx`)));
+  await assertSucceeds(updateDoc(doc(db('v3-pharmacy'),`${base}/prescriptions/rx`),{status:'dispensed',updated_at:serverTimestamp()}));
+  await env.withSecurityRulesDisabled(context=>updateDoc(doc(context.firestore(),`${base}/prescriptions/rx`),{shared_with_patient:true}));
+  await assertSucceeds(getDoc(doc(db('v3-patient'),`${base}/prescriptions/rx`)));
+  await assertSucceeds(getDocs(query(collection(db('v3-patient'),`${base}/prescriptions`),where('patient_user_id','==','v3-patient'),where('shared_with_patient','==',true),orderBy('visit_date','desc'))));
+  await env.withSecurityRulesDisabled(context=>updateDoc(doc(context.firestore(),base),{share_prescriptions_with_patients:false}));
+  await assertFails(getDoc(doc(db('v3-patient'),`${base}/prescriptions/rx`)));
+  await assertSucceeds(updateDoc(doc(db('v3-admin'),`${base}/prescriptions/rx`),{shared_with_patient:false,updated_at:serverTimestamp()}));
+});
 
 test('private clinical notes stay hidden even when a prescription is shared',async()=>{
   await assertSucceeds(getDoc(doc(db('patient'),'clinics/a/prescriptions/shared')));

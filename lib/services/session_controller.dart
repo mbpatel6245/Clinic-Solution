@@ -37,6 +37,7 @@ class SessionController extends ChangeNotifier {
   String _displayName = '';
   String _activeClinicId = 'default-clinic';
   String _clinicName = 'Clinic';
+  String _clinicTimezone = 'Asia/Kolkata';
   Set<ClinicModule> _enabledModules = ClinicProfile.defaultModules;
   Set<ClinicModule> _clinicEnabledModules = ClinicProfile.defaultModules;
   Set<ClinicModule> _platformEnabledModules = ClinicModule.values.toSet();
@@ -45,12 +46,16 @@ class SessionController extends ChangeNotifier {
   bool _loading = true;
   bool _mustChangePassword = false;
   bool _sharePrescriptionsWithPatients = false;
+  bool _clinicalV3 = false;
+  bool _clinicalArtifactsV1 = false;
+  bool _shareClinicalArtifactsWithPatients = false;
 
   AppRole get role => _role;
   Set<AppRole> get roles => Set.unmodifiable(_roles);
   String get displayName => _displayName;
   String get activeClinicId => _activeClinicId;
   String get clinicName => _clinicName;
+  String get clinicTimezone => _clinicTimezone;
   Set<ClinicModule> get enabledModules => Set.unmodifiable(_enabledModules);
   Set<ClinicModule> get platformEnabledModules =>
       Set.unmodifiable(_platformEnabledModules);
@@ -63,6 +68,10 @@ class SessionController extends ChangeNotifier {
   bool get isLoading => _loading;
   bool get mustChangePassword => _mustChangePassword;
   bool get sharePrescriptionsWithPatients => _sharePrescriptionsWithPatients;
+  bool get clinicalV3 => _clinicalV3;
+  bool get clinicalArtifactsV1 => _clinicalArtifactsV1;
+  bool get shareClinicalArtifactsWithPatients =>
+      _shareClinicalArtifactsWithPatients;
   bool can(AppFeature feature) {
     if (_role == AppRole.patient && _activeClinicId.isEmpty) {
       return feature == AppFeature.dashboard;
@@ -193,6 +202,9 @@ class SessionController extends ChangeNotifier {
     if (_activeClinicId == allClinicsId) {
       _clinicName = 'All clinics';
       _sharePrescriptionsWithPatients = false;
+      _clinicalV3 = false;
+      _clinicalArtifactsV1 = false;
+      _shareClinicalArtifactsWithPatients = false;
       _clinicEnabledModules = ClinicModule.values.toSet();
       _refreshEffectiveModules();
       notifyListeners();
@@ -206,11 +218,20 @@ class SessionController extends ChangeNotifier {
           final data = snapshot.data();
           if (data == null) {
             _clinicName = 'Clinic';
+            _clinicTimezone = 'Asia/Kolkata';
             _clinicEnabledModules = ClinicProfile.defaultModules;
             _sharePrescriptionsWithPatients = false;
+            _clinicalV3 = false;
+            _clinicalArtifactsV1 = false;
+            _shareClinicalArtifactsWithPatients = false;
           } else {
             final clinic = ClinicProfile.fromMap(data, snapshot.id);
+            _clinicalV3 = clinic.clinicalV3;
+            _clinicalArtifactsV1 = clinic.clinicalArtifactsV1;
+            _shareClinicalArtifactsWithPatients =
+                clinic.shareClinicalArtifactsWithPatients;
             _clinicName = clinic.name;
+            _clinicTimezone = clinic.timezone;
             _clinicNames = {..._clinicNames, snapshot.id: clinic.name};
             _clinicEnabledModules = clinic.enabledModules;
             _sharePrescriptionsWithPatients =

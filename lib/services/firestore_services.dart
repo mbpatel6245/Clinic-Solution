@@ -15,6 +15,7 @@ import '../data/datasources/workflow_models.dart';
 import '../data/datasources/prescription_print_settings.dart';
 import '../data/datasources/patient_intake.dart';
 import 'auth_services.dart';
+import '../features/clinical/data/patient_prescription_stream.dart';
 
 class FirebaseFireStore with ChangeNotifier {
   FirebaseFireStore({FirebaseFirestore? firestore, AuthService? authService})
@@ -412,6 +413,7 @@ class FirebaseFireStore with ChangeNotifier {
           .map(
             (s) =>
                 s.docs
+                    .where((d) => d.data()['superseded'] != true)
                     .map((d) => LabObservation.fromMap(d.data(), d.id))
                     .toList()
                   ..sort((a, b) => b.reportedAt.compareTo(a.reportedAt)),
@@ -450,6 +452,69 @@ class FirebaseFireStore with ChangeNotifier {
   );
 
   String createPatientId() => _collection(pathPatients).doc().id;
+  Stream<PatientModel?> streamPatientProfile(String id) =>
+      _collection(pathPatients)
+          .doc(id)
+          .snapshots()
+          .map(
+            (doc) =>
+                doc.exists ? PatientModel.fromMap(doc.data()!, doc.id) : null,
+          );
+
+  Future<void> reviewPatientContactEdit({
+    required String clinicId,
+    required PatientModel patient,
+    required String phone,
+    required String address,
+    required String reason,
+  }) async {
+    final userId = _authService.currentUser?.uid;
+    if (userId == null ||
+        clinicId != _activeClinicId ||
+        patient.id.isEmpty ||
+        reason.trim().length < 5 ||
+        reason.length > 500 ||
+        address.length > 2000 ||
+        (phone.isNotEmpty && !RegExp(r'^\+[1-9]\d{5,14}$').hasMatch(phone))) {
+      throw const PatientEntryException('saveError');
+    }
+    final clinic = _db.collection('clinics').doc(clinicId);
+    final reference = clinic.collection(pathPatients).doc(patient.id);
+    final audit = clinic.collection(pathAuditLogs).doc();
+    await _db.runTransaction((tx) async {
+      if (_activeClinicId != clinicId ||
+          _authService.currentUser?.uid != userId) {
+        throw const PatientEntryException('clinicChanged');
+      }
+      final snapshot = await tx.get(reference);
+      if (_activeClinicId != clinicId ||
+          _authService.currentUser?.uid != userId) {
+        throw const PatientEntryException('clinicChanged');
+      }
+      final data = snapshot.data();
+      if (data == null ||
+          (data['phone'] ?? data['mobile'] ?? '') != patient.phone ||
+          (data['address'] ?? '') != patient.address) {
+        throw const PatientEntryException('saveError');
+      }
+      if (phone == patient.phone && address == patient.address) return;
+      tx.update(reference, {
+        'phone': phone,
+        'address': address,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      tx.set(audit, {
+        'action': 'patient_contact_review',
+        'patient_id': patient.id,
+        'actor_id': userId,
+        'reason': reason.trim(),
+        'before': {'phone': patient.phone, 'address': patient.address},
+        'after': {'phone': phone, 'address': address},
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   String createAppointmentId() => _collection(pathAppointments).doc().id;
 
   /// All entry points share this save path. IDs are allocated once by the
@@ -459,8 +524,10 @@ class FirebaseFireStore with ChangeNotifier {
     PatientEntrySubmission entry, {
     required String clinicId,
   }) async {
+    final actorId = _authService.currentUser?.uid;
     void checkScope() {
-      if (_activeClinicId != clinicId) {
+      if (_activeClinicId != clinicId ||
+          _authService.currentUser?.uid != actorId) {
         throw const PatientEntryException('clinicChanged');
       }
     }
@@ -573,7 +640,17 @@ class FirebaseFireStore with ChangeNotifier {
         return PatientEntryResult(patient, entry.action, appointment: saved);
       }
       checkScope();
-      if (!profile.exists) tx.set(patientRef, patient.toMap());
+      if (!profile.exists) {
+        tx.set(patientRef, {
+          ...patient.toMap(),
+          if (entry.careConsentRecorded)
+            'care_consent': {
+              'recorded': true,
+              'recorded_by': _authService.currentUser?.uid ?? '',
+              'recorded_at': FieldValue.serverTimestamp(),
+            },
+        });
+      }
       if (visitRef == null) return PatientEntryResult(patient, entry.action);
       final appointment = AppointmentModel(
         id: visitId,
@@ -700,25 +777,57 @@ class FirebaseFireStore with ChangeNotifier {
         });
   }
 
-  Stream<List<PrescriptionModel>> streamPatientPrescriptions(String userId) =>
-      _db
-          .collectionGroup(pathPrescriptions)
+  Stream<List<PrescriptionModel>> streamPatientPrescriptions(String userId) {
+    final auth = FirebaseAuth.instance;
+    if (userId.isEmpty || auth.currentUser?.uid != userId) {
+      return Stream.value(const []);
+    }
+    return patientPrescriptionStream(
+      userId: userId,
+      identities: auth.authStateChanges().map((user) => user?.uid),
+      access: _db.collection(pathUser).doc(userId).snapshots().map((profile) {
+        final data = profile.data() ?? {};
+        final clinics = (data['clinic_ids'] as Iterable? ?? const [])
+            .map((v) => v.toString())
+            .toSet();
+        return PatientClinicAccess(
+          clinics.isEmpty ? {'default-clinic'} : clinics,
+          approved:
+              profile.exists &&
+              (data['status'] ?? 'approved') == 'approved' &&
+              data['role'] == 'patient',
+        );
+      }),
+      sharing: (clinic) => _db
+          .collection('clinics')
+          .doc(clinic)
+          .snapshots()
+          .map(
+            (snapshot) =>
+                snapshot.exists &&
+                snapshot.data()?['active'] != false &&
+                snapshot.data()?['share_prescriptions_with_patients'] == true,
+          ),
+      records: (clinic) => _db
+          .collection('clinics')
+          .doc(clinic)
+          .collection(pathPrescriptions)
           .where('patient_user_id', isEqualTo: userId)
           .where('shared_with_patient', isEqualTo: true)
           .orderBy('visit_date', descending: true)
           .snapshots()
-          .map((snapshot) {
-            final items = snapshot.docs
+          .map(
+            (snapshot) => snapshot.docs
                 .map(
                   (doc) => PrescriptionModel.fromMap({
                     ...doc.data(),
-                    '_clinic_id': doc.reference.parent.parent?.id ?? '',
+                    '_clinic_id': clinic,
                   }, doc.id),
                 )
-                .toList();
-            items.sort((a, b) => b.visitTimestamp.compareTo(a.visitTimestamp));
-            return items;
-          });
+                .toList(),
+          ),
+    );
+  }
 
   Stream<List<ClinicProfile>> streamPublicClinics() => _db
       .collection('clinics')
@@ -860,6 +969,74 @@ class FirebaseFireStore with ChangeNotifier {
         'updated_at': FieldValue.serverTimestamp(),
       }),
     );
+  }
+
+  Future<void> recordAppointmentArrival(String id) async {
+    final clinicId = _activeClinicId, actor = _authService.currentUser?.uid;
+    if (actor == null) throw const PatientEntryException('clinicChanged');
+    final reference = _collection(pathAppointments).doc(id);
+    final audit = _collection(pathAuditLogs).doc();
+    await _db.runTransaction((tx) async {
+      final snapshot = await tx.get(reference);
+      if (_activeClinicId != clinicId ||
+          _authService.currentUser?.uid != actor) {
+        throw const PatientEntryException('clinicChanged');
+      }
+      final data = snapshot.data();
+      if (data == null ||
+          !['booked', 'pending', 'confirmed'].contains(data['status'])) {
+        throw const PatientEntryException('saveError');
+      }
+      if (data['arrival_at'] != null) return;
+      tx.update(reference, {
+        'status': 'confirmed',
+        'arrival_at': FieldValue.serverTimestamp(),
+        'arrival_by': actor,
+        'identity_checked': true,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      tx.set(audit, {
+        'action': 'appointment_arrival',
+        'appointment_id': id,
+        'actor_id': actor,
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> recordAppointmentNoShow(String id, String reason) async {
+    final clinicId = _activeClinicId, actor = _authService.currentUser?.uid;
+    if (actor == null || reason.trim().length < 5 || reason.length > 500) {
+      throw const PatientEntryException('saveError');
+    }
+    final reference = _collection(pathAppointments).doc(id),
+        audit = _collection(pathAuditLogs).doc();
+    await _db.runTransaction((tx) async {
+      final snapshot = await tx.get(reference);
+      if (_activeClinicId != clinicId ||
+          _authService.currentUser?.uid != actor) {
+        throw const PatientEntryException('clinicChanged');
+      }
+      final data = snapshot.data(), at = snapshot.data()?['scheduled_at'];
+      if (data == null ||
+          data['arrival_at'] != null ||
+          !['booked', 'pending'].contains(data['status']) ||
+          at is! Timestamp ||
+          at.toDate().isAfter(DateTime.now())) {
+        throw const PatientEntryException('saveError');
+      }
+      tx.update(reference, {
+        'status': 'no_show',
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      tx.set(audit, {
+        'action': 'appointment_no_show_review',
+        'appointment_id': id,
+        'actor_id': actor,
+        'reason': reason.trim(),
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   Future<void> removeAppointment(String id) =>
@@ -1201,13 +1378,25 @@ class FirebaseFireStore with ChangeNotifier {
   }
 
   Future<void> saveClinic(ClinicProfile clinic) async {
-    final previous = await _db.collection('clinics').doc(clinic.id).get();
+    final previous = await _db
+        .collection('clinics')
+        .doc(clinic.id)
+        .get(const GetOptions(source: Source.server));
     final previouslyShared =
         previous.data()?['share_prescriptions_with_patients'] == true;
     await _ensureUniqueClinicName(clinic.name, excludeClinicId: clinic.id);
+    // Clean up an interrupted withdrawal before enabling sharing again. The
+    // rules only permit this administrative cleanup while sharing is disabled.
+    if (clinic.shareClinicalArtifactsWithPatients &&
+        previous.data()?['share_clinical_artifacts_with_patients'] != true) {
+      await _withdrawArtifactCopies(clinic.id);
+    }
     await _saveClinicWithUniqueName(clinic);
     if (previouslyShared && !clinic.sharePrescriptionsWithPatients) {
       await _revokePatientPrescriptionSharing(clinic.id);
+    }
+    if (!clinic.shareClinicalArtifactsWithPatients) {
+      await _withdrawArtifactCopies(clinic.id);
     }
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -1219,6 +1408,25 @@ class FirebaseFireStore with ChangeNotifier {
       );
     }
     await _writeAuditToClinic(clinic.id, 'clinic.updated', clinic.id);
+  }
+
+  Future<void> _withdrawArtifactCopies(String clinicId) async {
+    final copies = await _db
+        .collection('clinics')
+        .doc(clinicId)
+        .collection('clinical_artifact_copies')
+        .where('shared', isEqualTo: true)
+        .get(const GetOptions(source: Source.server));
+    for (var offset = 0; offset < copies.docs.length; offset += 400) {
+      final batch = _db.batch();
+      for (final doc in copies.docs.skip(offset).take(400)) {
+        batch.update(doc.reference, {
+          'shared': false,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit().timeout(const Duration(seconds: 30));
+    }
   }
 
   Future<void> _revokePatientPrescriptionSharing(String clinicId) async {

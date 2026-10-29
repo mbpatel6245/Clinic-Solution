@@ -1,4 +1,7 @@
 import 'dart:typed_data';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/design/uvilo_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
@@ -33,27 +36,51 @@ class PrescriptionPreviewScreen extends StatefulWidget {
 
 class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
   late final String _clinicId;
+  String? _userId;
+  bool get _authorized =>
+      mounted &&
+      context.read<SessionController>().activeClinicId == _clinicId &&
+      context.read<FirebaseFireStore>().activeClinicId == _clinicId &&
+      (context.read<SessionController>().can(AppFeature.prescriptionList) ||
+          context.read<SessionController>().can(
+            AppFeature.createPrescription,
+          )) &&
+      (Firebase.apps.isEmpty ||
+          (_userId != null &&
+              FirebaseAuth.instance.currentUser?.uid == _userId));
   late Future<(ClinicProfile, PrescriptionPrintSettings)> _context;
   @override
   void initState() {
     super.initState();
     _clinicId = context.read<SessionController>().activeClinicId;
+    if (Firebase.apps.isNotEmpty) {
+      _userId = FirebaseAuth.instance.currentUser?.uid;
+    }
     _reload();
   }
 
   void _reload() {
     final service = context.read<FirebaseFireStore>();
     _context = () async {
-      if (service.activeClinicId != _clinicId ||
+      if (!_authorized ||
           (widget.record.clinicId.isNotEmpty &&
               widget.record.clinicId != _clinicId)) {
         throw StateError('Clinic changed.');
       }
+      if (widget.record.clinicalState == 'signed' &&
+          widget.record.clinicalPrintContext.isNotEmpty) {
+        final frozen = widget.record.clinicalPrintContext;
+        return (
+          ClinicProfile.fromMap(frozen, _clinicId),
+          PrescriptionPrintSettings.fromMap(frozen),
+        );
+      }
       final clinic = await service.streamActiveClinic().first;
-      if (service.activeClinicId != _clinicId) {
+      if (!_authorized) {
         throw StateError('Clinic changed.');
       }
       final settings = await service.getPrescriptionPrintSettings();
+      if (!_authorized) throw StateError('Clinic changed.');
       return (clinic, settings);
     }();
   }
@@ -61,7 +88,8 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     final l = RevampLabels.of(context);
-    if (context.watch<SessionController>().activeClinicId != _clinicId) {
+    context.watch<SessionController>();
+    if (!_authorized) {
       return Scaffold(
         appBar: AppBar(),
         body: Center(child: Text(l.text('clinicChanged'))),
@@ -105,7 +133,8 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
           clinic: clinic,
           settings: settings,
           onConfigure:
-              context.read<SessionController>().can(AppFeature.clinicSetup)
+              widget.record.clinicalState != 'signed' &&
+                  context.read<SessionController>().can(AppFeature.clinicSetup)
               ? () async {
                   final updated = await showDialog<PrescriptionPrintSettings>(
                     context: context,
@@ -114,8 +143,10 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
                   );
                   if (updated == null ||
                       !context.mounted ||
-                      context.read<SessionController>().activeClinicId !=
-                          _clinicId) {
+                      !_authorized ||
+                      !context.read<SessionController>().can(
+                        AppFeature.clinicSetup,
+                      )) {
                     return;
                   }
                   try {
@@ -194,96 +225,99 @@ class _PrescriptionPreviewViewState extends State<PrescriptionPreviewView> {
   @override
   Widget build(BuildContext context) {
     final l = RevampLabels.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l.text('printPreview')),
-        actions: [
-          if (widget.onConfigure != null)
-            IconButton(
-              tooltip: l.text('letterhead'),
-              onPressed: widget.onConfigure,
-              icon: const Icon(Icons.tune),
+    return Theme(
+      data: UviloTheme.light,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(l.text('printPreview')),
+          actions: [
+            if (widget.onConfigure != null)
+              IconButton(
+                tooltip: l.text('letterhead'),
+                onPressed: widget.onConfigure,
+                icon: const Icon(Icons.tune),
+              ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(l.text('reviewPrint')),
+                  DropdownButton<String>(
+                    value: _language,
+                    items: const [
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                      DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
+                      DropdownMenuItem(value: 'gu', child: Text('ગુજરાતી')),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _language = value!;
+                      _prepare();
+                      _revision++;
+                    }),
+                  ),
+                ],
+              ),
             ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(l.text('reviewPrint')),
-                DropdownButton<String>(
-                  value: _language,
-                  items: const [
-                    DropdownMenuItem(value: 'en', child: Text('English')),
-                    DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
-                    DropdownMenuItem(value: 'gu', child: Text('ગુજરાતી')),
-                  ],
-                  onChanged: (value) => setState(() {
-                    _language = value!;
-                    _prepare();
-                    _revision++;
-                  }),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: FutureBuilder<Uint8List>(
-              future: _document,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(l.text('previewError')),
-                        TextButton(
-                          onPressed: () => setState(() {
-                            _prepare();
-                            _revision++;
-                          }),
-                          child: Text(l.text('retry')),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final documentKey = ValueKey((_revision, snapshot.data));
-                if (widget.previewBuilder != null) {
-                  return widget.previewBuilder!(documentKey, snapshot.data!);
-                }
-                return PdfPreview(
-                  key: documentKey,
-                  build: (_) => Future.value(snapshot.data!),
-                  initialPageFormat: PdfPageFormat.a4,
-                  canChangePageFormat: false,
-                  canChangeOrientation: false,
-                  canDebug: false,
-                  pdfFileName:
-                      'prescription-${DateFormat('yyyyMMdd').format(widget.record.visitDate ?? widget.record.createdAt ?? DateTime.now())}.pdf',
-                  maxPageWidth: 800,
-                  onError: (_, _) =>
-                      Center(child: Text(l.text('previewError'))),
-                  onPrintError: (_, _) =>
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l.text('previewError'))),
+            Expanded(
+              child: FutureBuilder<Uint8List>(
+                future: _document,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(l.text('previewError')),
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _prepare();
+                              _revision++;
+                            }),
+                            child: Text(l.text('retry')),
+                          ),
+                        ],
                       ),
-                );
-              },
+                    );
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final documentKey = ValueKey((_revision, snapshot.data));
+                  if (widget.previewBuilder != null) {
+                    return widget.previewBuilder!(documentKey, snapshot.data!);
+                  }
+                  return PdfPreview(
+                    key: documentKey,
+                    build: (_) => Future.value(snapshot.data!),
+                    initialPageFormat: PdfPageFormat.a4,
+                    canChangePageFormat: false,
+                    canChangeOrientation: false,
+                    canDebug: false,
+                    pdfFileName:
+                        'prescription-${DateFormat('yyyyMMdd').format(widget.record.visitDate ?? widget.record.createdAt ?? DateTime.now())}.pdf',
+                    maxPageWidth: 800,
+                    onError: (_, _) =>
+                        Center(child: Text(l.text('previewError'))),
+                    onPrintError: (_, _) =>
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(l.text('previewError'))),
+                        ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

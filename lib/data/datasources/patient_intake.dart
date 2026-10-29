@@ -28,6 +28,7 @@ class PatientEntrySubmission {
     required this.appointmentId,
     this.scheduledAt,
     this.sendConfirmation = false,
+    this.careConsentRecorded = false,
   });
   final PatientModel patient;
   final bool isNew;
@@ -35,6 +36,7 @@ class PatientEntrySubmission {
   final String appointmentId;
   final DateTime? scheduledAt;
   final bool sendConfirmation;
+  final bool careConsentRecorded;
 }
 
 class PatientEntryException implements Exception {

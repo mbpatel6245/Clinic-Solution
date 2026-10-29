@@ -26,6 +26,10 @@ class ClinicProfile {
     this.closingTime = '18:00',
     this.workingDays = const {1, 2, 3, 4, 5, 6},
     this.sharePrescriptionsWithPatients = false,
+    this.operationalV2 = false,
+    this.clinicalV3 = false,
+    this.clinicalArtifactsV1 = false,
+    this.shareClinicalArtifactsWithPatients = false,
   });
 
   final String id;
@@ -41,6 +45,10 @@ class ClinicProfile {
   final String closingTime;
   final Set<int> workingDays;
   final bool sharePrescriptionsWithPatients;
+  final bool operationalV2;
+  final bool clinicalV3;
+  final bool clinicalArtifactsV1;
+  final bool shareClinicalArtifactsWithPatients;
 
   bool isOpenAt(DateTime value) {
     if (!active || !workingDays.contains(value.weekday)) return false;
@@ -79,6 +87,11 @@ class ClinicProfile {
       timezone: data['timezone']?.toString() ?? 'Asia/Kolkata',
       enabledModules: modules.isEmpty ? defaultModules : modules,
       active: data['active'] != false,
+      operationalV2: data['operational_v2'] == true,
+      clinicalV3: data['clinical_v3'] == true,
+      clinicalArtifactsV1: data['clinical_artifacts_v1'] == true,
+      shareClinicalArtifactsWithPatients:
+          data['share_clinical_artifacts_with_patients'] == true,
       openingTime: data['opening_time']?.toString() ?? '09:00',
       closingTime: data['closing_time']?.toString() ?? '18:00',
       workingDays: (data['working_days'] as Iterable? ?? [1, 2, 3, 4, 5, 6])
@@ -104,6 +117,8 @@ class ClinicProfile {
     'closing_time': closingTime,
     'working_days': workingDays.toList(),
     'share_prescriptions_with_patients': sharePrescriptionsWithPatients,
+    'share_clinical_artifacts_with_patients':
+        shareClinicalArtifactsWithPatients,
     'updated_at': FieldValue.serverTimestamp(),
   };
 
@@ -120,6 +135,7 @@ class ClinicProfile {
     String? closingTime,
     Set<int>? workingDays,
     bool? sharePrescriptionsWithPatients,
+    bool? shareClinicalArtifactsWithPatients,
   }) => ClinicProfile(
     id: id,
     name: name ?? this.name,
@@ -133,6 +149,12 @@ class ClinicProfile {
     openingTime: openingTime ?? this.openingTime,
     closingTime: closingTime ?? this.closingTime,
     workingDays: workingDays ?? this.workingDays,
+    operationalV2: operationalV2,
+    clinicalV3: clinicalV3,
+    clinicalArtifactsV1: clinicalArtifactsV1,
+    shareClinicalArtifactsWithPatients:
+        shareClinicalArtifactsWithPatients ??
+        this.shareClinicalArtifactsWithPatients,
     sharePrescriptionsWithPatients:
         sharePrescriptionsWithPatients ?? this.sharePrescriptionsWithPatients,
   );

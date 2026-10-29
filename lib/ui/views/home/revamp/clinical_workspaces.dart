@@ -11,6 +11,8 @@ import '../../../../services/session_controller.dart';
 import '../../../widgets/app_design.dart';
 import 'lab_trend_chart.dart';
 import 'treatment_plan_card.dart';
+import '../../../../core/auth/app_role.dart';
+import '../../../../features/clinical/presentation/clinical_artifact_workspace.dart';
 
 class TemplateLibraryScreen extends StatelessWidget {
   const TemplateLibraryScreen({super.key, required this.onUse});
@@ -40,12 +42,19 @@ class TemplateLibraryScreen extends StatelessWidget {
 }
 
 class TreatmentPlansScreen extends StatelessWidget {
-  const TreatmentPlansScreen({super.key, this.patient});
+  const TreatmentPlansScreen({super.key, this.patient, this.legacy = false});
+  final bool legacy;
   final PatientModel? patient;
   @override
   Widget build(BuildContext context) {
     final l = RevampLabels.of(context);
     final service = context.read<FirebaseFireStore>();
+    final session = context.watch<SessionController>();
+    if (!legacy &&
+        session.clinicalArtifactsV1 &&
+        session.roles.contains(AppRole.doctor)) {
+      return ClinicalArtifactWorkspace(care: true, patient: patient);
+    }
     return WorkflowList<TreatmentPlan>(
       title: l.text('plans'),
       hint: l.text('planHint'),
@@ -233,10 +242,17 @@ class _TreatmentPlanFormState extends State<TreatmentPlanForm> {
 }
 
 class LaboratoryScreen extends StatelessWidget {
-  const LaboratoryScreen({super.key});
+  const LaboratoryScreen({super.key, this.legacy = false});
+  final bool legacy;
   @override
   Widget build(BuildContext context) {
     final l = RevampLabels.of(context);
+    final session = context.watch<SessionController>();
+    if (!legacy &&
+        session.clinicalArtifactsV1 &&
+        session.roles.contains(AppRole.doctor)) {
+      return const ClinicalArtifactWorkspace(care: false);
+    }
     return WorkflowList<LabObservation>(
       title: l.text('laboratory'),
       hint: l.text('labHint'),

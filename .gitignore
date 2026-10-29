@@ -35,6 +35,7 @@ migrate_working_dir/
 /functions/node_modules/
 /functions/.env*
 /functions/.secret.local
+/.secret.local
 !/functions/.env.example
 
 # Symbolication related

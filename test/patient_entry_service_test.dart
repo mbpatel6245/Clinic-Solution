@@ -197,6 +197,58 @@ void main() {
     scheduledAt: slot ?? DateTime.now(),
   );
   test(
+    'arrival atomically records identity acknowledgement and does not replace an existing arrival',
+    () async {
+      const path = 'clinics/demo/appointments/arrival';
+      db.data[path] = {
+        'status': 'booked',
+        'scheduled_at': Timestamp.fromDate(DateTime(2026, 1, 1)),
+      };
+      await service.recordAppointmentArrival('arrival');
+      expect(db.data[path]!['status'], 'confirmed');
+      expect(db.data[path]!['identity_checked'], true);
+      expect(db.data[path]!['arrival_by'], 'staff');
+      final audits = db.data.keys
+          .where((k) => k.contains('/audit_logs/'))
+          .length;
+      await service.recordAppointmentArrival('arrival');
+      expect(
+        db.data.keys.where((k) => k.contains('/audit_logs/')).length,
+        audits,
+      );
+    },
+  );
+  test(
+    'no-show review preserves arrived patients and requires a reason',
+    () async {
+      const path = 'clinics/demo/appointments/no-show';
+      db.data[path] = {
+        'status': 'confirmed',
+        'arrival_at': Timestamp.now(),
+        'scheduled_at': Timestamp.fromDate(DateTime(2026, 1, 1)),
+      };
+      await expectLater(
+        service.recordAppointmentNoShow('no-show', 'Confirmed with clinic'),
+        throwsA(isA<PatientEntryException>()),
+      );
+      expect(db.data[path]!['status'], 'confirmed');
+      db.data[path] = {
+        'status': 'booked',
+        'scheduled_at': Timestamp.fromDate(DateTime(2026, 1, 1)),
+      };
+      await expectLater(
+        service.recordAppointmentNoShow('no-show', ''),
+        throwsA(isA<PatientEntryException>()),
+      );
+      await service.recordAppointmentNoShow('no-show', 'Confirmed with clinic');
+      expect(db.data[path]!['status'], 'no_show');
+      expect(
+        db.data.values.any((v) => v['reason'] == 'Confirmed with clinic'),
+        true,
+      );
+    },
+  );
+  test(
     'new patient and queue visit commit together and retries keep one visit',
     () async {
       final entry = request(PatientEntryAction.queue);

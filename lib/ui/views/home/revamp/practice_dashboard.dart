@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/auth/app_role.dart';
+import '../../../../core/auth/login_portal.dart';
+import '../../../../features/front_desk/presentation/front_desk_overview.dart';
 import '../../../../core/design/app_theme.dart';
 import '../../../../core/design/revamp_labels.dart';
 import '../../../../data/datasources/clinical_models.dart';
@@ -32,6 +34,7 @@ class _PracticeDashboardState extends State<PracticeDashboard> {
   List<AppointmentModel> _appointments = const [];
   List<ClinicInvoice> _invoices = const [];
   List<VaccinationRecord> _vaccines = const [];
+  ClinicProfile? _clinic;
   String? _scope;
 
   @override
@@ -78,6 +81,7 @@ class _PracticeDashboardState extends State<PracticeDashboard> {
       );
     }
 
+    listen('clinic', service.streamActiveClinic(), (v) => _clinic = v);
     if (session.can(AppFeature.patients)) {
       listen('patients', service.streamPatients(), (v) => _patients = v);
     }
@@ -111,6 +115,24 @@ class _PracticeDashboardState extends State<PracticeDashboard> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<SessionController>();
+    if (isFrontDeskOnly(session.roles)) {
+      if (_clinic == null || _clinic!.id != session.activeClinicId) {
+        return Center(
+          child: _errors.contains('clinic')
+              ? Text(RevampLabels.of(context).text('loadError'))
+              : const CircularProgressIndicator(),
+        );
+      }
+      return FrontDeskOverview(
+        appointments: _appointments,
+        invoices: _invoices,
+        available: AppFeature.values.where(session.can).toSet(),
+        onOpen: widget.onOpen,
+        clinic: _clinic!,
+        displayName: session.displayName,
+        unavailable: _errors.union(_pending),
+      );
+    }
     return PracticeDashboardView(
       patients: _patients,
       visits: _visits,

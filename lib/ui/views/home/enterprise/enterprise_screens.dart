@@ -1,6 +1,11 @@
+import '../../../../features/clinical/presentation/clinical_artifact_labels.dart';
+import '../../../../features/clinical/presentation/patient_clinical_copies.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../../../features/appointments/data/operational_repository.dart';
+import '../../../../features/appointments/presentation/arrival_review.dart';
+import '../../../../features/front_desk/presentation/no_show_review.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
@@ -288,6 +293,7 @@ class ClinicSetupScreen extends StatelessWidget {
     final closingTime = TextEditingController(text: clinic.closingTime);
     var active = clinic.active;
     var sharePrescriptions = clinic.sharePrescriptionsWithPatients;
+    var shareArtifacts = clinic.shareClinicalArtifactsWithPatients;
     var workingDays = <int>{...clinic.workingDays};
     final saved = await showDialog<bool>(
       context: context,
@@ -387,9 +393,20 @@ class ClinicSetupScreen extends StatelessWidget {
                     subtitle: const Text(
                       'Enables the share option when doctors save prescriptions.',
                     ),
+
                     value: sharePrescriptions,
                     onChanged: (value) =>
                         setState(() => sharePrescriptions = value),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(ArtifactLabels.of(context)('sharingSetting')),
+                    subtitle: Text(
+                      ArtifactLabels.of(context)('sharingSettingHint'),
+                    ),
+                    value: shareArtifacts,
+                    onChanged: (value) =>
+                        setState(() => shareArtifacts = value),
                   ),
                 ],
               ),
@@ -440,6 +457,7 @@ class ClinicSetupScreen extends StatelessWidget {
           closingTime: closingTime.text,
           workingDays: workingDays,
           sharePrescriptionsWithPatients: sharePrescriptions,
+          shareClinicalArtifactsWithPatients: shareArtifacts,
         ),
       );
     }
@@ -893,6 +911,8 @@ class PatientPortalScreen extends StatelessWidget {
                 },
               ),
               const SizedBox(height: AppSpacing.lg),
+              PatientClinicalCopies(key: ValueKey(userId), userId: userId),
+              const SizedBox(height: AppSpacing.lg),
               StreamBuilder<List<PrescriptionModel>>(
                 stream: service.streamPatientPrescriptions(userId),
                 builder: (context, snapshot) {
@@ -1298,8 +1318,10 @@ class ReceptionScreen extends StatelessWidget {
     super.key,
     this.onStartPrescription,
     this.onPatientEntry,
+    this.onAppointments,
   });
   final ValueChanged<PatientEntryResult>? onPatientEntry;
+  final VoidCallback? onAppointments;
 
   final void Function(PatientModel, AppointmentModel)? onStartPrescription;
 
@@ -1308,26 +1330,110 @@ class ReceptionScreen extends StatelessWidget {
     final session = context.watch<SessionController>();
     final canRegister =
         session.can(AppFeature.patients) && session.can(AppFeature.reception);
-    return StreamBuilder<List<AppointmentModel>>(
-      stream: context.read<FirebaseFireStore>().streamAppointments(),
-      builder: (context, snapshot) => QueueWorkspace(
-        items: snapshot.data ?? const [],
-        loading: !snapshot.hasData && !snapshot.hasError,
-        hasError: snapshot.hasError,
-        onRegister: canRegister ? () => _registerWalkIn(context) : null,
-        canPrescribe: onStartPrescription != null,
-        onAction: (item, action) => _handleQueueAction(context, item, action),
-      ),
+    return StreamBuilder<ClinicProfile>(
+      stream: context.read<FirebaseFireStore>().streamActiveClinic(),
+      builder: (context, clinic) {
+        if (!clinic.hasData) {
+          return Center(
+            child: clinic.hasError
+                ? Text(RevampLabels.of(context).text('loadError'))
+                : const CircularProgressIndicator(),
+          );
+        }
+        if (clinic.data!.id != session.activeClinicId) {
+          return const SizedBox.shrink();
+        }
+        return StreamBuilder<List<AppointmentModel>>(
+          stream: context.read<FirebaseFireStore>().streamAppointments(),
+          builder: (context, snapshot) => QueueWorkspace(
+            clinic: clinic.data!,
+            onAppointments: onAppointments,
+            onReviewedArrival: (item) => _handleQueueAction(
+              context,
+              item,
+              'confirmed',
+              arrivalReviewed: true,
+            ),
+            items: snapshot.data ?? const [],
+            loading: !snapshot.hasData && !snapshot.hasError,
+            hasError: snapshot.hasError,
+            onRegister: canRegister ? () => _registerWalkIn(context) : null,
+            canPrescribe: onStartPrescription != null,
+            onAction: (item, action) =>
+                _handleQueueAction(context, item, action),
+          ),
+        );
+      },
     );
   }
 
   Future<void> _handleQueueAction(
     BuildContext context,
     AppointmentModel appointment,
-    String action,
-  ) async {
+    String action, {
+    bool arrivalReviewed = false,
+  }) async {
     final service = context.read<FirebaseFireStore>();
+    final actorId = FirebaseAuth.instance.currentUser?.uid;
+    final clinicId = context.read<SessionController>().activeClinicId;
+    if (action == 'no_show') {
+      final reason = await reviewNoShow(
+        context,
+        changes: context.read<SessionController>(),
+        authorized: () =>
+            FirebaseAuth.instance.currentUser?.uid == actorId &&
+            service.activeClinicId == clinicId,
+      );
+      if (reason == null ||
+          !context.mounted ||
+          FirebaseAuth.instance.currentUser?.uid != actorId ||
+          service.activeClinicId != clinicId) {
+        return;
+      }
+      await service.recordAppointmentNoShow(appointment.id, reason);
+      return;
+    }
     if (action != 'prescribe') {
+      if (action == 'confirmed') {
+        if ((!arrivalReviewed &&
+                !await reviewArrival(
+                  context,
+                  appointment,
+                  changes: context.read<SessionController>(),
+                  authorized: () =>
+                      FirebaseAuth.instance.currentUser?.uid == actorId &&
+                      service.activeClinicId == clinicId,
+                )) ||
+            !context.mounted) {
+          return;
+        }
+        final clinic = await service.streamActiveClinic().first;
+        if (!context.mounted ||
+            FirebaseAuth.instance.currentUser?.uid != actorId ||
+            clinic.id != clinicId ||
+            context.read<SessionController>().activeClinicId != clinic.id) {
+          return;
+        }
+        if (clinic.operationalV2) {
+          final repository = FirebaseOperationalRepository(clinic.id);
+          try {
+            await repository.command({
+              'kind': 'checkIn',
+              'operationId': repository.newOperationId(),
+              'doctorId': appointment.practitionerId,
+              'appointmentId': appointment.id,
+              'start': appointment.scheduledAt.toUtc().toIso8601String(),
+              'identityChecked': true,
+              'arrivalConsent': true,
+            });
+          } finally {
+            repository.close();
+          }
+          return;
+        }
+        await service.recordAppointmentArrival(appointment.id);
+        return;
+      }
       await service.updateAppointmentStatus(appointment.id, action);
       return;
     }
